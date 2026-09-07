@@ -54,6 +54,15 @@ export default async function KlantLayout({
         {getGroepNaam(klant.groep)}
         {klant.fase ? ` · fase: ${klant.fase}` : ""}
       </p>
+      {klant.fase.trim().toLowerCase() === "stil" && (
+        <div className="kader let" style={{ marginBottom: 22 }}>
+          <h3>Deze klant staat stil</h3>
+          <p>
+            {klant.naam} heeft in KLANTEN.md de fase &quot;stil&quot; — er loopt momenteel geen
+            actief traject. Wat hieronder staat is de laatste stand, niet noodzakelijk actueel.
+          </p>
+        </div>
+      )}
       <Tabs klantSlug={klant.slug} />
       {children}
     </div>
