@@ -307,3 +307,258 @@ main {
   font-size: 0.85rem;
   margin-bottom: 1rem;
 }
+
+/* ---- Signalen-tab: dichtgeklapte kaarten per signaal ---- */
+
+.signalen-lijst {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 900px;
+}
+
+.signaal-kaart {
+  background: var(--bg-paneel);
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+  padding: 0;
+}
+
+.signaal-kaart > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.85rem 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.signaal-kaart > summary::-webkit-details-marker {
+  display: none;
+}
+
+.signaal-kaart[open] > summary {
+  border-bottom: 1px solid var(--rand);
+}
+
+.signaal-nr {
+  color: var(--tekst-zwak);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.signaal-titel {
+  font-weight: 600;
+  flex: 1;
+  min-width: 200px;
+}
+
+.signaal-pillen {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.pil {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--tekst-zacht);
+  white-space: nowrap;
+}
+
+.pil-urgentie-hoog {
+  background: var(--status-bevinding-bg);
+  color: var(--status-bevinding-fg);
+}
+.pil-urgentie-middel {
+  background: var(--status-bezig-bg);
+  color: var(--status-bezig-fg);
+}
+.pil-urgentie-laag {
+  background: var(--status-klaar-bg);
+  color: var(--status-klaar-fg);
+}
+
+.signaal-inhoud {
+  padding: 1rem 1.1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.signaal-blok {
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.signaal-blok code {
+  background: var(--bg-hover);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85em;
+}
+
+.signaal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .signaal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.signaal-veld-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--tekst-zwak);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.2rem;
+}
+
+.signaal-meta {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--tekst-zacht);
+  border-top: 1px solid var(--rand);
+  padding-top: 0.7rem;
+}
+
+/* ---- Roadmap-tab: tabel per sectie ---- */
+
+.roadmap-secties {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.roadmap-sectie h2 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.tabel-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+  background: var(--bg-paneel);
+}
+
+.roadmap-tabel {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.roadmap-tabel th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--tekst-zwak);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--rand);
+  position: sticky;
+  top: 0;
+  background: var(--bg-paneel);
+}
+
+.roadmap-tabel td {
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--rand);
+  vertical-align: top;
+}
+
+.roadmap-tabel tr:last-child td {
+  border-bottom: none;
+}
+
+.roadmap-tabel .col-notities {
+  white-space: normal;
+  min-width: 220px;
+  color: var(--tekst-zacht);
+}
+
+.roadmap-tabel .col-pagina {
+  white-space: normal;
+  min-width: 220px;
+}
+
+.roadmap-tabel .col-nr {
+  color: var(--tekst-zwak);
+  font-variant-numeric: tabular-nums;
+}
+
+.roadmap-tabel .col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pil-index {
+  background: var(--status-klaar-bg);
+  color: var(--status-klaar-fg);
+}
+.pil-noindex {
+  background: var(--status-bevinding-bg);
+  color: var(--status-bevinding-fg);
+}
+
+/* ---- Meta-tool-tab: META-controles per pagina ---- */
+
+.meta-checks {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.meta-checks li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.meta-checks .vink {
+  flex: none;
+  width: 1.1rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.meta-checks li.ok .vink {
+  color: var(--status-klaar-fg);
+}
+
+.meta-checks li.nee .vink {
+  color: var(--status-bevinding-fg);
+}
+
+.meta-checks em {
+  font-style: normal;
+  color: var(--tekst-zacht);
+  margin-left: 0.35rem;
+}
+
+.meta-checks .code {
+  margin-left: auto;
+  flex: none;
+  font-size: 0.72rem;
+  color: var(--tekst-zwak);
+  font-variant-numeric: tabular-nums;
+}

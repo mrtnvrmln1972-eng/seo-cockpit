@@ -4,14 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /**
- * De vaste tabbalk per klant: Roadmap, Issues, Kansen, Meta-tool. Elke tab
- * is een eigen route onder /klant/[klantslug]/... — zie CLAUDE.md/README.md
- * voor waar de volgende agents hun tabblad bouwen.
+ * De vaste tabbalk per klant: Roadmap, Signalen, Meta-tool. Elke tab is een
+ * eigen route onder /klant/[klantslug]/... — zie CLAUDE.md/README.md voor
+ * waar de volgende agents hun tabblad bouwen.
+ *
+ * Oorspronkelijk vier tabs (Roadmap, Issues, Kansen, Meta-tool), zoals de
+ * artifact-specificatie beschrijft. Issues en Kansen zijn samengevoegd tot
+ * één "Signalen"-tab omdat de echte, actuele signalen.md-bestanden van live
+ * klanten geen "## Issues"/"## Kansen"-secties meer hebben — zie de
+ * doc-comment in app/klant/[klantslug]/signalen/page.tsx en CLAUDE.md.
  */
 const TABS = [
   { segment: "roadmap", label: "Roadmap" },
-  { segment: "issues", label: "Issues" },
-  { segment: "kansen", label: "Kansen" },
+  { segment: "signalen", label: "Signalen" },
   { segment: "meta", label: "Meta-tool" },
 ] as const;
 

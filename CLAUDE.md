@@ -21,8 +21,21 @@ verzinnen dat er "logisch" uitziet.
 Kernpunten uit die specificatie die relevant zijn voor elke ontwikkelaar/agent
 die hierop verder bouwt:
 
-- **Vier tabbladen, één klant tegelijk**: Roadmap, Issues, Kansen, Meta-tool.
-  Elk tabblad is een eigen route onder `/klant/[klantslug]/...`.
+- **Drie tabbladen, één klant tegelijk**: Roadmap, Signalen, Meta-tool. Elk
+  tabblad is een eigen route onder `/klant/[klantslug]/...`. De specificatie
+  beschrijft oorspronkelijk vier tabs (Roadmap, Issues, Kansen, Meta-tool,
+  met Issues/Kansen elk hun eigen `## Issues`/`## Kansen`-sectie in
+  signalen.md). **Dat klopt niet meer met de echte, actuele dossierdata**:
+  gecontroleerd tegen de signalen.md van twee live klanten (Nationaal
+  Oogcentrum en Eerste Kamer Badkamers, beide bijgewerkt begin september
+  2026) bevat geen van beide bestanden nog die koppen — er is één kop
+  "# Wat mij is opgevallen" met één ongesplitste tabel. Bij de oude
+  Issues/Kansen-splitsing zou dat voor deze klanten een lege tab opleveren.
+  Daarom is er nu één "Signalen"-tab die het werkelijke, huidige
+  bestandsformaat volgt (zie de doc-comment in
+  `app/klant/[klantslug]/signalen/page.tsx`). **Bouw nieuwe functionaliteit
+  op dit werkelijke formaat, niet op de Issues/Kansen-splitsing uit de
+  oorspronkelijke specificatie.**
 - **Dossierbestanden zijn markdown met vaste Nederlandse koppen/kolomnamen**
   (werklijst.md, roadmap.md, signalen.md, meta.md, etc.) — zie `lib/markdown.ts`
   voor de parsers die deze conventies volgen (tabellen matchen op
@@ -83,11 +96,18 @@ Concreet betekent dit:
   zichtbaar op elke pagina.
 - `app/_components/Tabs.tsx` + `app/klant/[klantslug]/layout.tsx` — de
   tabbalk boven elk klantdossier.
-- `app/klant/[klantslug]/{roadmap,issues,kansen,meta}/page.tsx` — de vier
-  tabblad-routes. Op het moment van dit fundament zijn dit nog lege
-  placeholder-pagina's ("wordt gebouwd") — dit is waar losse agents/PR's per
-  tabblad op verder bouwen, elk in zijn eigen route-map, zonder dat ze de
-  routing, navigatie of Drive-laag zelf hoeven te verzinnen.
+- `app/klant/[klantslug]/{roadmap,signalen,meta}/page.tsx` — de drie
+  tabblad-routes, elk in zijn eigen route-map zonder dat ze de routing,
+  navigatie of Drive-laag zelf hoeven te verzinnen. Alle drie lezen hun
+  dossierbestand via `lib/dossier.ts` en zijn gebouwd tegen echte,
+  actuele Drive-data van live klanten (niet alleen tegen de specificatie).
+- `lib/meta.ts` — de META-02 t/m META-15-controles (pixelbreedte volgens
+  Google's zoekresultaatvenster, zoekwoordpositie, leestekens), 1:1 geport
+  uit de oude artifact. Dit zijn objectieve, mechanische controles — geen
+  nieuwe eigen beoordeling — dus in lijn met "toont, oordeelt nooit"
+  hierboven. Bewust niet geport: de klantstem-toets en het
+  doorzetten-naar-de-site-mechanisme (die hebben klantstem.md/toegang.md
+  en een schrijf-pad nodig die dit project nog niet heeft).
 
 Zie `README.md` voor de niet-technische installatiestappen die Maarten zelf
 moet zetten (service-account aanmaken, map delen, omgevingsvariabelen in

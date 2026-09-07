@@ -170,6 +170,45 @@ export function tabelUitSectie(
   return target.rows.map((rij) => rijNaarObject(target.headers, rij));
 }
 
+/**
+ * Splitst een bestand in al zijn `## Kop`-secties, in volgorde, elk met de
+ * bijbehorende koptekst en tekstinhoud. Gebruikt door de Roadmap-tab om
+ * per `##`-sectie (bijv. "Homepage en hoofdthema's" naast "Lensimplantatie")
+ * een eigen paginagroep te tonen, terwijl alleTabelRijen() zelf alle rijen
+ * plat door elkaar zou teruggeven (spec §3.3, bug-fix §6.4).
+ */
+export function alleSecties(md: string): { kop: string; inhoud: string }[] {
+  const out: { kop: string; inhoud: string }[] = [];
+  const koppen = [...md.matchAll(/^##\s+(.+?)\s*$/gm)];
+  for (let i = 0; i < koppen.length; i++) {
+    const kop = koppen[i][1].trim();
+    const start = (koppen[i].index ?? 0) + koppen[i][0].length;
+    const eind = i + 1 < koppen.length ? koppen[i + 1].index : md.length;
+    out.push({ kop, inhoud: md.slice(start, eind).trim() });
+  }
+  return out;
+}
+
+/**
+ * Rendert de inhoud van één tabelcel naar veilige, beperkte HTML. De
+ * dossierbestanden gebruiken bewust een kleine, vaste opmaakset binnen
+ * cellen: `**vet**`, inline `` `code` `` en letterlijke `<br>`-tags voor
+ * regelafbreking binnen één cel (bevestigd door de echte signalen.md- en
+ * roadmap.md-bestanden in Drive). Alle andere tekst wordt HTML-geëscaped,
+ * dus dit is geen generieke markdown-renderer — precies genoeg voor deze
+ * vaste opmaakset, niets meer.
+ */
+export function renderCel(tekst: string): string {
+  let out = tekst
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  out = out.replace(/&lt;br&gt;/g, "<br />");
+  out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  return out;
+}
+
 /** Haalt een markdown-link `[tekst](url)` uit een cel, of de kale tekst als er geen link is. */
 export function urlUitCel(cel: string): { tekst: string; url: string | null } {
   const link = /^\[(.*)\]\((.*)\)$/.exec(cel.trim());
