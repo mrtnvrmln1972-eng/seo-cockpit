@@ -1,0 +1,309 @@
+@import "tailwindcss";
+
+/*
+  Licht thema, bewust geen dark mode (spec: "rustig en leesbaar", geen
+  paginabrede tekstmuren, duidelijke koppen — zie CLAUDE.md).
+*/
+:root {
+  --bg: #f7f7f5;
+  --bg-paneel: #ffffff;
+  --bg-hover: #f0f0ee;
+  --rand: #e3e3df;
+  --tekst: #24211c;
+  --tekst-zacht: #6b6a63;
+  --tekst-zwak: #9a988f;
+  --accent: #2f6f5e;
+  --accent-zacht: #e6efec;
+  --link: #1f5f8b;
+
+  --status-open-bg: #eef2f6;
+  --status-open-fg: #35597a;
+  --status-bezig-bg: #fdf3e2;
+  --status-bezig-fg: #93601a;
+  --status-klant-bg: #f1ebf7;
+  --status-klant-fg: #6b3fa0;
+  --status-developer-bg: #e9f0fb;
+  --status-developer-fg: #2c5aa0;
+  --status-klaar-bg: #e9f5ee;
+  --status-klaar-fg: #1f7a4d;
+  --status-vervallen-bg: #f3f0ee;
+  --status-vervallen-fg: #8a8578;
+  --status-later-bg: #f5f0e6;
+  --status-later-fg: #8a6a2c;
+  --status-bevinding-bg: #fdecec;
+  --status-bevinding-fg: #a13a3a;
+  --status-onbekend-bg: #f0f0ee;
+  --status-onbekend-fg: #6b6a63;
+
+  --font-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-paneel: var(--bg-paneel);
+  --color-tekst: var(--tekst);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--tekst);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  color: var(--tekst);
+  line-height: 1.3;
+}
+
+/* ---- Applicatie-shell: band bovenaan, sidebar links, hoofdinhoud ---- */
+
+.band {
+  border-bottom: 1px solid var(--rand);
+  background: var(--bg-paneel);
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.band-titel {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.shell {
+  display: flex;
+  min-height: calc(100vh - 49px);
+}
+
+.nav {
+  width: 260px;
+  flex: none;
+  border-right: 1px solid var(--rand);
+  background: var(--bg-paneel);
+  padding: 1rem 0.75rem;
+  overflow-y: auto;
+}
+
+.nav-groep {
+  margin-bottom: 1.25rem;
+}
+
+.nav-groep-titel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tekst-zwak);
+  padding: 0 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.nav-klant {
+  display: block;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  color: var(--tekst);
+  font-size: 0.88rem;
+}
+
+.nav-klant:hover {
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+.nav-klant.actief {
+  background: var(--accent-zacht);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-leeg {
+  padding: 0 0.5rem;
+  color: var(--tekst-zwak);
+  font-size: 0.85rem;
+}
+
+main {
+  flex: 1;
+  min-width: 0;
+  padding: 1.5rem 2rem;
+}
+
+/* ---- Tabbalk per klant ---- */
+
+.tabbalk {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--rand);
+  margin-bottom: 1.5rem;
+}
+
+.tab {
+  padding: 0.55rem 0.9rem;
+  font-size: 0.88rem;
+  color: var(--tekst-zacht);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--tekst);
+  text-decoration: none;
+}
+
+.tab.actief {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.klant-kop {
+  margin-bottom: 0.9rem;
+}
+
+.klant-kop h1 {
+  font-size: 1.25rem;
+}
+
+.klant-kop .groep-label {
+  color: var(--tekst-zwak);
+  font-size: 0.8rem;
+}
+
+/* ---- Statusbadges (§2.3 statuswaarden) ---- */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.p-open {
+  background: var(--status-open-bg);
+  color: var(--status-open-fg);
+}
+.p-bezig {
+  background: var(--status-bezig-bg);
+  color: var(--status-bezig-fg);
+}
+.p-klant {
+  background: var(--status-klant-bg);
+  color: var(--status-klant-fg);
+}
+.p-developer {
+  background: var(--status-developer-bg);
+  color: var(--status-developer-fg);
+}
+.p-klaar {
+  background: var(--status-klaar-bg);
+  color: var(--status-klaar-fg);
+}
+.p-vervallen {
+  background: var(--status-vervallen-bg);
+  color: var(--status-vervallen-fg);
+}
+.p-later {
+  background: var(--status-later-bg);
+  color: var(--status-later-fg);
+}
+.p-bevinding {
+  background: var(--status-bevinding-bg);
+  color: var(--status-bevinding-fg);
+}
+.p-onbekend {
+  background: var(--status-onbekend-bg);
+  color: var(--status-onbekend-fg);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+.dot-open {
+  background: var(--status-open-fg);
+}
+.dot-bezig {
+  background: var(--status-bezig-fg);
+}
+.dot-klant {
+  background: var(--status-klant-fg);
+}
+.dot-developer {
+  background: var(--status-developer-fg);
+}
+.dot-klaar {
+  background: var(--status-klaar-fg);
+}
+.dot-vervallen {
+  background: var(--status-vervallen-fg);
+}
+.dot-later {
+  background: var(--status-later-fg);
+}
+.dot-bevinding {
+  background: var(--status-bevinding-fg);
+}
+.dot-onbekend {
+  background: var(--status-onbekend-fg);
+}
+
+/* ---- Generieke content-panelen ---- */
+
+.paneel {
+  background: var(--bg-paneel);
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  max-width: 720px;
+}
+
+.placeholder {
+  color: var(--tekst-zacht);
+  font-size: 0.95rem;
+}
+
+.foutbanner {
+  background: #fdecec;
+  border: 1px solid #f1c3c3;
+  color: #8a2f2f;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
