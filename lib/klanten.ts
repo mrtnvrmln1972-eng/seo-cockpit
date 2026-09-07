@@ -7,7 +7,7 @@ import {
   readFileContent,
   type DriveFileRef,
 } from "./drive";
-import { sectie } from "./markdown";
+import { tableWith } from "./markdown";
 
 /**
  * lib/klanten.ts — leest KLANTEN.md (de root-index in de Drive-map
@@ -16,13 +16,12 @@ import { sectie } from "./markdown";
  * Spec §2.2: bouwKlanten() in de bestaande artifact combineert de
  * indexmarkdown met de daadwerkelijk in Drive gevonden klantmappen.
  *
- * Let op (spec, open vraag §10.7): het exacte regelformaat van KLANTEN.md
- * (bullet-lijst per groep, of een tabel) kon niet met zekerheid uit de
- * bestaande broncode worden afgeleid. Deze parser accepteert daarom zowel
- * "- Klantnaam"-bullets als de eerste kolom van een markdown-tabelrij onder
- * elke groepskop, zodat hij niet meteen breekt zodra het echte bestand
- * bekeken kan worden. Pas dit aan zodra het werkelijke format van
- * Maartens KLANTEN.md bevestigd is.
+ * Echte KLANTEN.md (bevestigd tegen Maartens bestand, 07-09-2026) is GEEN
+ * bullet-lijst per groep, maar één platte tabel onder "# Klantenlijst" met
+ * de kolommen Groep | Klant | Domein | Fase, waarbij Groep de waarde
+ * "eigen", "mc" of "lead" bevat. tableWith() vindt die ene tabel op
+ * koptekst-inhoud; de Groep-kolom bepaalt de indeling, niet een aparte
+ * sectiekop per groep.
  */
 
 export type GroepId = "eigen" | "lead" | "mc";
@@ -31,6 +30,9 @@ export interface Klant {
   naam: string;
   slug: string;
   groep: GroepId;
+  domein: string;
+  /** Fase-waarde uit KLANTEN.md (nieuw/onboarding/aanval/lopend/stil/lead/eigen site), zoals ze daar letterlijk staat. */
+  fase: string;
   /** Drive-map-id van de klantmap, of null als er (nog) geen map bij hoort. */
   mapId: string | null;
 }
@@ -69,38 +71,41 @@ function cleanCellText(tekst: string): string {
   return (link ? link[1] : tekst).trim();
 }
 
-function namenUitSectie(md: string, kop: string): string[] {
-  const sec = sectie(md, kop);
-  if (!sec) return [];
-  const namen: string[] = [];
-  for (const regel of sec.split(/\r?\n/)) {
-    const trimmed = regel.trim();
-    if (!trimmed) continue;
+interface IndexRij {
+  groep: GroepId;
+  naam: string;
+  domein: string;
+  fase: string;
+}
 
-    const bullet = /^[-*]\s+(.+)$/.exec(trimmed);
-    if (bullet) {
-      namen.push(cleanCellText(bullet[1]));
-      continue;
-    }
+/** Leest de ene Groep/Klant/Domein/Fase-tabel uit KLANTEN.md, in bestandsvolgorde. */
+function rijenUitIndex(md: string): IndexRij[] {
+  const tabel = tableWith(md, "klant");
+  if (!tabel) return [];
 
-    if (trimmed.startsWith("|")) {
-      const cellen = trimmed
-        .split("|")
-        .map((c) => c.trim())
-        .filter((c) => c.length > 0);
-      const eersteCel = cellen[0];
-      if (
-        eersteCel &&
-        !/^:?-{2,}:?$/.test(eersteCel) &&
-        !["naam", "klant", "klantnaam"].includes(eersteCel.toLowerCase())
-      ) {
-        namen.push(cleanCellText(eersteCel));
-      }
-      continue;
-    }
+  const kolom = (naam: string) =>
+    tabel.headers.findIndex((h) => h.trim().toLowerCase() === naam);
+  const idxGroep = kolom("groep");
+  const idxKlant = kolom("klant");
+  const idxDomein = kolom("domein");
+  const idxFase = kolom("fase");
+  if (idxGroep === -1 || idxKlant === -1) return [];
+
+  const out: IndexRij[] = [];
+  for (const rij of tabel.rows) {
+    const groepRuw = (rij[idxGroep] ?? "").trim().toLowerCase();
+    const naam = cleanCellText(rij[idxKlant] ?? "");
+    if (!naam) continue;
+    const groep = GROEPEN.find((g) => g.id === groepRuw)?.id;
+    if (!groep) continue;
+    out.push({
+      groep,
+      naam,
+      domein: idxDomein !== -1 ? (rij[idxDomein] ?? "").trim() : "",
+      fase: idxFase !== -1 ? (rij[idxFase] ?? "").trim() : "",
+    });
   }
-  // Lege regels/duplicaten opruimen, volgorde behouden.
-  return [...new Set(namen.filter(Boolean))];
+  return out;
 }
 
 let cache: { at: number; groepen: KlantGroep[] } | null = null;
@@ -124,14 +129,18 @@ export async function getKlantGroepen(): Promise<KlantGroep[]> {
   const mapPerNaam = new Map<string, DriveFileRef>();
   for (const m of mappen) mapPerNaam.set(m.name, m);
 
+  const rijen = rijenUitIndex(indexMd);
   const groepen: KlantGroep[] = GROEPEN.map((g) => {
-    const namen = namenUitSectie(indexMd, g.naam);
-    const klanten: Klant[] = namen.map((naam) => ({
-      naam,
-      slug: slugify(naam),
-      groep: g.id,
-      mapId: mapPerNaam.get(naam)?.id ?? null,
-    }));
+    const klanten: Klant[] = rijen
+      .filter((r) => r.groep === g.id)
+      .map((r) => ({
+        naam: r.naam,
+        slug: slugify(r.naam),
+        groep: g.id,
+        domein: r.domein,
+        fase: r.fase,
+        mapId: mapPerNaam.get(r.naam)?.id ?? null,
+      }));
     return { id: g.id, naam: g.naam, klanten };
   });
 
