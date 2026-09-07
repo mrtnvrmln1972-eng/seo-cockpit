@@ -3,8 +3,8 @@ export default function Home() {
     <div className="paneel">
       <h2 style={{ marginBottom: "0.5rem" }}>Welkom</h2>
       <p className="placeholder">
-        Kies links een klant om het dossier te openen. Elke klant heeft vier
-        tabbladen: Roadmap, Issues, Kansen en Meta-tool.
+        Kies links een klant om het dossier te openen. Elke klant heeft drie
+        tabbladen: Roadmap, Signalen en Meta-tool.
       </p>
     </div>
   );
