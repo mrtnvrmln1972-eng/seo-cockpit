@@ -33,6 +33,7 @@ export default async function Home() {
   const stil = eigen.filter((k) => k.fase.trim().toLowerCase() === "stil").length;
   const eigenActief = eigen.length - stil;
   const metDossier = [...eigen, ...mc, ...lead].filter((k) => k.mapId !== null).length;
+  const zonderDossier = eigen.filter((k) => k.mapId === null);
 
   return (
     <div>
@@ -63,6 +64,18 @@ export default async function Home() {
           <span>Met dossier in Drive</span>
         </div>
       </div>
+
+      {zonderDossier.length > 0 && (
+        <div className="kader let">
+          <h3>Nog zonder dossier in Drive</h3>
+          <p>
+            {zonderDossier.map((k) => k.naam).join(", ")} staa
+            {zonderDossier.length === 1 ? "t" : "n"} in KLANTEN.md, maar heb
+            {zonderDossier.length === 1 ? "t" : "ben"} (nog) geen eigen map in de Drive-map
+            &quot;Pingwin Klanten&quot; — hun tabbladen blijven leeg tot die map er is.
+          </p>
+        </div>
+      )}
 
       <div className="kader">
         <h3>Hoe je hiermee werkt</h3>

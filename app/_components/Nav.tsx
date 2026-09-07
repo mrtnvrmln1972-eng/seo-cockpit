@@ -39,7 +39,6 @@ export default async function Nav() {
       <NavZoek />
 
       <Link href="/" className="navlink">
-        <span className="stip" />
         Overzicht
       </Link>
 

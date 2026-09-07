@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getKlantBySlug } from "@/lib/klanten";
 import { leesDossierBestand } from "@/lib/dossier";
-import { alleTabelRijen, renderCel } from "@/lib/markdown";
+import { alleTabelRijen, alleSecties, parseTables, renderCel } from "@/lib/markdown";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,23 @@ export const dynamic = "force-dynamic";
  * signaal, met de details achter een uitklapper) — hier met het native
  * <details>-element in plaats van de JS-toggle uit de artifact, zodat dit
  * tabblad zonder eigen client-state werkt.
+ *
+ * NIEUW ONTDEKT (07-09-2026, bij het bouwen van deze vormgeving): er zijn
+ * inmiddels minstens DRIE verschillende signalen.md-vormen tegelijk live in
+ * Drive. Naast de bovenstaande ongesplitste vorm bestaat bij Bogard weer een
+ * eigen "## Issues"/"## Kansen"-indeling (met andere kolommen dan de
+ * oorspronkelijke specificatie: Issues = Type/Aantal/URL's, Kansen =
+ * Pagina/Cijfer/Bron/Periode/Drempel geraakt) en bij Kamsteeg een derde vorm
+ * ("## Issues" + "## Signalen" met een Tier-kolom uit een losse scoring-
+ * engine). Geen van deze drie is nog in dit tabblad als eigen weergave
+ * gebouwd — dat zou drie keer aannames doen over een vorm die blijkens de
+ * bestanden zelf ("wordt bij elke ronde vervangen") nog in beweging is.
+ * In plaats daarvan valt dit tabblad terug op een generieke weergave: als de
+ * bekende Signaal-tabel niet gevonden wordt, toont het gewoon alle secties
+ * en tabellen die er wél staan, met hun eigen koppen en kolomnamen, zonder
+ * daar een eigen structuur op te leggen ("een dashboard mag tonen, nooit
+ * oordelen"). Dat is bewust een vangnet, geen oplossing — welke vorm de
+ * norm wordt is een vraag voor Maarten, niet iets om zelf te verzinnen.
  */
 export default async function SignalenPagina({
   params,
@@ -72,11 +89,84 @@ export default async function SignalenPagina({
   const rijen = alleTabelRijen(bestand.content, "Signaal");
 
   if (rijen.length === 0) {
+    // Vangnet voor de andere signalen.md-vormen (zie doc-comment hierboven):
+    // toon gewoon elke sectie en tabel die er staat, generiek, in plaats van
+    // een misleidende "niets gevonden"-melding terwijl er wel degelijk data
+    // in het bestand staat.
+    const secties = alleSecties(bestand.content).map((sec) => ({
+      ...sec,
+      tabellen: parseTables(sec.inhoud),
+    }));
+    const heeftIets = secties.some((s) => s.tabellen.length > 0 || s.inhoud.trim().length > 0);
+
+    if (!heeftIets) {
+      return (
+        <div className="paneel">
+          <p className="placeholder">
+            signalen.md staat er, maar er is geen signalentabel in gevonden.
+          </p>
+        </div>
+      );
+    }
+
     return (
-      <div className="paneel">
-        <p className="placeholder">
-          signalen.md staat er, maar er is geen signalentabel in gevonden.
-        </p>
+      <div>
+        <div className="kader">
+          <h3>Andere indeling</h3>
+          <p>
+            Dit dossier gebruikt (nog) niet de vaste Signalen-tabel die dit tabblad kent — het
+            toont daarom hieronder gewoon de secties en tabellen zoals ze in signalen.md staan,
+            zonder eigen structuur erop te leggen.
+          </p>
+        </div>
+        {secties.map((sec) => (
+          <div className="blok kaart" key={sec.kop}>
+            <div className="blokkop" style={{ cursor: "default" }}>
+              <h3>{sec.kop}</h3>
+            </div>
+            <div className="blokbody">
+              {sec.tabellen.length > 0 ? (
+                sec.tabellen.map((tabel, ti) => (
+                  <div className="tabel-scroll" key={ti} style={{ marginBottom: 14 }}>
+                    <table className="matrix">
+                      <thead>
+                        <tr>
+                          {tabel.headers.map((h, hi) => (
+                            <th key={hi}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tabel.rows.map((rij, ri) => (
+                          <tr key={ri}>
+                            {rij.map((cel, ci) => (
+                              <td
+                                key={ci}
+                                dangerouslySetInnerHTML={{ __html: renderCel(cel) }}
+                              />
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))
+              ) : (
+                <div className="doc">
+                  {sec.inhoud
+                    .split(/\n\s*\n/)
+                    .filter((alinea) => alinea.trim().length > 0)
+                    .map((alinea, ai) => (
+                      <p
+                        key={ai}
+                        dangerouslySetInnerHTML={{ __html: renderCel(alinea.trim()) }}
+                      />
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -98,7 +188,7 @@ export default async function SignalenPagina({
           const urgentieKlasse =
             urgentieRuw === "hoog"
               ? "u-hoog"
-              : urgentieRuw === "midden" || urgentieRuw === "gemiddeld"
+              : urgentieRuw === "middel" || urgentieRuw === "midden" || urgentieRuw === "gemiddeld"
                 ? "u-mid"
                 : urgentieRuw === "laag"
                   ? "u-laag"
@@ -109,17 +199,17 @@ export default async function SignalenPagina({
           return (
             <details className="binnenrij" key={nummer}>
               <summary className="binnenregel">
+                {urgentieRuw && <span className={`urg ${urgentieKlasse}`}>{urgentieRuw}</span>}
                 <span className="binnenkop">
                   <span className="tk">
                     #{nummer} — {titel}
                   </span>
+                  <span className="chev2" />
                 </span>
                 <span className="binnenmeta">
-                  {urgentieRuw && <span className={`urg ${urgentieKlasse}`}>{urgentieRuw}</span>}
                   {status && <span className="chip">{status}</span>}
                   {datum && <span className="chip info">{datum}</span>}
                 </span>
-                <span className="chev2" />
               </summary>
 
               <div className="binnenbody">

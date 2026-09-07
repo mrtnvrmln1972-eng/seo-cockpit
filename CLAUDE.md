@@ -42,6 +42,19 @@ die hierop verder bouwt:
   koptekst-inhoud, niet op kolomvolgorde; secties onder een `## Kop`; vaste
   statuswaarden open/bezig/bij klant/bij developer/klaar/vervallen/later/
   bevinding).
+- **signalen.md heeft NIET één vaste vorm** — gecontroleerd op 07-09-2026
+  tegen meerdere live klanten bleken er minstens drie verschillende vormen
+  tegelijk te bestaan: de ongesplitste "# Wat mij is opgevallen"-tabel
+  (Nationaal Oogcentrum, Eerste Kamer Badkamers), een eigen "## Issues"/
+  "## Kansen"-indeling met andere kolommen dan de oorspronkelijke
+  specificatie (Bogard), en een derde vorm met "## Issues" + "## Signalen"
+  plus een Tier-kolom uit een losse scoring-engine (Kamsteeg). De
+  signalen-tab (`app/klant/[klantslug]/signalen/page.tsx`) valt daarom terug
+  op een generieke sectie/tabel-weergave zodra de bekende vorm niet
+  matcht, in plaats van te doen alsof er niets staat. **Bouw geen nieuwe
+  aanname op ÉÉN van deze vormen** zonder dat bij Maarten te checken — de
+  bestanden zeggen zelf dat ze "bij elke ronde vervangen" worden, dus dit
+  is nog in beweging.
 - **Schrijven volgt het create-then-trash-patroon** uit de bestaande artifact
   (zie de uitgebreide comment in `lib/drive.ts`), inclusief een version gate
   (optimistic locking) vóór elke schrijfactie.

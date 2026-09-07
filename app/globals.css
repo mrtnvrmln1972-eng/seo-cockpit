@@ -356,30 +356,36 @@ main {
   color: var(--muted);
 }
 
+/* Basis .pillbtn is de solide, oranje hoofdknop (artifact: primaire actie).
+   .licht is de stille secundaire variant; .sterk blijft als alias voor de
+   basis bestaan (voor code die 'm expliciet noemt), zodat een knop die
+   letterlijk uit de artifact wordt overgenomen (<button class="pillbtn">)
+   er ook hier als hoofdknop uitziet, niet als een stille rand-knop. */
 .pillbtn {
   font-family: var(--sans);
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--muted);
-  background: none;
-  border: 1px solid var(--line);
+  color: var(--on-accent);
+  background: var(--accent-2);
+  border: 1px solid var(--accent-2);
   border-radius: 30px;
   padding: 6px 14px;
   cursor: pointer;
   transition: border-color 0.12s, color 0.12s, background 0.12s;
 }
 .pillbtn:hover {
-  background: var(--surface);
-  border-color: var(--line-2);
-  color: var(--head);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
 }
 .pillbtn.licht {
-  border-color: transparent;
-  color: var(--muted-2);
+  color: var(--muted);
+  background: none;
+  border-color: var(--line);
 }
 .pillbtn.licht:hover {
   background: var(--surface);
-  border-color: var(--line);
+  border-color: var(--line-2);
   color: var(--head);
 }
 .pillbtn.sterk {
@@ -1355,6 +1361,11 @@ table.matrix td.num {
   flex: none;
   margin-left: 4px;
   transition: transform 0.15s;
+}
+/* Binnen .binnenkop (die zelf flex:1 is) hoort de chevron uiterst rechts,
+   vlak vóór de vaste pillen in .binnenmeta — net als in de artifact. */
+.binnenkop .chev2 {
+  margin-left: auto;
 }
 .binnenrij[open] .chev2 {
   transform: rotate(45deg);
