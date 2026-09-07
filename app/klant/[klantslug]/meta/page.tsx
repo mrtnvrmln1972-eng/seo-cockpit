@@ -13,6 +13,11 @@ export const dynamic = "force-dynamic";
  * 1:1 geport uit de oude artifact via lib/meta.ts, geen nieuwe eigen
  * beoordeling; zie de doc-comment daar).
  *
+ * Vormgeving naar de artifact's vMeta()/metakaart-patroon: één kaart per
+ * pagina (.metakaart), met genummerde veldjes (.metaveldje/.mv-kop/
+ * .mv-tekst/.mv-meting) voor "nu" en "voorstel", en de META-controles als
+ * checklijst (ul.checks, zoals checksHtml() in de artifact rendert).
+ *
  * Paginasecties in meta.md staan onder een kale `## <url>`-kop (bijv.
  * "## /" of "## /lensimplantatie/"), precies zoals alleSecties() al
  * verwerkt. We filteren op koppen die met "/" beginnen om ze te
@@ -42,7 +47,13 @@ export default async function MetaPagina({
   }
 
   if (foutmelding) {
-    return <div className="foutbanner">Kan meta.md niet laden.<br />{foutmelding}</div>;
+    return (
+      <div className="foutbanner">
+        Kan meta.md niet laden.
+        <br />
+        {foutmelding}
+      </div>
+    );
   }
 
   if (!bestand) {
@@ -101,8 +112,8 @@ export default async function MetaPagina({
   return (
     <div>
       {overzichtRijen.length > 0 && (
-        <div className="tabel-scroll" style={{ marginBottom: "1.75rem" }}>
-          <table className="roadmap-tabel">
+        <div className="tabel-scroll" style={{ marginBottom: "26px" }}>
+          <table className="matrix">
             <thead>
               <tr>
                 <th>URL</th>
@@ -117,13 +128,13 @@ export default async function MetaPagina({
             <tbody>
               {overzichtRijen.map((rij, idx) => (
                 <tr key={idx}>
-                  <td>
+                  <td className="nm">
                     <code>{rij["URL"]}</code>
                   </td>
                   <td>{rij["Zoekterm"]}</td>
-                  <td className="col-num">{rij["Vert."]}</td>
-                  <td className="col-num">{rij["Pos."]}</td>
-                  <td className="col-num">{rij["CTR nu"]}</td>
+                  <td className="num">{rij["Vert."]}</td>
+                  <td className="num">{rij["Pos."]}</td>
+                  <td className="num">{rij["CTR nu"]}</td>
                   <td>{rij["Status titel"]}</td>
                   <td>{rij["Status omschrijving"]}</td>
                 </tr>
@@ -133,76 +144,84 @@ export default async function MetaPagina({
         </div>
       )}
 
-      <div className="signalen-lijst">
-        {pagina.map((p) => {
-          const titelFout = p.checksTitel.filter((c) => !c.pass).length;
-          const descFout = p.checksDesc.filter((c) => !c.pass).length;
-          return (
-            <details key={p.url} className="signaal-kaart">
-              <summary>
-                <span className="signaal-titel">
-                  <code>{p.url}</code>
-                </span>
-                <span className="signaal-pillen">
-                  {p.zoekterm && <span className="pil">{p.zoekterm}</span>}
+      {pagina.map((p) => {
+        const titelFout = p.checksTitel.filter((c) => !c.pass).length;
+        const descFout = p.checksDesc.filter((c) => !c.pass).length;
+        return (
+          <div key={p.url} className="metakaart">
+            <div className="metakop">
+              <code>{p.url}</code>
+              {p.zoekterm && <span className="wat">zoekwoord: {p.zoekterm}</span>}
+              <span className="wat">
+                titel: {p.goedkeuring["Titel"] ?? "nog niet beoordeeld"}
+              </span>
+            </div>
+
+            {p.baan && (
+              <p className="mv-tekst" dangerouslySetInnerHTML={{ __html: renderCel(p.baan) }} />
+            )}
+
+            {(p.nu["Titel"] || p.voorstel["Titel"]) && (
+              <div className="metaveldje">
+                <div className="mv-kop">
+                  <h5>Titel</h5>
                   {p.infoTitel && (
-                    <span className={`pil ${titelFout === 0 ? "pil-index" : "pil-noindex"}`}>
-                      titel {titelFout === 0 ? "ok" : `${titelFout} punt(en)`}
+                    <span className={titelFout === 0 ? "chip ok" : "chip let"}>
+                      {titelFout === 0 ? "voldoet aan de check" : `${titelFout} punt(en)`}
                     </span>
                   )}
-                  {p.infoDesc && (
-                    <span className={`pil ${descFout === 0 ? "pil-index" : "pil-noindex"}`}>
-                      omschrijving {descFout === 0 ? "ok" : `${descFout} punt(en)`}
-                    </span>
-                  )}
-                  <span className="pil">
-                    titel: {p.goedkeuring["Titel"] ?? "nog niet beoordeeld"}
-                  </span>
-                </span>
-              </summary>
-
-              <div className="signaal-inhoud">
-                {p.baan && (
-                  <div className="signaal-blok" dangerouslySetInnerHTML={{ __html: renderCel(p.baan) }} />
-                )}
-
-                <div className="signaal-grid">
-                  <div className="signaal-veld">
-                    <div className="signaal-veld-label">Zo staat het er nu</div>
-                    <div>
-                      {p.nu["Titel"] && <p>Titel: {p.nu["Titel"]}</p>}
-                      {p.nu["Omschrijving"] && <p>Omschrijving: {p.nu["Omschrijving"]}</p>}
-                    </div>
-                  </div>
-                  <div className="signaal-veld">
-                    <div className="signaal-veld-label">Voorstel</div>
-                    <div>
-                      {p.voorstel["Titel"] && <p>Titel: {p.voorstel["Titel"]}</p>}
-                      {p.voorstel["Omschrijving"] && <p>Omschrijving: {p.voorstel["Omschrijving"]}</p>}
-                    </div>
-                  </div>
                 </div>
-
-                {(p.checksTitel.length > 0 || p.checksDesc.length > 0) && (
-                  <div className="signaal-blok">
-                    <div className="signaal-veld-label">META-controles op het voorstel</div>
-                    <ul className="meta-checks">
-                      {[...p.checksTitel, ...p.checksDesc].map((c) => (
-                        <li key={c.id} className={c.pass ? "ok" : "nee"}>
-                          <span className="vink">{c.pass ? "✓" : "!"}</span>
-                          {c.label}
-                          <em>{c.waarde}</em>
-                          <span className="code">{c.id}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                {p.nu["Titel"] && <p className="mv-tekst">Nu: {p.nu["Titel"]}</p>}
+                {p.voorstel["Titel"] && <p className="mv-tekst">Voorstel: {p.voorstel["Titel"]}</p>}
+                {p.infoTitel && (
+                  <p className="mv-meting">
+                    {p.infoTitel.chars} tekens, {p.infoTitel.px} px (venster {p.infoTitel.min} tot{" "}
+                    {p.infoTitel.max} px)
+                  </p>
                 )}
               </div>
-            </details>
-          );
-        })}
-      </div>
+            )}
+
+            {(p.nu["Omschrijving"] || p.voorstel["Omschrijving"]) && (
+              <div className="metaveldje">
+                <div className="mv-kop">
+                  <h5>Omschrijving</h5>
+                  {p.infoDesc && (
+                    <span className={descFout === 0 ? "chip ok" : "chip let"}>
+                      {descFout === 0 ? "voldoet aan de check" : `${descFout} punt(en)`}
+                    </span>
+                  )}
+                </div>
+                {p.nu["Omschrijving"] && <p className="mv-tekst">Nu: {p.nu["Omschrijving"]}</p>}
+                {p.voorstel["Omschrijving"] && (
+                  <p className="mv-tekst">Voorstel: {p.voorstel["Omschrijving"]}</p>
+                )}
+                {p.infoDesc && (
+                  <p className="mv-meting">
+                    {p.infoDesc.chars} tekens, {p.infoDesc.px} px (venster {p.infoDesc.min} tot{" "}
+                    {p.infoDesc.max} px)
+                  </p>
+                )}
+              </div>
+            )}
+
+            {(p.checksTitel.length > 0 || p.checksDesc.length > 0) && (
+              <ul className="checks">
+                {[...p.checksTitel, ...p.checksDesc].map((c) => (
+                  <li key={c.id}>
+                    <span className={`vink ${c.pass ? "ja" : "nee"}`}>{c.pass ? "✓" : "!"}</span>
+                    <span className="lab">
+                      {c.label}
+                      <em>{c.waarde}</em>
+                    </span>
+                    <span className="code">{c.id}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

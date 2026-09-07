@@ -5,10 +5,10 @@ import Tabs from "@/app/_components/Tabs";
 export const dynamic = "force-dynamic";
 
 /**
- * Gedeelde laag voor alle vier de tabbladen van één klant: koptekst met
- * klantnaam + groep, en de tabbalk (Roadmap/Issues/Kansen/Meta-tool).
- * Elke tab-pagina onder deze laag hoeft alleen zijn eigen inhoud te
- * renderen — routing en klant-opzoek zijn hier al geregeld.
+ * Gedeelde laag voor alle drie tabbladen van één klant: koptekst met
+ * klantnaam + domein (artifact: .kop/.dom), en de tabbalk (Roadmap/
+ * Signalen/Meta-tool). Elke tab-pagina onder deze laag hoeft alleen zijn
+ * eigen inhoud te renderen — routing en klant-opzoek zijn hier al geregeld.
  */
 export default async function KlantLayout({
   children,
@@ -46,10 +46,14 @@ export default async function KlantLayout({
 
   return (
     <div>
-      <div className="klant-kop">
-        <div className="groep-label">{getGroepNaam(klant.groep)}</div>
-        <h1>{klant.naam}</h1>
+      <div className="kop">
+        <h2>{klant.naam}</h2>
+        {klant.domein && <span className="dom">{klant.domein}</span>}
       </div>
+      <p className="subkop">
+        {getGroepNaam(klant.groep)}
+        {klant.fase ? ` · fase: ${klant.fase}` : ""}
+      </p>
       <Tabs klantSlug={klant.slug} />
       {children}
     </div>

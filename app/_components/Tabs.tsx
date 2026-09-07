@@ -8,6 +8,9 @@ import { usePathname } from "next/navigation";
  * eigen route onder /klant/[klantslug]/... — zie CLAUDE.md/README.md voor
  * waar de volgende agents hun tabblad bouwen.
  *
+ * Vormgeving 1:1 naar de artifact's .tabs/.tab (sticky kaart boven de
+ * inhoud, aria-selected in plaats van een losse "actief"-klasse).
+ *
  * Oorspronkelijk vier tabs (Roadmap, Issues, Kansen, Meta-tool), zoals de
  * artifact-specificatie beschrijft. Issues en Kansen zijn samengevoegd tot
  * één "Signalen"-tab omdat de echte, actuele signalen.md-bestanden van live
@@ -24,16 +27,22 @@ export default function Tabs({ klantSlug }: { klantSlug: string }) {
   const pathname = usePathname();
 
   return (
-    <nav className="tabbalk">
+    <div className="tabs" role="tablist">
       {TABS.map((tab) => {
         const href = `/klant/${klantSlug}/${tab.segment}`;
         const actief = pathname === href;
         return (
-          <Link key={tab.segment} href={href} className={`tab${actief ? " actief" : ""}`}>
+          <Link
+            key={tab.segment}
+            href={href}
+            role="tab"
+            aria-selected={actief}
+            className="tab"
+          >
             {tab.label}
           </Link>
         );
       })}
-    </nav>
+    </div>
   );
 }

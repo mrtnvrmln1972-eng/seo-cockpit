@@ -7,15 +7,22 @@ export const dynamic = "force-dynamic";
 
 /**
  * Roadmap-tab. Toont roadmap.md, gegroepeerd per `##`-sectie (spec §3.3),
- * elke sectie zijn eigen paginatabel — bewust NIET beperkt tot de eerste
+ * elke sectie zijn eigen paginakaart — bewust NIET beperkt tot de eerste
  * tabel in het bestand (dat was de "bij Bogard"-bug, spec §6.4).
  *
- * Nog niet in deze eerste versie geport (bewust, geen aanname): het
- * samenvoegen met crawldata/gerelateerde signalen per pagina op één
- * detailkaart (spec §3.3, pagDetailVenster/crawlVoorPad/signalenVoorPad),
- * de kannibalisatie- en dubbele-meta-labels, en het rechtstreeks vanaf een
- * rij een taak aanmaken. Dit tabblad toont voor nu precies de rauwe
- * roadmap-tabel(len) zoals ze in roadmap.md staan, puur signalerend.
+ * Vormgeving naar de artifact's vRoadmap(): een tellerrij (.sum) en
+ * per sectie een kaart (.rmgrid/.rmkaart/.rmrij) in plaats van een platte
+ * tabel. De artifact's rmrij toont een "score" en "voortgang %" die uit
+ * roadmap.md-velden komen die déze dossiers niet hebben (geen expliciete
+ * score/voortgang-kolom) — hier tonen we in plaats daarvan de kolommen die
+ * dit dossierformaat wél heeft (Woorden, Positie, Klikken, Index, Status),
+ * puur zoals ze in het bestand staan, geen eigen berekening.
+ *
+ * Nog niet in deze versie geport (bewust, geen aanname): het samenvoegen
+ * met crawldata/gerelateerde signalen per pagina op één detailkaart (spec
+ * §3.3, pagDetailVenster/crawlVoorPad/signalenVoorPad), de kannibalisatie-
+ * en dubbele-meta-labels, en het rechtstreeks vanaf een rij een taak
+ * aanmaken.
  */
 export default async function RoadmapPagina({
   params,
@@ -36,7 +43,13 @@ export default async function RoadmapPagina({
   }
 
   if (foutmelding) {
-    return <div className="foutbanner">Kan roadmap.md niet laden.<br />{foutmelding}</div>;
+    return (
+      <div className="foutbanner">
+        Kan roadmap.md niet laden.
+        <br />
+        {foutmelding}
+      </div>
+    );
   }
 
   if (!bestand) {
@@ -71,62 +84,56 @@ export default async function RoadmapPagina({
     );
   }
 
+  const alleRijen = secties.flatMap((s) => s.rijen);
+  const metIndex = alleRijen.filter(
+    (r) => (r["Index"] ?? "").trim().toLowerCase() === "ja",
+  ).length;
+
   return (
-    <div className="roadmap-secties">
-      {secties.map((sec) => (
-        <section key={sec.kop} className="roadmap-sectie">
-          <h2>{sec.kop}</h2>
-          <div className="tabel-scroll">
-            <table className="roadmap-tabel">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Pagina</th>
-                  <th>Zoekterm</th>
-                  <th>Positie</th>
-                  <th>Vert. zoekterm</th>
-                  <th>Woorden</th>
-                  <th>Links</th>
-                  <th>Klikken</th>
-                  <th>Vert. pagina</th>
-                  <th>Pos. pagina</th>
-                  <th>Index</th>
-                  <th>Notities</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sec.rijen.map((rij) => {
-                  const geenIndex = (rij["Index"] ?? "").trim().toLowerCase() === "nee";
-                  return (
-                    <tr key={rij["#"]}>
-                      <td className="col-nr">{rij["#"]}</td>
-                      <td className="col-pagina">
-                        <code>{rij["Pagina"]}</code>
-                      </td>
-                      <td>{rij["Zoekterm"]}</td>
-                      <td className="col-num">{rij["Positie"]}</td>
-                      <td className="col-num">{rij["Vertoningen zoekterm"]}</td>
-                      <td className="col-num">{rij["Woorden"]}</td>
-                      <td className="col-num">{rij["Unieke links"]}</td>
-                      <td className="col-num">{rij["Klikken pagina"]}</td>
-                      <td className="col-num">{rij["Vertoningen pagina"]}</td>
-                      <td className="col-num">{rij["Positie pagina"]}</td>
-                      <td>
-                        <span className={`pil ${geenIndex ? "pil-noindex" : "pil-index"}`}>
-                          {rij["Index"]}
-                        </span>
-                      </td>
-                      <td className="col-notities">{rij["Notities"]}</td>
-                      <td>{rij["Status"]}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+    <div>
+      <div className="sum">
+        <div>
+          <b>{alleRijen.length}</b>
+          <span>Pagina&apos;s</span>
+        </div>
+        <div>
+          <b>{secties.length}</b>
+          <span>Groepen</span>
+        </div>
+        <div className="acc">
+          <b>{metIndex}</b>
+          <span>Staan op index</span>
+        </div>
+      </div>
+
+      <div className="rmgrid">
+        {secties.map((sec) => (
+          <div className="rmkaart" key={sec.kop}>
+            <div className="rmkop">
+              <h3>{sec.kop}</h3>
+              <span className="c">{sec.rijen.length}</span>
+            </div>
+            {sec.rijen.map((rij) => {
+              const indexRuw = (rij["Index"] ?? "").trim().toLowerCase();
+              const indexKlasse =
+                indexRuw === "ja" ? "ja" : indexRuw === "nee" ? "nee" : "onbekend";
+              return (
+                <div className="rmrij" key={`${sec.kop}-${rij["#"]}`}>
+                  <span className="nm">
+                    <code>{rij["Pagina"]}</code>
+                    {rij["Zoekterm"] ? ` — ${rij["Zoekterm"]}` : ""}
+                  </span>
+                  {rij["Woorden"] && <span className="w">{rij["Woorden"]} w</span>}
+                  {rij["Positie"] && <span className="w">pos {rij["Positie"]}</span>}
+                  {rij["Klikken pagina"] && <span className="w">{rij["Klikken pagina"]} clicks</span>}
+                  {rij["Index"] && <span className={`dot ${indexKlasse}`}>{rij["Index"]}</span>}
+                  {rij["Status"] && <span className="chip">{rij["Status"]}</span>}
+                </div>
+              );
+            })}
           </div>
-        </section>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

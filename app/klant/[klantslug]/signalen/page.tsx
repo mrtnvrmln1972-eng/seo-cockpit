@@ -25,6 +25,11 @@ export const dynamic = "force-dynamic";
  * volgorde, geen eigen sortering/weging — "een dashboard mag tonen, nooit
  * oordelen", CLAUDE.md). Urgentie is een kolomwaarde uit het bestand zelf,
  * geen berekening.
+ *
+ * Vormgeving naar de artifact's binnenlijst/binnenrij-patroon (een rij per
+ * signaal, met de details achter een uitklapper) — hier met het native
+ * <details>-element in plaats van de JS-toggle uit de artifact, zodat dit
+ * tabblad zonder eigen client-state werkt.
  */
 export default async function SignalenPagina({
   params,
@@ -45,7 +50,13 @@ export default async function SignalenPagina({
   }
 
   if (foutmelding) {
-    return <div className="foutbanner">Kan signalen.md niet laden.<br />{foutmelding}</div>;
+    return (
+      <div className="foutbanner">
+        Kan signalen.md niet laden.
+        <br />
+        {foutmelding}
+      </div>
+    );
   }
 
   if (!bestand) {
@@ -71,73 +82,100 @@ export default async function SignalenPagina({
   }
 
   return (
-    <div className="signalen-lijst">
-      {rijen.map((rij, idx) => {
-        const nummer = rij["#"] ?? String(idx + 1);
-        const titel = rij["Signaal"] ?? "";
-        const urgentie = (rij["Urgentie"] ?? "").trim().toLowerCase();
-        const status = (rij["Status"] ?? "").trim();
-        const datum = rij["Datum gemeten"] ?? "";
+    <div>
+      <div className="sum">
+        <div>
+          <b>{rijen.length}</b>
+          <span>Signalen</span>
+        </div>
+      </div>
 
-        return (
-          <details key={nummer} className="signaal-kaart">
-            <summary>
-              <span className="signaal-nr">#{nummer}</span>
-              <span className="signaal-titel">{titel}</span>
-              <span className="signaal-pillen">
-                {urgentie && (
-                  <span className={`pil pil-urgentie-${urgentie.replace(/\s+/g, "-")}`}>
-                    {urgentie}
+      <div className="binnenlijst">
+        {rijen.map((rij, idx) => {
+          const nummer = rij["#"] ?? String(idx + 1);
+          const titel = rij["Signaal"] ?? "";
+          const urgentieRuw = (rij["Urgentie"] ?? "").trim().toLowerCase();
+          const urgentieKlasse =
+            urgentieRuw === "hoog"
+              ? "u-hoog"
+              : urgentieRuw === "midden" || urgentieRuw === "gemiddeld"
+                ? "u-mid"
+                : urgentieRuw === "laag"
+                  ? "u-laag"
+                  : "";
+          const status = (rij["Status"] ?? "").trim();
+          const datum = rij["Datum gemeten"] ?? "";
+
+          return (
+            <details className="binnenrij" key={nummer}>
+              <summary className="binnenregel">
+                <span className="binnenkop">
+                  <span className="tk">
+                    #{nummer} — {titel}
                   </span>
-                )}
-                {status && <span className="pil pil-status">{status}</span>}
-                {datum && <span className="pil pil-datum">{datum}</span>}
-              </span>
-            </summary>
+                </span>
+                <span className="binnenmeta">
+                  {urgentieRuw && <span className={`urg ${urgentieKlasse}`}>{urgentieRuw}</span>}
+                  {status && <span className="chip">{status}</span>}
+                  {datum && <span className="chip info">{datum}</span>}
+                </span>
+                <span className="chev2" />
+              </summary>
 
-            <div className="signaal-inhoud">
-              {rij["Waarom het uitmaakt"] && (
-                <div
-                  className="signaal-blok"
-                  dangerouslySetInnerHTML={{ __html: renderCel(rij["Waarom het uitmaakt"]) }}
-                />
-              )}
-
-              <div className="signaal-grid">
-                {rij["Wat je doet"] && (
-                  <div className="signaal-veld">
-                    <div className="signaal-veld-label">Wat je doet</div>
+              <div className="binnenbody">
+                {rij["Waarom het uitmaakt"] && (
+                  <>
+                    <h6>Waarom het uitmaakt</h6>
                     <div
+                      className="doc"
+                      dangerouslySetInnerHTML={{ __html: renderCel(rij["Waarom het uitmaakt"]) }}
+                    />
+                  </>
+                )}
+
+                {rij["Wat je doet"] && (
+                  <>
+                    <h6>Wat je doet</h6>
+                    <div
+                      className="doc"
                       dangerouslySetInnerHTML={{ __html: renderCel(rij["Wat je doet"]) }}
                     />
-                  </div>
+                  </>
                 )}
+
                 {rij["Wat het oplevert"] && (
-                  <div className="signaal-veld">
-                    <div className="signaal-veld-label">Wat het oplevert</div>
+                  <>
+                    <h6>Wat het oplevert</h6>
                     <div
+                      className="doc"
                       dangerouslySetInnerHTML={{ __html: renderCel(rij["Wat het oplevert"]) }}
                     />
-                  </div>
+                  </>
                 )}
-              </div>
 
-              <div className="signaal-meta">
-                {rij["Hoeveel werk"] && (
-                  <span>
-                    <strong>Hoeveel werk:</strong> {rij["Hoeveel werk"]}
-                  </span>
-                )}
-                {rij["Recept"] && (
-                  <span>
-                    <strong>Recept:</strong> {rij["Recept"]}
-                  </span>
+                {(rij["Hoeveel werk"] || rij["Recept"]) && (
+                  <>
+                    <h6>Erbij</h6>
+                    <p>
+                      {rij["Hoeveel werk"] && (
+                        <>
+                          <strong>Hoeveel werk:</strong> {rij["Hoeveel werk"]}
+                          <br />
+                        </>
+                      )}
+                      {rij["Recept"] && (
+                        <>
+                          <strong>Recept:</strong> {rij["Recept"]}
+                        </>
+                      )}
+                    </p>
+                  </>
                 )}
               </div>
-            </div>
-          </details>
-        );
-      })}
+            </details>
+          );
+        })}
+      </div>
     </div>
   );
 }

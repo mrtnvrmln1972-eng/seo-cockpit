@@ -14,11 +14,9 @@ export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="nl" className="h-full">
-      <body className="h-full">
-        <div className="band">
-          <span className="band-titel">Pingwin Klantcockpit</span>
-        </div>
+    <html lang="nl">
+      <body>
+        <div className="band" />
         <div className="shell">
           <Nav />
           <main>{children}</main>
