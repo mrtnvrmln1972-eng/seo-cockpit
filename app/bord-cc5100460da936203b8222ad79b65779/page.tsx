@@ -3,9 +3,9 @@ import { aggregeerDeveloperbord, type DevTaakMetKlant } from "@/lib/developerboa
 import { statusClass, renderCel, renderAlineas } from "@/lib/markdown";
 import { zetStatusAction } from "./actions";
 import KlaarMeldenForm from "./KlaarMeldenForm";
-import BewerkTaakForm from "./BewerkTaakForm";
-import AutoOpenHash from "./AutoOpenHash";
 import DeveloperbordView from "./DeveloperbordView";
+import BekijkKnop from "./BekijkKnop";
+import VerwijderKnop from "./VerwijderKnop";
 
 /**
  * app/bord-cc5100460da936203b8222ad79b65779/page.tsx — het Developerbord.
@@ -82,10 +82,19 @@ function taakAnker(taak: DevTaakMetKlant): string {
 
 /**
  * Eén taakrij, gedeeld door de open lijst en het "Afgerond"-blok hieronder —
- * zelfde <details className="binnenrij"> als voorheen, nu uitgebreid met de
- * Bewerken/Verwijderen-knoppen (BewerkTaakForm) in de actierij, ongeacht
- * status. De bestaande status-flow (KlaarMeldenForm/zetStatusAction/mailto)
- * blijft ongewijzigd.
+ * zelfde <details className="binnenrij"> als voorheen. De bestaande
+ * status-flow (KlaarMeldenForm/zetStatusAction/mailto) blijft ongewijzigd.
+ *
+ * 08-09-2026, op Maartens feedback:
+ * - Standaard ALTIJD dichtgeklapt (was: open bij status "open") — vandaar
+ *   `open={false}` in plaats van `open={isOpen(taak)}`.
+ * - Bewerken (BewerkTaakForm) is weg; "Bekijk" (BekijkKnop) opent nu het
+ *   gedeelde TaakVenster, waarin dezelfde velden rechtstreeks te wijzigen
+ *   zijn — geen los bewerkformulier meer nodig.
+ * - Een klein "×"-kruisje (VerwijderKnop) staat in de header, rechts van de
+ *   statuspil, in plaats van de vroegere "Verwijderen"-knop-met-bevestiging
+ *   onderin de rij.
+ * - "Mailen naar developer" heet nu kortweg "Mail".
  */
 function TaakRij({ taak, basisUrl }: { taak: DevTaakMetKlant; basisUrl: string }) {
   const anker = taakAnker(taak);
@@ -99,7 +108,7 @@ function TaakRij({ taak, basisUrl }: { taak: DevTaakMetKlant; basisUrl: string }
   const mailtoBody = encodeURIComponent(mailtoRegels.join("\n"));
 
   return (
-    <details className="binnenrij" id={anker} open={isOpen(taak)}>
+    <details className="binnenrij" id={anker} open={false}>
       <summary className="binnenregel">
         <span className="binnenkop">
           <span className="tk">{taak.titel}</span>
@@ -107,6 +116,12 @@ function TaakRij({ taak, basisUrl }: { taak: DevTaakMetKlant; basisUrl: string }
         </span>
         <span className="binnenmeta">
           <span className={`pill ${statusClass(taak.status)}`}>{taak.status}</span>
+          <VerwijderKnop
+            klantSlug={taak.klantSlug}
+            klantFolderId={taak.klantFolderId}
+            n={taak.n}
+            titel={taak.titel}
+          />
         </span>
       </summary>
 
@@ -174,18 +189,10 @@ function TaakRij({ taak, basisUrl }: { taak: DevTaakMetKlant; basisUrl: string }
             className="pillbtn licht"
             href={`mailto:${DEVELOPER_EMAIL}?subject=${mailtoOnderwerp}&body=${mailtoBody}`}
           >
-            Mailen naar developer
+            Mail
           </a>
 
-          <BewerkTaakForm
-            klantSlug={taak.klantSlug}
-            klantFolderId={taak.klantFolderId}
-            n={taak.n}
-            titel={taak.titel}
-            opmerking={taak.opmerking}
-            pagina={taak.pagina}
-            detail={taak.detail}
-          />
+          <BekijkKnop taak={taak} />
         </div>
       </div>
     </details>
@@ -212,7 +219,6 @@ export default async function DeveloperbordPagina() {
 
   return (
     <div data-bord-secret>
-      <AutoOpenHash />
       <div className="kop">
         <h2>Developerbord</h2>
       </div>

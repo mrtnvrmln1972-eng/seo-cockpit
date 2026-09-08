@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { DevTaakMetKlant } from "@/lib/developerboard";
 import Weekplanning from "./Weekplanning";
+import { TaakVensterProvider } from "./TaakVensterContext";
+import TaakVenster from "./TaakVenster";
 
 /**
  * app/bord-cc5100460da936203b8222ad79b65779/DeveloperbordView.tsx —
@@ -17,12 +19,18 @@ import Weekplanning from "./Weekplanning";
  * nieuw, apart client component, omdat alleen dát stuk interactiviteit nodig
  * heeft (slepen, view-state).
  *
- * onBekijk: een kaart in de weekplanning heeft geen eigen detail-UI (zie de
- * doc-comment in Weekplanning.tsx) — een klik op de titel schakelt hier naar
- * "Lijst per klant" en klapt/scrollt naar de bijbehorende rij open, met
- * dezelfde aanpak als AutoOpenHash.tsx (die alleen bij het laden van de
- * pagina werkt): hier opnieuw bruikbaar omdat de gebruiker al op de pagina
- * staat.
+ * 08-09-2026, op Maartens feedback: "Bekijk" schakelt NIET meer naar "Lijst
+ * per klant" (dat deed de vorige versie wel, via een anker+scroll-truc). In
+ * plaats daarvan opent "Bekijk" — vanuit beide weergaven identiek — het
+ * gedeelde TaakVenster (zie TaakVensterContext.tsx voor waarom dat via
+ * React Context moet). Dit component is dus nu vooral de Provider + de
+ * weergave-schakelaar zelf; de vorige pendingAnker/scroll-logica is weg.
+ *
+ * De #taak-<klantslug>-<n>-ankerlogica (voorheen het losse AutoOpenHash.tsx)
+ * is hierheen verhuisd: die moest sowieso weten of de "Lijst per klant"-
+ * weergave zichtbaar is, want die staat standaard verborgen (view="week").
+ * Zonder deze verhuizing zou een binnenkomende mailto-link altijd in de
+ * onzichtbare weekplanning belanden.
  */
 export default function DeveloperbordView({
   taken,
@@ -32,7 +40,22 @@ export default function DeveloperbordView({
   lijst: ReactNode;
 }) {
   const [view, setView] = useState<"lijst" | "week">("week");
-  const [pendingAnker, setPendingAnker] = useState<string | null>(null);
+
+  // Komt de pagina binnen met #taak-<klantslug>-<n> in de URL (het
+  // mailto-linkje, of TaakVenster's eigen "link naar deze taak"), schakel
+  // dan naar "Lijst per klant" en klap/scroll naar die rij — zie de
+  // doc-comment hierboven.
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#/, "");
+    if (!hash.startsWith("taak-")) return;
+    setView("lijst");
+    requestAnimationFrame(() => {
+      const el = document.getElementById(hash);
+      if (!el) return;
+      if (el instanceof HTMLDetailsElement) el.open = true;
+      el.scrollIntoView({ block: "start" });
+    });
+  }, []);
 
   // Actieve taken (open + klaar) horen in de weekplanning; afgerond/vervallen
   // niet meer — zelfde filter als aantalOpen/aantalKlaar in page.tsx, maar
@@ -43,49 +66,33 @@ export default function DeveloperbordView({
     return s !== "afgerond" && s !== "vervallen";
   });
 
-  useEffect(() => {
-    if (view !== "lijst" || !pendingAnker) return;
-    const anker = pendingAnker;
-    setPendingAnker(null);
-    // Wacht één tick tot de lijst-JSX (die al in de DOM staat, want lijst is
-    // altijd gerenderd — alleen met CSS verborgen, zie hieronder) zichtbaar
-    // is voordat er gescrold wordt.
-    requestAnimationFrame(() => {
-      const el = document.getElementById(anker);
-      if (!el) return;
-      if (el instanceof HTMLDetailsElement) el.open = true;
-      el.scrollIntoView({ block: "start", behavior: "smooth" });
-    });
-  }, [view, pendingAnker]);
-
-  function bekijkInLijst(anker: string) {
-    setPendingAnker(anker);
-    setView("lijst");
-  }
-
   return (
-    <div className="wpwrap">
-      <div className="wpToggle">
-        <button
-          type="button"
-          className={`schakelknop${view === "lijst" ? " aan" : ""}`}
-          onClick={() => setView("lijst")}
-        >
-          Lijst per klant
-        </button>
-        <button
-          type="button"
-          className={`schakelknop${view === "week" ? " aan" : ""}`}
-          onClick={() => setView("week")}
-        >
-          Weekplanning
-        </button>
+    <TaakVensterProvider>
+      <div className="wpwrap">
+        <div className="wpToggle">
+          <button
+            type="button"
+            className={`schakelknop${view === "lijst" ? " aan" : ""}`}
+            onClick={() => setView("lijst")}
+          >
+            Lijst per klant
+          </button>
+          <button
+            type="button"
+            className={`schakelknop${view === "week" ? " aan" : ""}`}
+            onClick={() => setView("week")}
+          >
+            Weekplanning
+          </button>
+        </div>
+
+        <div style={{ display: view === "week" ? "block" : "none" }}>
+          <Weekplanning taken={actief} />
+        </div>
+        <div style={{ display: view === "lijst" ? "block" : "none" }}>{lijst}</div>
       </div>
 
-      <div style={{ display: view === "week" ? "block" : "none" }}>
-        <Weekplanning taken={actief} onBekijk={bekijkInLijst} />
-      </div>
-      <div style={{ display: view === "lijst" ? "block" : "none" }}>{lijst}</div>
-    </div>
+      <TaakVenster />
+    </TaakVensterProvider>
   );
 }

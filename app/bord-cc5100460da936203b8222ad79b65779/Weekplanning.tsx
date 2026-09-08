@@ -4,6 +4,8 @@ import { useRef, useState, useTransition } from "react";
 import type { DevTaakMetKlant } from "@/lib/developerboard";
 import { statusClass } from "@/lib/markdown";
 import { zetUitvoerdatumAction } from "./actions";
+import { useTaakVenster } from "./TaakVensterContext";
+import VerwijderKnop from "./VerwijderKnop";
 
 /**
  * app/bord-cc5100460da936203b8222ad79b65779/Weekplanning.tsx — de
@@ -28,6 +30,11 @@ import { zetUitvoerdatumAction } from "./actions";
  * (zie actions.ts) voordat de kaart echt van dag wisselt. Bij het slepen zelf
  * geeft de kaart alleen een "bezig"-vervaging als directe feedback dat de
  * sleep is opgepikt.
+ *
+ * 08-09-2026, op Maartens feedback: een klik op de titel opent nu
+ * rechtstreeks het gedeelde TaakVenster (via TaakVensterContext) — GEEN
+ * view-switch meer naar "Lijst per klant". Elke kaart heeft daarnaast een
+ * klein "×"-kruisje (VerwijderKnop) rechtsboven, net als de referentie.
  */
 
 const WEKEN_TERUG = 8;
@@ -57,13 +64,8 @@ function taakSleutel(t: DevTaakMetKlant): string {
   return `${t.klantSlug}|${t.n}`;
 }
 
-export default function Weekplanning({
-  taken,
-  onBekijk,
-}: {
-  taken: DevTaakMetKlant[];
-  onBekijk: (anker: string) => void;
-}) {
+export default function Weekplanning({ taken }: { taken: DevTaakMetKlant[] }) {
+  const { openTaak } = useTaakVenster();
   const [dragSleutel, setDragSleutel] = useState<string | null>(null);
   const [bezigSleutel, setBezigSleutel] = useState<string | null>(null);
   const [fout, setFout] = useState<string | null>(null);
@@ -110,7 +112,6 @@ export default function Weekplanning({
 
   function kaart(t: DevTaakMetKlant) {
     const sleutel = taakSleutel(t);
-    const anker = `taak-${t.klantSlug}-${t.n}`;
     return (
       <div
         key={sleutel}
@@ -122,13 +123,9 @@ export default function Weekplanning({
         <div className="wpkaartTop">
           <span className="wpklant">{t.klantNaam}</span>
           <span className={`pill ${statusClass(t.status)}`}>{t.status}</span>
+          <VerwijderKnop klantSlug={t.klantSlug} klantFolderId={t.klantFolderId} n={t.n} titel={t.titel} />
         </div>
-        <button
-          type="button"
-          className="wpTitel"
-          onClick={() => onBekijk(anker)}
-          title="Bekijk deze taak in de lijst per klant"
-        >
+        <button type="button" className="wpTitel" onClick={() => openTaak(t)} title="Bekijk">
           {t.titel}
         </button>
         {t.tijdsduur && <span className="wpMeta">{t.tijdsduur}</span>}

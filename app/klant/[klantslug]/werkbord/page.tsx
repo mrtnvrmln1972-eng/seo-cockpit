@@ -8,8 +8,8 @@ import {
 } from "@/lib/werklijst";
 import { leesNotities } from "@/lib/notities";
 import { statusClass, renderAlineas } from "@/lib/markdown";
-import { zetNaarDeveloperbordAction } from "./actions";
 import NieuweTaakForm from "./NieuweTaakForm";
+import DoorzettenKnop from "./DoorzettenKnop";
 
 export const dynamic = "force-dynamic";
 
@@ -191,11 +191,7 @@ export default async function WerkbordPagina({
                       )}
 
                       <div className="acties">
-                        <form action={zetNaarDeveloperbordAction.bind(null, klant.slug, taak.n)}>
-                          <button className="pillbtn sterk" type="submit">
-                            Naar developerbord
-                          </button>
-                        </form>
+                        <DoorzettenKnop klantSlug={klant.slug} n={taak.n} />
                         <a className="pillbtn licht" href={mailHref}>
                           Mailen naar Tonny
                         </a>

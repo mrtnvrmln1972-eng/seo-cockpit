@@ -1923,10 +1923,11 @@ strong {
 .wpkaartTop {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 6px;
 }
 .wpklant {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1984,4 +1985,113 @@ strong {
 .wpPoolLeeg {
   font-size: 12px;
   color: var(--muted-2);
+}
+
+/* ---- Developerbord: klein "×"-kruisje om een taak te verwijderen, 08-09-2026 ----
+   In de header van zowel de lijst-rij (summary) als de weekplanning-kaart. */
+.kruisknopwrap {
+  position: relative;
+  display: inline-flex;
+}
+.kruisknop {
+  background: none;
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted-2);
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 6px;
+  flex: none;
+}
+.kruisknop:hover {
+  background: var(--crit-wash);
+  color: var(--crit);
+}
+.foutregelInline {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  white-space: nowrap;
+  background: var(--ground);
+  border: 1px solid var(--crit);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  z-index: 5;
+}
+.doorzetknopwrap {
+  display: contents;
+}
+
+/* ---- Developerbord: TaakVenster (de "Bekijk"-popup), 08-09-2026 ----
+   Zelfde overlay/venster-opbouw als het Roadmap-detailvenster
+   (roadmap.module.css), hier als globale klassen omdat dit venster van
+   buiten een CSS Module (page.tsx + Weekplanning.tsx) wordt geopend. */
+.tvOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 18, 16, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow-y: auto;
+  z-index: 200;
+}
+.tvVenster {
+  background: var(--ground);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 640px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.tvKop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.tvKopLinks {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tvKlant {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted-2);
+}
+.tvSluit {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+.tvBody {
+  padding: 18px 22px 24px;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+.tvPaginaLink {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--accent-2);
+}
+.tvActies {
+  margin-top: 4px;
+}
+.tvOpslaanStatus {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 0 0;
 }
