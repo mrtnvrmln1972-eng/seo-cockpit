@@ -21,11 +21,18 @@ import { usePathname } from "next/navigation";
  * begint met "werkbord|Takenlijst"), de EERSTE tab — een klant opent op de
  * Takenlijst, niet op de Roadmap (08-09-2026, op Maartens uitdrukkelijke
  * verzoek zo gecorrigeerd).
+ *
+ * Notities toegevoegd op 08-09-2026, op dezelfde plek als in de artifact se
+ * eigen tabrij (['werkbord','onboarding','roadmap','issues','kansen',
+ * 'notities','dev','meta',...]): na de signalen-achtige tabs (hier
+ * samengevoegd tot "Signalen"), voor Meta-tool. Zie lib/notities.ts voor
+ * hoe die inhoud gelezen wordt.
  */
 const TABS = [
   { segment: "werkbord", label: "Takenlijst" },
   { segment: "roadmap", label: "Roadmap" },
   { segment: "signalen", label: "Signalen" },
+  { segment: "notities", label: "Notities" },
   { segment: "meta", label: "Meta-tool" },
 ] as const;
 

@@ -197,6 +197,13 @@ export function alleSecties(md: string): { kop: string; inhoud: string }[] {
  * roadmap.md-bestanden in Drive). Alle andere tekst wordt HTML-geëscaped,
  * dus dit is geen generieke markdown-renderer — precies genoeg voor deze
  * vaste opmaakset, niets meer.
+ *
+ * `[tekst](url)` erbij (08-09-2026, bij het bouwen van de Notities-tab): een
+ * live audit van notities.md bij zes klanten liet zien dat dat bestand vol
+ * staat met dit soort markdown-links (Drive-documenten, Sheets, artifacts),
+ * en zonder linkherkenning zou de letterlijke `[tekst](url)`-syntax gewoon
+ * als platte tekst op het scherm blijven staan. Alleen http(s)-links, en de
+ * url gaat door quote-escaping voor het href-attribuut.
  */
 export function renderCel(tekst: string): string {
   let out = tekst
@@ -206,6 +213,10 @@ export function renderCel(tekst: string): string {
   out = out.replace(/&lt;br&gt;/g, "<br />");
   out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
   out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => {
+    const veiligeUrl = String(url).replace(/"/g, "&quot;");
+    return `<a href="${veiligeUrl}" target="_blank" rel="noopener">${label}</a>`;
+  });
   return out;
 }
 
@@ -240,6 +251,7 @@ export function renderAlineas(tekst: string): string {
   const out: string[] = [];
   let paragraaf: string[] = [];
   let inLijst = false;
+  let tabelRijen: string[][] | null = null;
 
   const flushParagraaf = () => {
     if (paragraaf.length) {
@@ -253,12 +265,51 @@ export function renderAlineas(tekst: string): string {
       inLijst = false;
     }
   };
+  const flushTabel = () => {
+    if (tabelRijen && tabelRijen.length) {
+      const [header, ...rest] = tabelRijen;
+      out.push(
+        '<div class="tabelwrap"><table class="matrix"><thead><tr>' +
+          header.map((c) => `<th>${renderCel(c)}</th>`).join("") +
+          "</tr></thead><tbody>" +
+          rest
+            .map((r) => "<tr>" + r.map((c) => `<td>${renderCel(c)}</td>`).join("") + "</tr>")
+            .join("") +
+          "</tbody></table></div>",
+      );
+    }
+    tabelRijen = null;
+  };
 
   for (const regelRuw of regels) {
     const regel = regelRuw.trim();
+    // "## " zonder tekst erachter (leeg gebleven kopje, gezien in een echte
+    // notities.md) levert niets op — geen lege <h5>, geen letterlijke "##".
+    if (/^#{2,4}$/.test(regel)) {
+      flushParagraaf();
+      flushLijst();
+      if (tabelRijen) flushTabel();
+      continue;
+    }
     const kopMatch = /^#{2,4}\s+(.*)$/.exec(regel);
     const vinkMatch = /^[-*]\s+\[([ xX])\]\s+(.*)$/.exec(regel);
     const bulletMatch = /^[-*]\s+(.*)$/.exec(regel);
+    // Een tabelregel begint EN eindigt met "|" (splitCells trimt de randen
+    // dus dat hoeft niet expliciet); een scheidingsregel (":---:"-cellen)
+    // markeert alleen de grens tussen kop en inhoud en levert zelf geen rij.
+    const isTabelregel = /^\|.*\|$/.test(regel);
+    const scheidingsregel =
+      isTabelregel && splitCells(regel).every((c) => /^:?-{2,}:?$/.test(c));
+
+    if (isTabelregel && !scheidingsregel) {
+      flushParagraaf();
+      flushLijst();
+      if (!tabelRijen) tabelRijen = [];
+      tabelRijen.push(splitCells(regel));
+      continue;
+    }
+    if (scheidingsregel) continue; // hoort bij de tabelregel ervoor, geen eigen output
+    if (tabelRijen) flushTabel();
 
     if (kopMatch) {
       flushParagraaf();
@@ -295,6 +346,7 @@ export function renderAlineas(tekst: string): string {
   }
   flushParagraaf();
   flushLijst();
+  flushTabel();
   return out.join("\n");
 }
 

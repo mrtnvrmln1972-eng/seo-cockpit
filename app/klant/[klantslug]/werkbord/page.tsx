@@ -6,6 +6,7 @@ import {
   toelichtingVoor,
   type WerklijstTaak,
 } from "@/lib/werklijst";
+import { leesNotities } from "@/lib/notities";
 import { statusClass, renderAlineas } from "@/lib/markdown";
 import { maakTaakAction, zetNaarDeveloperbordAction } from "./actions";
 
@@ -110,6 +111,18 @@ export default async function WerkbordPagina({
   const taken = parseWerklijst(dossier!.werklijstMd);
   const groepen = groepeerOpStap(taken);
 
+  // Notities is een los bestand (lib/notities.ts) en staat hier los van de
+  // taken-versiepoort — net als naslagBlok() in de artifact, dat dezelfde
+  // notities.md-inhoud toont als de eigen Notities-tab, maar dan dichtgeklapt
+  // onderaan de Takenlijst. Een leesfout hier blokkeert de rest van de
+  // Takenlijst niet: de kaart valt gewoon terug op "geen notities".
+  let notitiesMd = "";
+  try {
+    notitiesMd = (await leesNotities(klant.mapId)).md;
+  } catch {
+    // stil: de Notities-tab zelf toont een echte foutmelding als het lezen mislukt
+  }
+
   return (
     <div>
       <details className="blok kaart">
@@ -206,6 +219,24 @@ export default async function WerkbordPagina({
           </div>
         ))
       )}
+
+      <details className="blok kaart">
+        <summary className="blokkop">
+          <h3>Notities</h3>
+        </summary>
+        <div className="blokbody">
+          {notitiesMd.trim() ? (
+            <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(notitiesMd) }} />
+          ) : (
+            <p className="note">Nog geen notities voor {klant.naam}.</p>
+          )}
+          <div className="acties">
+            <a className="pillbtn licht" href={`/klant/${klant.slug}/notities`}>
+              Openen op de Notities-tab
+            </a>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
