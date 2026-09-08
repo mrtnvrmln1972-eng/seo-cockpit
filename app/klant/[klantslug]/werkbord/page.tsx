@@ -6,7 +6,7 @@ import {
   toelichtingVoor,
   type WerklijstTaak,
 } from "@/lib/werklijst";
-import { statusClass, renderCel } from "@/lib/markdown";
+import { statusClass, renderAlineas } from "@/lib/markdown";
 import { maakTaakAction, zetNaarDeveloperbordAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -24,17 +24,19 @@ export const dynamic = "force-dynamic";
  * sortering, "een dashboard mag tonen, nooit oordelen", CLAUDE.md).
  */
 
-/** Eén label-blok uit toelichting.md: "**Label**" op een eigen regel, gevolgd door alinea's. */
+/** Eén label-blok uit toelichting.md: "**Label**" op een eigen regel, gevolgd door de rest. */
 interface ToelichtingBlok {
   label: string;
-  paragrafen: string[];
+  inhoud: string;
 }
 
 /**
  * Splitst de toelichting-tekst van één taak (vorm: "**In het kort**\n\n
- * <tekst>\n\n**Klaar als**\n\n<tekst>") op de vetgedrukte labelregels. Een
- * regel telt alleen als label als hij, getrimd, EXACT "**Label**" (met
- * evt. ":" erachter) is — geen ##-koppen, geen inline-vet middenin tekst.
+ * <tekst>\n\n**Klaar als**\n\n<tekst>", en vaak ook "**Onderdelen**" met
+ * een vinkjeslijst: "- [ ] 1a ...") op de vetgedrukte labelregels. Een regel
+ * telt alleen als label als hij, getrimd, EXACT "**Label**" (met evt. ":"
+ * erachter) is — geen ##-koppen, geen inline-vet middenin tekst. De inhoud
+ * per blok wordt met renderAlineas() gerenderd (lijsten/vinkjes + alinea's).
  */
 function toelichtingBlokken(tekst: string): ToelichtingBlok[] {
   const regels = String(tekst || "").replace(/\r/g, "").split("\n");
@@ -52,14 +54,7 @@ function toelichtingBlokken(tekst: string): ToelichtingBlok[] {
     if (huidig) huidig.inhoud.push(regel);
   }
 
-  return blokken.map((b) => ({
-    label: b.label,
-    paragrafen: b.inhoud
-      .join("\n")
-      .split(/\n\s*\n/)
-      .map((p) => p.trim())
-      .filter((p) => p.length > 0),
-  }));
+  return blokken.map((b) => ({ label: b.label, inhoud: b.inhoud.join("\n").trim() }));
 }
 
 /** Groepeert taken op stap, in volgorde van eerste voorkomen (niet alfabetisch). */
@@ -184,9 +179,11 @@ export default async function WerkbordPagina({
                         blokken.map((blok, bi) => (
                           <div key={bi}>
                             <h6>{blok.label}</h6>
-                            {blok.paragrafen.map((p, pi) => (
-                              <p key={pi} dangerouslySetInnerHTML={{ __html: renderCel(p) }} />
-                            ))}
+                            {blok.inhoud ? (
+                              <div dangerouslySetInnerHTML={{ __html: renderAlineas(blok.inhoud) }} />
+                            ) : (
+                              <p>—</p>
+                            )}
                           </div>
                         ))
                       )}

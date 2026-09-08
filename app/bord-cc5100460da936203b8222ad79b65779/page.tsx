@@ -1,5 +1,5 @@
 import { aggregeerDeveloperbord, type DevTaakMetKlant } from "@/lib/developerboard";
-import { statusClass, renderCel } from "@/lib/markdown";
+import { statusClass, renderCel, renderAlineas } from "@/lib/markdown";
 import { zetStatusAction } from "./actions";
 
 /**
@@ -31,66 +31,6 @@ import { zetStatusAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
-
-/**
- * Kleine, eigen markdown-naar-HTML-helper voor het `detail`-blok (de
- * volledige context onder de tabel in developer.md). Geen generieke
- * markdown-library — precies genoeg voor wat daar in de praktijk in staat:
- * `## Kop` (t/m 4 hekjes) als sub-kop, `- item`/`* item` als lijst, en de
- * rest als alinea's (lege regel = nieuwe alinea). renderCel() verzorgt
- * **vet** en `code` binnen elke regel/alinea.
- */
-function renderDetail(md: string): string {
-  const regels = String(md || "").replace(/\r/g, "").split("\n");
-  const out: string[] = [];
-  let paragraaf: string[] = [];
-  let inLijst = false;
-
-  const flushParagraaf = () => {
-    if (paragraaf.length) {
-      out.push(`<p>${renderCel(paragraaf.join(" "))}</p>`);
-      paragraaf = [];
-    }
-  };
-  const flushLijst = () => {
-    if (inLijst) {
-      out.push("</ul>");
-      inLijst = false;
-    }
-  };
-
-  for (const regelRuw of regels) {
-    const regel = regelRuw.trim();
-    const kopMatch = /^#{2,4}\s+(.*)$/.exec(regel);
-    const bulletMatch = /^[-*]\s+(.*)$/.exec(regel);
-
-    if (kopMatch) {
-      flushParagraaf();
-      flushLijst();
-      out.push(`<h5>${renderCel(kopMatch[1].trim())}</h5>`);
-      continue;
-    }
-    if (bulletMatch) {
-      flushParagraaf();
-      if (!inLijst) {
-        out.push("<ul>");
-        inLijst = true;
-      }
-      out.push(`<li>${renderCel(bulletMatch[1].trim())}</li>`);
-      continue;
-    }
-    if (regel === "") {
-      flushParagraaf();
-      flushLijst();
-      continue;
-    }
-    flushLijst();
-    paragraaf.push(regel);
-  }
-  flushParagraaf();
-  flushLijst();
-  return out.join("\n");
-}
 
 function isKlaar(taak: DevTaakMetKlant): boolean {
   return taak.status.trim().toLowerCase() === "klaar";
@@ -185,7 +125,7 @@ export default async function DeveloperbordPagina() {
                           {taak.detail && (
                             <div
                               className="doc"
-                              dangerouslySetInnerHTML={{ __html: renderDetail(taak.detail) }}
+                              dangerouslySetInnerHTML={{ __html: renderAlineas(taak.detail) }}
                             />
                           )}
 

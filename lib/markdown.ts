@@ -209,6 +209,79 @@ export function renderCel(tekst: string): string {
   return out;
 }
 
+/**
+ * Rendert vrije tekst (bijv. de "Onderdelen"-sectie in toelichting.md, of de
+ * "detail"-context onder een doorgezette taak in developer.md) naar simpele,
+ * veilige HTML: `- item`/`* item` (ook `- [ ] item` / `- [x] item`,
+ * vinkjeslijst-syntax uit toelichting.md) wordt een `<ul>`, `## kop` t/m
+ * `#### kop` wordt een `<h5>`, de rest wordt alinea's op basis van lege
+ * regels. Elke regel/alinea gaat door renderCel() voor vetgedrukte tekst en
+ * inline code. Geen generieke markdown-library — precies genoeg voor wat er
+ * in de praktijk in deze dossierbestanden staat.
+ */
+export function renderAlineas(tekst: string): string {
+  const regels = String(tekst || "").replace(/\r/g, "").split("\n");
+  const out: string[] = [];
+  let paragraaf: string[] = [];
+  let inLijst = false;
+
+  const flushParagraaf = () => {
+    if (paragraaf.length) {
+      out.push(`<p>${renderCel(paragraaf.join(" "))}</p>`);
+      paragraaf = [];
+    }
+  };
+  const flushLijst = () => {
+    if (inLijst) {
+      out.push("</ul>");
+      inLijst = false;
+    }
+  };
+
+  for (const regelRuw of regels) {
+    const regel = regelRuw.trim();
+    const kopMatch = /^#{2,4}\s+(.*)$/.exec(regel);
+    const vinkMatch = /^[-*]\s+\[([ xX])\]\s+(.*)$/.exec(regel);
+    const bulletMatch = /^[-*]\s+(.*)$/.exec(regel);
+
+    if (kopMatch) {
+      flushParagraaf();
+      flushLijst();
+      out.push(`<h5>${renderCel(kopMatch[1].trim())}</h5>`);
+      continue;
+    }
+    if (vinkMatch) {
+      flushParagraaf();
+      if (!inLijst) {
+        out.push("<ul>");
+        inLijst = true;
+      }
+      const af = vinkMatch[1].toLowerCase() === "x";
+      out.push(`<li>${af ? "☑" : "☐"} ${renderCel(vinkMatch[2].trim())}</li>`);
+      continue;
+    }
+    if (bulletMatch) {
+      flushParagraaf();
+      if (!inLijst) {
+        out.push("<ul>");
+        inLijst = true;
+      }
+      out.push(`<li>${renderCel(bulletMatch[1].trim())}</li>`);
+      continue;
+    }
+    if (regel === "") {
+      flushParagraaf();
+      flushLijst();
+      continue;
+    }
+    flushLijst();
+    paragraaf.push(regel);
+  }
+  flushParagraaf();
+  flushLijst();
+  return out.join("\n");
+}
+
 /** Haalt een markdown-link `[tekst](url)` uit een cel, of de kale tekst als er geen link is. */
 export function urlUitCel(cel: string): { tekst: string; url: string | null } {
   const link = /^\[(.*)\]\((.*)\)$/.exec(cel.trim());
