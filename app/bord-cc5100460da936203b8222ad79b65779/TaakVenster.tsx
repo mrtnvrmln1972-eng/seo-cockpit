@@ -61,19 +61,22 @@ export default function TaakVenster() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taak?.klantSlug, taak?.n]);
 
-  if (!taak) return null;
-
-  const status = taak.status.trim().toLowerCase();
-  const isOpenStatus = status === "open" || status === "";
-  const isKlaar = status === "klaar";
-  const isAfgerond = status === "afgerond";
-
   // Escape sluit (en slaat op) het venster — een globale listener in plaats
   // van onKeyDown op het venster-element, want daarvoor zou iets in het
   // venster expliciet focus moeten hebben. sluitenMetOpslaanRef houdt steeds
   // de nieuwste versie vast (met de actuele titel/opmerking/pagina/detail in
   // zijn closure) zodat de listener zelf maar één keer per open taak hoeft
   // te worden aan/afgemeld.
+  //
+  // BELANGRIJK: deze hooks staan bewust VÓÓR de "if (!taak) return null"
+  // hieronder — React vereist exact hetzelfde aantal/dezelfde volgorde hooks
+  // bij elke render. Stonden ze ná die early return (zoals hier eerder wél
+  // het geval was), dan verschilt het hook-aantal tussen "geen taak open" en
+  // "taak open" en crasht heel het Developerbord zodra je op een taak klikt
+  // (React-fout #310) — precies het "Bekijk doet niks"-gedrag dat Maarten
+  // meldde. sluitenMetOpslaan/isGewijzigd zijn function declarations en dus
+  // gehesen, dus deze hooks mogen er gewoon naar verwijzen ondanks dat ze
+  // pas verderop gedefinieerd staan.
   const sluitenMetOpslaanRef = useRef<() => void>(() => {});
   useEffect(() => {
     sluitenMetOpslaanRef.current = sluitenMetOpslaan;
@@ -87,6 +90,13 @@ export default function TaakVenster() {
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taak?.klantSlug, taak?.n]);
+
+  if (!taak) return null;
+
+  const status = taak.status.trim().toLowerCase();
+  const isOpenStatus = status === "open" || status === "";
+  const isKlaar = status === "klaar";
+  const isAfgerond = status === "afgerond";
 
   function isGewijzigd(): boolean {
     const s = snapshotRef.current;
