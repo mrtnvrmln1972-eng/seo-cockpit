@@ -8,9 +8,10 @@ import {
   taakStatusOpslaan,
   toelichtingVoor,
   parseWerklijst,
+  werklijstHerschikken,
 } from "@/lib/werklijst";
 import { taakNaarDeveloperbord } from "@/lib/developerboard";
-import { VersionConflictError } from "@/lib/drive";
+import { VersionConflictError, writeDocument } from "@/lib/drive";
 import { resolveDriveLinksInText } from "@/lib/links";
 
 /**
@@ -83,4 +84,37 @@ export async function zetNaarDeveloperbordAction(klantSlug: string, n: number) {
 
   revalidatePath(`/klant/${klantSlug}/werkbord`);
   revalidatePath(DEVBORD_PATH);
+}
+
+/**
+ * herschikTakenAction — de volgorde van de taakregels in werklijst.md
+ * aanpassen na een sleepactie in de Takenlijst-tab (TakenlijstItems.tsx).
+ * Geen <form>/FormData nodig (zelfde afwijkende vorm als
+ * zetUitvoerdatumAction op het Developerbord): dit wordt aangeroepen vanuit
+ * een drag-and-drop-gebeurtenis, direct met de volledige nieuwe
+ * taaknummer-volgorde als argument.
+ */
+export async function herschikTakenAction(
+  klantSlug: string,
+  volgordeNs: number[],
+): Promise<void> {
+  const klant = await getKlantBySlug(klantSlug);
+  if (!klant?.mapId) throw new Error("Deze klant heeft nog geen dossier in Drive.");
+
+  try {
+    const dossier = await leesWerklijstDossier(klant.mapId);
+    const nieuw = werklijstHerschikken(dossier.werklijstMd, volgordeNs);
+    if (!nieuw) throw new Error("Kon de nieuwe volgorde niet in werklijst.md verwerken.");
+    await writeDocument({
+      folderId: klant.mapId,
+      fileName: "werklijst.md",
+      content: nieuw,
+      knownFileId: dossier.werklijstBestand?.id ?? null,
+      knownModifiedTime: dossier.werklijstBestand?.modifiedTime ?? null,
+    });
+  } catch (err) {
+    throw foutmelding(err, "Kon de volgorde niet opslaan.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/werkbord`);
 }

@@ -1472,6 +1472,28 @@ table.matrix td.num {
   border-top: 1px solid #ededed;
   background: #fcfcfb;
 }
+
+/* ---- Sleepbare Takenlijst (TakenlijstItems.tsx), 08-09-2026 -------------
+   Sleepgreep vóór .binnenkop, en een visuele indicatie tijdens het slepen
+   zelf. Bouwt bewust voort op de bestaande .binnenrij/.binnenregel-stijlen
+   hierboven — geen nieuwe rij-vormgeving, alleen wat nodig is om te kunnen
+   slepen. */
+.sleepgreep {
+  flex: none;
+  width: 16px;
+  text-align: center;
+  color: var(--muted-2, #9e9e9e);
+  cursor: grab;
+  user-select: none;
+  font-size: 14px;
+  line-height: 1;
+}
+.binnenrij[draggable="true"] {
+  cursor: grab;
+}
+.binnenrijSlepend {
+  opacity: 0.4;
+}
 .binnenbody h6 {
   margin: 14px 0 4px;
   font-size: 9.5px;

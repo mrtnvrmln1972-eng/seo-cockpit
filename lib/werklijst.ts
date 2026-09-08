@@ -196,6 +196,64 @@ export function werklijstStatus(md: string, n: number, waarde: string): string |
   return null;
 }
 
+/**
+ * Herschikt de taakregels in werklijst.md naar de gegeven volgorde van
+ * taaknummers — 08-09-2026 op Maartens verzoek om taken zelf te kunnen
+ * slepen in plaats van dat de weergave-volgorde vastligt aan de "Stap"-
+ * kolom (die groepering is dezelfde dag op zijn verzoek juist weer
+ * verwijderd uit de Takenlijst-tab, zie de doc-comment in
+ * app/klant/[klantslug]/werkbord/page.tsx). Herschrijft alleen de
+ * RIJVOLGORDE binnen de tabel, geen enkele celwaarde verandert.
+ *
+ * Een taaknummer dat niet in volgordeNs voorkomt (zou niet moeten gebeuren
+ * — bijv. een race met een taak die net elders is toegevoegd) wordt nooit
+ * stilzwijgend laten vallen: die rij wordt achteraan toegevoegd, in de
+ * oorspronkelijke volgorde, zodat er nooit een taak zoekraakt door een
+ * sleepactie.
+ */
+export function werklijstHerschikken(md: string, volgordeNs: number[]): string | null {
+  const regels = String(md || "").replace(/\r/g, "").split("\n");
+  const pos = eersteTabel(regels);
+  if (!pos) return null;
+  const header = splitCells(regels[pos.kopRegel]).map((c) => c.toLowerCase());
+  let kolN = 0;
+  header.forEach((hh, i) => {
+    if (hh === "#" || /^(nr|nummer)$/.test(hh)) kolN = i;
+  });
+
+  const rijStart = pos.scheidingRegel + 1;
+  let rijEind = rijStart;
+  while (rijEind < regels.length && regels[rijEind].trim().charAt(0) === "|") rijEind++;
+
+  const rijen = regels.slice(rijStart, rijEind);
+  const perN = new Map<number, string>();
+  for (const rij of rijen) {
+    const n = parseInt(splitCells(rij)[kolN] ?? "", 10);
+    if (!isNaN(n) && !perN.has(n)) perN.set(n, rij);
+  }
+
+  const nieuweRijen: string[] = [];
+  const gebruikt = new Set<number>();
+  for (const n of volgordeNs) {
+    const rij = perN.get(n);
+    if (rij !== undefined && !gebruikt.has(n)) {
+      nieuweRijen.push(rij);
+      gebruikt.add(n);
+    }
+  }
+  for (const rij of rijen) {
+    const n = parseInt(splitCells(rij)[kolN] ?? "", 10);
+    if (!isNaN(n) && !gebruikt.has(n)) {
+      nieuweRijen.push(rij);
+      gebruikt.add(n);
+    }
+  }
+  if (nieuweRijen.length !== rijen.length) return null;
+
+  regels.splice(rijStart, rijEind - rijStart, ...nieuweRijen);
+  return regels.join("\n");
+}
+
 /** Past de titel (kolom Taak) van taak n aan; het nummer blijft gelijk. */
 export function werklijstTitel(md: string, n: number, tekst: string): string | null {
   const regels = String(md || "").replace(/\r/g, "").split("\n");

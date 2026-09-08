@@ -1,29 +1,30 @@
 import { notFound } from "next/navigation";
 import { getKlantBySlug } from "@/lib/klanten";
-import {
-  leesWerklijstDossier,
-  parseWerklijst,
-  toelichtingVoor,
-  type WerklijstTaak,
-} from "@/lib/werklijst";
+import { leesWerklijstDossier, parseWerklijst, toelichtingVoor } from "@/lib/werklijst";
 import { leesNotities } from "@/lib/notities";
-import { statusClass, renderAlineas } from "@/lib/markdown";
+import { renderAlineas } from "@/lib/markdown";
 import NieuweTaakForm from "./NieuweTaakForm";
-import DoorzettenKnop from "./DoorzettenKnop";
+import TakenlijstItems, { type TaakItem } from "./TakenlijstItems";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Werkbord-tab ("Takenlijst") — de EERSTE tab, spec §3.1/§3.2 (taken() +
  * taakBlok() in de bestaande artifact), maar bewust vereenvoudigd: geen
- * stapblokken/vinklijst/sleepvolgorde (zie de doc-comment in
- * lib/werklijst.ts) en geen JS-modal voor een nieuwe taak — Maartens harde
- * regel is dat een nieuwe taak alleen een titel en optionele notities
- * krijgt, en dat een taak nooit automatisch gegenereerd wordt.
+ * vinklijst en geen JS-modal voor een nieuwe taak — Maartens harde regel is
+ * dat een nieuwe taak alleen een titel en optionele notities krijgt, en dat
+ * een taak nooit automatisch gegenereerd wordt.
  *
- * Groepering is op de kolom "Stap" uit werklijst.md, in volgorde van eerste
- * voorkomen in de tabel (dus zoals het dossier zelf ordent — geen eigen
- * sortering, "een dashboard mag tonen, nooit oordelen", CLAUDE.md).
+ * Geen groepering per "Stap" meer (was: 1. Onboarding / 2. .../ 3. Techniek
+ * etc.) — op Maartens verzoek 08-09-2026 verwijderd: dat onderscheid komt
+ * niet overal even zinnig terug (elke klant heeft z'n eigen stap-varianten
+ * in werklijst.md) en voegde in de UI niets toe. De "Stap"-kolom zelf blijft
+ * gewoon in werklijst.md staan (nog steeds een verplicht veld bij het
+ * aanmaken van een taak, zie maakTaakAction in actions.ts) — dit is puur een
+ * weergavewijziging, geen datamodelwijziging. In plaats van groepering is er
+ * nu één platte, sleepbare lijst (TakenlijstItems.tsx) in de volgorde van
+ * werklijst.md zelf — sorteren is dus aan Maarten, niet aan het dashboard
+ * ("een dashboard mag tonen, nooit oordelen", CLAUDE.md).
  */
 
 /** Eén label-blok uit toelichting.md: "**Label**" op een eigen regel, gevolgd door de rest. */
@@ -57,20 +58,6 @@ function toelichtingBlokken(tekst: string): ToelichtingBlok[] {
   }
 
   return blokken.map((b) => ({ label: b.label, inhoud: b.inhoud.join("\n").trim() }));
-}
-
-/** Groepeert taken op stap, in volgorde van eerste voorkomen (niet alfabetisch). */
-function groepeerOpStap(taken: WerklijstTaak[]): { stap: string; taken: WerklijstTaak[] }[] {
-  const groepen: { stap: string; taken: WerklijstTaak[] }[] = [];
-  const index = new Map<string, number>();
-  for (const taak of taken) {
-    if (!index.has(taak.stap)) {
-      index.set(taak.stap, groepen.length);
-      groepen.push({ stap: taak.stap, taken: [] });
-    }
-    groepen[index.get(taak.stap)!].taken.push(taak);
-  }
-  return groepen;
 }
 
 export default async function WerkbordPagina({
@@ -110,7 +97,24 @@ export default async function WerkbordPagina({
   }
 
   const taken = parseWerklijst(dossier!.werklijstMd);
-  const groepen = groepeerOpStap(taken);
+
+  // Platte lijst voor TakenlijstItems (client component, i.v.m. slepen) —
+  // toelichting alvast gesplitst in labelblokken en gerenderd tot HTML op de
+  // server, zodat het client component zelf geen markdown-logica hoeft te
+  // kennen.
+  const items: TaakItem[] = taken.map((taak) => {
+    const toelichting = toelichtingVoor(dossier!.toelichtingMd, taak.n);
+    const blokken = toelichtingBlokken(toelichting).map((b) => ({
+      label: b.label,
+      html: b.inhoud ? renderAlineas(b.inhoud) : "",
+    }));
+    const mailBody = toelichting.trim() || `Zie taak ${taak.n} in de klantcockpit.`;
+    const mailHref =
+      `mailto:tonny@pingwin.nl` +
+      `?subject=${encodeURIComponent(`Klantcockpit, ${klant.naam}: ${taak.titel}`)}` +
+      `&body=${encodeURIComponent(mailBody)}`;
+    return { n: taak.n, titel: taak.titel, status: taak.status.trim(), blokken, mailHref };
+  });
 
   // Notities is een los bestand (lib/notities.ts) en staat hier los van de
   // taken-versiepoort — net als naslagBlok() in de artifact, dat dezelfde
@@ -140,69 +144,7 @@ export default async function WerkbordPagina({
           <p className="placeholder">Nog geen taken in werklijst.md.</p>
         </div>
       ) : (
-        groepen.map((groep) => (
-          <div className="blok kaart" key={groep.stap}>
-            <div className="blokkop">
-              <h3>{groep.stap}</h3>
-              <span className="c">{groep.taken.length}</span>
-            </div>
-            <div className="binnenlijst">
-              {groep.taken.map((taak) => {
-                const toelichting = toelichtingVoor(dossier!.toelichtingMd, taak.n);
-                const blokken = toelichtingBlokken(toelichting);
-                const status = taak.status.trim();
-                const mailBody =
-                  toelichting.trim() || `Zie taak ${taak.n} in de klantcockpit.`;
-                const mailHref =
-                  `mailto:tonny@pingwin.nl` +
-                  `?subject=${encodeURIComponent(`Klantcockpit, ${klant.naam}: ${taak.titel}`)}` +
-                  `&body=${encodeURIComponent(mailBody)}`;
-
-                return (
-                  <details className="binnenrij" key={`${groep.stap}-${taak.n}`}>
-                    <summary className="binnenregel">
-                      <span className="binnenkop">
-                        <span className="tk">
-                          #{taak.n} — {taak.titel}
-                        </span>
-                        <span className="chev2" />
-                      </span>
-                      <span className="binnenmeta">
-                        {status && status.toLowerCase() !== "open" && (
-                          <span className={`pill ${statusClass(status)}`}>{status}</span>
-                        )}
-                      </span>
-                    </summary>
-
-                    <div className="binnenbody">
-                      {blokken.length === 0 ? (
-                        <p>Nog geen toelichting.</p>
-                      ) : (
-                        blokken.map((blok, bi) => (
-                          <div key={bi}>
-                            <h6>{blok.label}</h6>
-                            {blok.inhoud ? (
-                              <div dangerouslySetInnerHTML={{ __html: renderAlineas(blok.inhoud) }} />
-                            ) : (
-                              <p>—</p>
-                            )}
-                          </div>
-                        ))
-                      )}
-
-                      <div className="acties">
-                        <DoorzettenKnop klantSlug={klant.slug} n={taak.n} />
-                        <a className="pillbtn licht" href={mailHref}>
-                          Mailen naar Tonny
-                        </a>
-                      </div>
-                    </div>
-                  </details>
-                );
-              })}
-            </div>
-          </div>
-        ))
+        <TakenlijstItems klantSlug={klant.slug} items={items} />
       )}
 
       <details className="blok kaart">

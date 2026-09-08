@@ -292,8 +292,35 @@ function voorbewerkGeplakteMarkers(tekst: string): string {
     .replace(/(?<!\n)[ \t]+(-\s\[[ xX]\]\s)/g, "\n$1");
 }
 
+/**
+ * Zelfde probleem als voorbewerkGeplakteMarkers() hierboven, maar dan voor
+ * "**Label:**"-stukken (bijv. "**Toon:** ... **Inhoud die op deze pagina
+ * thuishoort:** ...") — 08-09-2026 gezien in een live notities.md (Kamsteeg)
+ * die als één geplakte lap is geschreven: tientallen van dit soort labels
+ * achter elkaar zonder regeleinde ertussen, met of zonder spatie. Zonder
+ * deze stap rendert renderAlineas() dat als ÉÉN kluwen-alinea (geen enkele
+ * blanco regel om op te splitsen) — precies wat Maarten "ziet er niet uit"
+ * noemde. Puur een rendering-fix, geen wijziging van het dossierbestand
+ * zelf: werkt daardoor ook met terugwerkende kracht op bestaande content,
+ * bij elke render opnieuw.
+ *
+ * Patroon: elk "**iets:**" (colon BINNEN de sluitende sterren — dat is het
+ * kenmerk van een label, in tegenstelling tot gewone inline nadruk zoals
+ * "dit is **belangrijk**") dat NIET al aan het begin van een regel staat,
+ * krijgt een eigen alinea (dubbel regeleinde ervoor). Ontbreekt de spatie
+ * tussen de sluitende "**" en de tekst erna (label en inhoud aan elkaar
+ * geplakt), dan wordt die ook toegevoegd.
+ */
+function voorbewerkGeplakteLabels(tekst: string): string {
+  return tekst
+    .replace(/([^\n])[ \t]*(\*\*[^*\n]{1,80}:\*\*)/g, "$1\n\n$2")
+    .replace(/(\*\*[^*\n]{1,80}:\*\*)(?=[^\s\n])/g, "$1 ");
+}
+
 export function renderAlineas(tekst: string): string {
-  const regels = voorbewerkGeplakteMarkers(String(tekst || "").replace(/\r/g, "")).split("\n");
+  const regels = voorbewerkGeplakteLabels(
+    voorbewerkGeplakteMarkers(String(tekst || "").replace(/\r/g, "")),
+  ).split("\n");
   const out: string[] = [];
   let paragraaf: string[] = [];
   let inLijst = false;
