@@ -41,6 +41,9 @@ export default async function Nav() {
       <Link href="/" prefetch={false} className="navlink">
         Overzicht
       </Link>
+      <Link href="/bord-cc5100460da936203b8222ad79b65779" prefetch={false} className="navlink">
+        Developer
+      </Link>
 
       {foutmelding ? (
         <div className="foutbanner" style={{ marginTop: 16 }}>
