@@ -20,12 +20,25 @@ import { VersionConflictError } from "@/lib/drive";
 
 const DEVBORD_PATH = "/bord-cc5100460da936203b8222ad79b65779";
 
-export async function zetStatusAction(
-  klantFolderId: string,
-  klantSlug: string,
-  n: number,
-  waarde: "klaar" | "open",
-) {
+/**
+ * klantFolderId/n/waarde gaan als verborgen formuliervelden mee (FormData)
+ * in plaats van als extra .bind()-argumenten — dezelfde vorm als
+ * maakTaakAction/notitiesOpslaanAction (één gebonden argument, de rest uit
+ * FormData). Eerdere versie bond alle vier als losse .bind()-argumenten,
+ * wat in productie leidde tot een volledige serverfout (Vercel-foutpagina,
+ * geen React-foutgrens die het nog kon opvangen) zodra de knop werd
+ * ingedrukt — dit is de bekend-werkende vorm.
+ */
+export async function zetStatusAction(klantSlug: string, formData: FormData) {
+  const klantFolderId = String(formData.get("klantFolderId") ?? "");
+  const n = parseInt(String(formData.get("n") ?? ""), 10);
+  const waardeRuw = String(formData.get("waarde") ?? "");
+  const waarde = waardeRuw === "klaar" || waardeRuw === "open" ? waardeRuw : null;
+
+  if (!klantFolderId || !Number.isFinite(n) || !waarde) {
+    throw new Error("Ontbrekende gegevens bij het opslaan van de status.");
+  }
+
   try {
     await developerStatusOpslaan(klantFolderId, n, waarde);
   } catch (err) {

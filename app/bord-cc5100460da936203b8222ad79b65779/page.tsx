@@ -125,15 +125,10 @@ export default async function DeveloperbordPagina() {
                           )}
 
                           <div className="acties">
-                            <form
-                              action={zetStatusAction.bind(
-                                null,
-                                taak.klantFolderId,
-                                taak.klantSlug,
-                                taak.n,
-                                klaar ? "open" : "klaar",
-                              )}
-                            >
+                            <form action={zetStatusAction.bind(null, taak.klantSlug)}>
+                              <input type="hidden" name="klantFolderId" value={taak.klantFolderId} />
+                              <input type="hidden" name="n" value={taak.n} />
+                              <input type="hidden" name="waarde" value={klaar ? "open" : "klaar"} />
                               <button className={klaar ? "pillbtn licht" : "pillbtn sterk"} type="submit">
                                 {klaar ? "Heropenen" : "Klaar melden"}
                               </button>
