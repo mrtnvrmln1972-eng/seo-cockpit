@@ -38,7 +38,7 @@ export default async function Nav() {
 
       <NavZoek />
 
-      <Link href="/" className="navlink">
+      <Link href="/" prefetch={false} className="navlink">
         Overzicht
       </Link>
 

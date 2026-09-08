@@ -48,6 +48,7 @@ export default function Tabs({ klantSlug }: { klantSlug: string }) {
           <Link
             key={tab.segment}
             href={href}
+            prefetch={false}
             role="tab"
             aria-selected={actief}
             className="tab"
