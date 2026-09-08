@@ -219,8 +219,24 @@ export function renderCel(tekst: string): string {
  * inline code. Geen generieke markdown-library — precies genoeg voor wat er
  * in de praktijk in deze dossierbestanden staat.
  */
+/**
+ * Sommige toelichting.md-bestanden bevatten een koppen/vinklijst-reeks
+ * (bijv. "... {01-09} - [ ] Volgende item {02-09} - [ ] ...") zonder dat er
+ * tussen de items een echte regeleinde staat — vermoedelijk ontstaan doordat
+ * de tekst ooit als één alinea is geplakt. Zet elke "### kop" en elke
+ * "- [ ] item" / "- [x] item" die MIDDEN in een regel voorkomt (dus met
+ * tekst ervoor op dezelfde regel) om in een eigen regel, zodat de
+ * lijst/koppen-detectie hieronder ze alsnog herkent. Regels die al normaal
+ * met een eigen regeleinde beginnen, blijven ongewijzigd.
+ */
+function voorbewerkGeplakteMarkers(tekst: string): string {
+  return tekst
+    .replace(/(?<!\n)[ \t]+(#{2,4}\s+\S)/g, "\n$1")
+    .replace(/(?<!\n)[ \t]+(-\s\[[ xX]\]\s)/g, "\n$1");
+}
+
 export function renderAlineas(tekst: string): string {
-  const regels = String(tekst || "").replace(/\r/g, "").split("\n");
+  const regels = voorbewerkGeplakteMarkers(String(tekst || "").replace(/\r/g, "")).split("\n");
   const out: string[] = [];
   let paragraaf: string[] = [];
   let inLijst = false;
