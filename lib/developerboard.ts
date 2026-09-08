@@ -33,8 +33,8 @@ import { toelichtingVoor } from "./werklijst";
 
 export const SJABLOON_DEVELOPER =
   "# Doorgezet naar de developer\n\n" +
-  "| # | Taak | Opmerking | Pagina | Stappenplan | Status | Doorgezet op |\n" +
-  "|---|---|---|---|---|---|---|\n";
+  "| # | Taak | Opmerking | Pagina | Stappenplan | Tijdsduur | Terugkoppeling | Status | Doorgezet op |\n" +
+  "|---|---|---|---|---|---|---|---|---|\n";
 
 export interface DevTaak {
   n: number;
@@ -44,6 +44,10 @@ export interface DevTaak {
   opmerking: string;
   pagina: string;
   werkorder: string;
+  /** Door de developer ingevuld bij "Klaar melden" — verplicht, vrije tekst (bijv. "45 min"). */
+  tijdsduur: string;
+  /** Door de developer ingevuld bij "Klaar melden" — optioneel, terugkoppeling voor Maarten. */
+  terugkoppeling: string;
   status: string;
   doorgezetOp: string;
   /** Volledige context uit het `## <titel>`-blok onder de tabel, indien aanwezig. */
@@ -128,6 +132,8 @@ interface KolomIndex {
   opmerking?: number;
   pagina?: number;
   werkorder?: number;
+  tijdsduur?: number;
+  terugkoppeling?: number;
   status?: number;
   datum?: number;
 }
@@ -141,10 +147,41 @@ function kolomIndex(header: string[]): KolomIndex {
     if (kol.opmerking === undefined && /opmerking|notitie|toelichting/.test(h)) kol.opmerking = i;
     if (kol.pagina === undefined && /pagina|url/.test(h)) kol.pagina = i;
     if (kol.werkorder === undefined && /werkorder|stappenplan|artifact|bord/.test(h)) kol.werkorder = i;
+    if (kol.tijdsduur === undefined && /tijdsduur/.test(h)) kol.tijdsduur = i;
+    if (kol.terugkoppeling === undefined && /terugkoppeling/.test(h)) kol.terugkoppeling = i;
     if (kol.status === undefined && /status/.test(h)) kol.status = i;
     if (kol.datum === undefined && /datum|doorgezet/.test(h)) kol.datum = i;
   });
   return kol;
+}
+
+/**
+ * Migratie-helper voor bestaande developer.md-bestanden die nog geen
+ * Tijdsduur/Terugkoppeling-kolom hebben (elk klantbestand dat al vóór
+ * 08-09-2026 is aangemaakt). Voegt de kolom, indien afwezig, toe aan het
+ * EIND van de kop-, scheidings- en elke databregel — kolomvolgorde is
+ * verder irrelevant, kolomIndex() matcht op naam, niet op positie.
+ * Idempotent: bestaat de kolom al, dan gebeurt er niets.
+ */
+function voegKolomToe(regel: string, waarde: string): string {
+  return regel.replace(/\|\s*$/, "") + `| ${waarde} |`;
+}
+
+function zorgKolomBestaat(
+  regels: string[],
+  kopRegel: number,
+  scheidingRegel: number,
+  naam: string,
+  matcher: RegExp,
+): void {
+  const header = splitCells(regels[kopRegel]);
+  if (header.some((c) => matcher.test(c.toLowerCase()))) return;
+  regels[kopRegel] = voegKolomToe(regels[kopRegel], naam);
+  regels[scheidingRegel] = voegKolomToe(regels[scheidingRegel], "---");
+  for (let j = scheidingRegel + 1; j < regels.length; j++) {
+    if (regels[j] === undefined || regels[j].trim().charAt(0) !== "|") break;
+    regels[j] = voegKolomToe(regels[j], "");
+  }
 }
 
 /** Leest alle taken uit één developer.md, getagd met klantnaam/slug. */
@@ -175,6 +212,8 @@ export function parseDeveloperMd(md: string, klantNaam: string, klantSlug: strin
       opmerking: (kol.opmerking !== undefined ? r[kol.opmerking] : "") || "",
       pagina: (kol.pagina !== undefined ? r[kol.pagina] : "") || "",
       werkorder: (kol.werkorder !== undefined ? r[kol.werkorder] : "") || "",
+      tijdsduur: (kol.tijdsduur !== undefined ? r[kol.tijdsduur] : "") || "",
+      terugkoppeling: (kol.terugkoppeling !== undefined ? r[kol.terugkoppeling] : "") || "",
       status: (kol.status !== undefined ? r[kol.status] : "") || "open",
       doorgezetOp: (kol.datum !== undefined ? r[kol.datum] : "") || "",
       detail: blok?.inhoud ?? "",
@@ -227,9 +266,9 @@ export function developerMetRegel(
     regels.splice(
       grens,
       0,
-      "| # | Taak | Opmerking | Pagina | Werkorder | Status | Doorgezet op |",
-      "|---|---|---|---|---|---|---|",
-      `| ${taakN} | ${schoon(titel)} | ${schoon(opmerking)} | ${schoon(pagina)} | ${schoon(werkorder)} | open | ${vandaagIso()} |`,
+      "| # | Taak | Opmerking | Pagina | Werkorder | Tijdsduur | Terugkoppeling | Status | Doorgezet op |",
+      "|---|---|---|---|---|---|---|---|---|",
+      `| ${taakN} | ${schoon(titel)} | ${schoon(opmerking)} | ${schoon(pagina)} | ${schoon(werkorder)} |  |  | open | ${vandaagIso()} |`,
       "",
     );
     uit = regels.join("\n");
@@ -241,6 +280,8 @@ export function developerMetRegel(
       if (/taak|omschrijving|actie/.test(hh)) return ` ${schoon(titel)} `;
       if (/opmerking|notitie|toelichting/.test(hh)) return ` ${schoon(opmerking)} `;
       if (/pagina|url/.test(hh)) return ` ${schoon(pagina)} `;
+      if (/tijdsduur/.test(hh)) return " ";
+      if (/terugkoppeling/.test(hh)) return " ";
       if (/status/.test(hh)) return " open ";
       if (/datum|doorgezet/.test(hh)) return ` ${vandaagIso()} `;
       return " ";
@@ -276,6 +317,44 @@ export function developerStatus(md: string, n: number, waarde: string): string |
     if (parseInt(c[idxN] ?? "", 10) !== n) continue;
     while (c.length <= kolS) c.push(" ");
     c[kolS] = ` ${waarde} `;
+    regels[j] = "|" + c.join("|") + "|";
+    return regels.join("\n");
+  }
+  return null;
+}
+
+/**
+ * De developer meldt taak n klaar: verplichte tijdsduur + optionele
+ * terugkoppeling gaan de tabel in, status wordt "klaar" (= wacht op
+ * beoordeling door Maarten, zie developerStatus() hierboven voor de
+ * vervolgstap "afgerond"/"open"). Migreert oudere developer.md-bestanden
+ * zonder Tijdsduur/Terugkoppeling-kolom automatisch (zorgKolomBestaat()).
+ */
+export function developerKlaarMelden(
+  md: string,
+  n: number,
+  tijdsduur: string,
+  terugkoppeling: string,
+): string | null {
+  const regels = String(md || "").replace(/\r/g, "").split("\n");
+  const pos = eersteTabelVoorKop(regels);
+  if (!pos) return null;
+  zorgKolomBestaat(regels, pos.kopRegel, pos.scheidingRegel, "Tijdsduur", /tijdsduur/);
+  zorgKolomBestaat(regels, pos.kopRegel, pos.scheidingRegel, "Terugkoppeling", /terugkoppeling/);
+  const kol = kolomIndex(splitCells(regels[pos.kopRegel]));
+  const idxN = kol.n ?? 0;
+  if (kol.status === undefined || kol.tijdsduur === undefined || kol.terugkoppeling === undefined) {
+    return null;
+  }
+  const laatsteKolom = Math.max(kol.status, kol.tijdsduur, kol.terugkoppeling);
+  for (let j = pos.scheidingRegel + 1; j < regels.length; j++) {
+    if (regels[j].trim().charAt(0) !== "|") break;
+    const c = splitCells(regels[j]);
+    if (parseInt(c[idxN] ?? "", 10) !== n) continue;
+    while (c.length <= laatsteKolom) c.push(" ");
+    c[kol.status] = " klaar ";
+    c[kol.tijdsduur] = ` ${schoon(tijdsduur)} `;
+    c[kol.terugkoppeling] = ` ${schoon(terugkoppeling)} `;
     regels[j] = "|" + c.join("|") + "|";
     return regels.join("\n");
   }
@@ -352,6 +431,26 @@ export async function developerStatusOpslaan(
   if (!bestand) throw new Error("Er is nog geen developer.md voor deze klant.");
   const md = await readFileContent(bestand.id);
   const nieuw = developerStatus(md, n, waarde);
+  if (!nieuw) throw new Error("Kon deze taak niet in developer.md vinden.");
+  await writeDocument({
+    folderId: klantFolderId,
+    fileName: "developer.md",
+    content: nieuw,
+    knownFileId: bestand.id,
+    knownModifiedTime: bestand.modifiedTime,
+  });
+}
+
+export async function developerKlaarMeldenOpslaan(
+  klantFolderId: string,
+  n: number,
+  tijdsduur: string,
+  terugkoppeling: string,
+): Promise<void> {
+  const bestand = await findFileByName(klantFolderId, "developer.md");
+  if (!bestand) throw new Error("Er is nog geen developer.md voor deze klant.");
+  const md = await readFileContent(bestand.id);
+  const nieuw = developerKlaarMelden(md, n, tijdsduur, terugkoppeling);
   if (!nieuw) throw new Error("Kon deze taak niet in developer.md vinden.");
   await writeDocument({
     folderId: klantFolderId,

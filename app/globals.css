@@ -786,6 +786,45 @@ ul.checks .code {
   min-height: 84px;
   resize: vertical;
 }
+
+/* ---- klaar-meldformulier (Developerbord): compacte variant van .metaveld ---- */
+
+.klaarmeldform {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+.klaarmeldform .metaveld {
+  margin-bottom: 10px;
+}
+.klaarmeldform .metaveld textarea {
+  min-height: 56px;
+}
+.klaarmeldform .acties {
+  margin-top: 0;
+}
+.foutregel {
+  color: var(--crit);
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+.terugkoppelblok {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13.5px;
+}
+.terugkoppelblok b {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 3px;
+}
 .meter {
   height: 6px;
   border-radius: 30px;
@@ -1212,6 +1251,10 @@ table.matrix td.num {
   background: var(--ok-wash);
   color: var(--ok);
 }
+.p-afgerond {
+  background: var(--surface-2);
+  color: var(--muted-2);
+}
 .p-vervallen {
   background: var(--surface-2);
   color: var(--muted-2);
@@ -1251,6 +1294,9 @@ table.matrix td.num {
 }
 .dot-klaar {
   background: var(--ok);
+}
+.dot-afgerond {
+  background: var(--muted-2);
 }
 .dot-vervallen {
   background: var(--muted-2);

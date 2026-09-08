@@ -1,6 +1,9 @@
+import { headers } from "next/headers";
 import { aggregeerDeveloperbord, type DevTaakMetKlant } from "@/lib/developerboard";
 import { statusClass, renderCel, renderAlineas } from "@/lib/markdown";
 import { zetStatusAction } from "./actions";
+import KlaarMeldenForm from "./KlaarMeldenForm";
+import AutoOpenHash from "./AutoOpenHash";
 
 /**
  * app/bord-cc5100460da936203b8222ad79b65779/page.tsx — het Developerbord.
@@ -20,6 +23,17 @@ import { zetStatusAction } from "./actions";
  * taakNaarDeveloperbord() aanroept) is hier dus DIRECT zichtbaar, zonder
  * kopiëren of een tweede bron van waarheid.
  *
+ * Klaar/Afgerond-cyclus (08-09-2026, op Maartens verzoek de hele workflow
+ * afgemaakt): drie statussen, geen twee.
+ *   open      — nog te doen door de developer.
+ *   klaar     — de developer heeft 'm afgevinkt via KlaarMeldenForm, MET
+ *               verplichte tijdsduur en optionele terugkoppeling. Wacht op
+ *               beoordeling door Maarten.
+ *   afgerond  — Maarten heeft de klaar-melding bekeken en akkoord bevonden.
+ * Vanuit "klaar" kan Maarten "Afgerond zetten" of "Heropenen" (terug naar
+ * "open", bijv. als het werk niet klopt). Vanuit "afgerond" kan hij ook nog
+ * heropenen, voor het geval dat per ongeluk gebeurde.
+ *
  * Confidentialiteit: deze pagina is bedoeld om (indirect, via de link) ook
  * door een externe developer bekeken te worden. De klantnaam moet daarom wel
  * getoond worden (de developer moet weten voor welke klant een taak is),
@@ -32,18 +46,38 @@ import { zetStatusAction } from "./actions";
 export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
 
-function isKlaar(taak: DevTaakMetKlant): boolean {
-  return taak.status.trim().toLowerCase() === "klaar";
-}
+const DEVBORD_PATH = "/bord-cc5100460da936203b8222ad79b65779";
+/** Vast e-mailadres van de developer — al elders in de app zo gebruikt (zie werkbord/page.tsx). */
+const DEVELOPER_EMAIL = "tonny@pingwin.nl";
 
+function statusVan(taak: DevTaakMetKlant): string {
+  return taak.status.trim().toLowerCase();
+}
+function isOpen(taak: DevTaakMetKlant): boolean {
+  return statusVan(taak) === "open" || statusVan(taak) === "";
+}
+function isKlaar(taak: DevTaakMetKlant): boolean {
+  return statusVan(taak) === "klaar";
+}
+function isAfgerond(taak: DevTaakMetKlant): boolean {
+  return statusVan(taak) === "afgerond";
+}
 function isVervallen(taak: DevTaakMetKlant): boolean {
-  return taak.status.trim().toLowerCase() === "vervallen";
+  return statusVan(taak) === "vervallen";
+}
+/** Eén stabiel anker per taak, gebruikt door het mailto-linkje én AutoOpenHash. */
+function taakAnker(taak: DevTaakMetKlant): string {
+  return `taak-${taak.klantSlug}-${taak.n}`;
 }
 
 export default async function DeveloperbordPagina() {
-  const taken = await aggregeerDeveloperbord();
+  const [taken, hdrs] = await Promise.all([aggregeerDeveloperbord(), headers()]);
 
-  const aantalOpen = taken.filter((t) => !isKlaar(t) && !isVervallen(t)).length;
+  const host = hdrs.get("host") ?? "";
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const basisUrl = host ? `${proto}://${host}` : "";
+
+  const aantalOpen = taken.filter((t) => !isKlaar(t) && !isAfgerond(t) && !isVervallen(t)).length;
   const aantalKlaar = taken.filter((t) => isKlaar(t)).length;
 
   const groepen = new Map<string, DevTaakMetKlant[]>();
@@ -56,6 +90,7 @@ export default async function DeveloperbordPagina() {
 
   return (
     <div data-bord-secret>
+      <AutoOpenHash />
       <div className="kop">
         <h2>Developerbord</h2>
       </div>
@@ -87,15 +122,25 @@ export default async function DeveloperbordPagina() {
                 </div>
                 <div className="binnenlijst">
                   {groep.map((taak) => {
-                    const klaar = isKlaar(taak);
+                    const anker = taakAnker(taak);
+                    const link = basisUrl ? `${basisUrl}${DEVBORD_PATH}#${anker}` : "";
                     const mailtoOnderwerp = encodeURIComponent(
                       `Developerbord, ${taak.klantNaam}: ${taak.titel}`,
                     );
-                    const mailtoBody = encodeURIComponent(
-                      `Over deze taak: ${taak.titel}` + (taak.opmerking ? `\n\n${taak.opmerking}` : ""),
-                    );
+                    const mailtoRegels = [
+                      `Taak: ${taak.titel} (${taak.klantNaam})`,
+                      link,
+                      ...(taak.opmerking ? ["", taak.opmerking] : []),
+                    ];
+                    const mailtoBody = encodeURIComponent(mailtoRegels.join("\n"));
+
                     return (
-                      <details className="binnenrij" key={`${taak.klantSlug}-${taak.n}`} open={!klaar}>
+                      <details
+                        className="binnenrij"
+                        id={anker}
+                        key={`${taak.klantSlug}-${taak.n}`}
+                        open={isOpen(taak)}
+                      >
                         <summary className="binnenregel">
                           <span className="binnenkop">
                             <span className="tk">{taak.titel}</span>
@@ -124,20 +169,63 @@ export default async function DeveloperbordPagina() {
                             />
                           )}
 
+                          {(isKlaar(taak) || isAfgerond(taak)) &&
+                            (taak.tijdsduur || taak.terugkoppeling) && (
+                              <div className="terugkoppelblok">
+                                <b>Terugkoppeling developer</b>
+                                {taak.tijdsduur && <p>Tijd besteed: {taak.tijdsduur}</p>}
+                                {taak.terugkoppeling && (
+                                  <p dangerouslySetInnerHTML={{ __html: renderCel(taak.terugkoppeling) }} />
+                                )}
+                              </div>
+                            )}
+
                           <div className="acties">
-                            <form action={zetStatusAction.bind(null, taak.klantSlug)}>
-                              <input type="hidden" name="klantFolderId" value={taak.klantFolderId} />
-                              <input type="hidden" name="n" value={taak.n} />
-                              <input type="hidden" name="waarde" value={klaar ? "open" : "klaar"} />
-                              <button className={klaar ? "pillbtn licht" : "pillbtn sterk"} type="submit">
-                                {klaar ? "Heropenen" : "Klaar melden"}
-                              </button>
-                            </form>
+                            {isOpen(taak) && (
+                              <KlaarMeldenForm
+                                klantSlug={taak.klantSlug}
+                                klantFolderId={taak.klantFolderId}
+                                n={taak.n}
+                              />
+                            )}
+
+                            {isKlaar(taak) && (
+                              <>
+                                <form action={zetStatusAction.bind(null, taak.klantSlug)}>
+                                  <input type="hidden" name="klantFolderId" value={taak.klantFolderId} />
+                                  <input type="hidden" name="n" value={taak.n} />
+                                  <input type="hidden" name="waarde" value="afgerond" />
+                                  <button className="pillbtn sterk" type="submit">
+                                    Afgerond zetten
+                                  </button>
+                                </form>
+                                <form action={zetStatusAction.bind(null, taak.klantSlug)}>
+                                  <input type="hidden" name="klantFolderId" value={taak.klantFolderId} />
+                                  <input type="hidden" name="n" value={taak.n} />
+                                  <input type="hidden" name="waarde" value="open" />
+                                  <button className="pillbtn licht" type="submit">
+                                    Heropenen
+                                  </button>
+                                </form>
+                              </>
+                            )}
+
+                            {isAfgerond(taak) && (
+                              <form action={zetStatusAction.bind(null, taak.klantSlug)}>
+                                <input type="hidden" name="klantFolderId" value={taak.klantFolderId} />
+                                <input type="hidden" name="n" value={taak.n} />
+                                <input type="hidden" name="waarde" value="open" />
+                                <button className="pillbtn licht" type="submit">
+                                  Heropenen
+                                </button>
+                              </form>
+                            )}
+
                             <a
                               className="pillbtn licht"
-                              href={`mailto:Maarten@pingwin.nl?subject=${mailtoOnderwerp}&body=${mailtoBody}`}
+                              href={`mailto:${DEVELOPER_EMAIL}?subject=${mailtoOnderwerp}&body=${mailtoBody}`}
                             >
-                              Mailen
+                              Mailen naar developer
                             </a>
                           </div>
                         </div>
