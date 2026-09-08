@@ -215,28 +215,38 @@ export interface WriteDocumentResult {
 }
 
 /**
- * Schrijft een dossierbestand weg volgens het create-then-trash-patroon van
- * de bestaande Klantcockpit-artifact (klantcockpit_specificatie.md §4.3):
- * eerst een NIEUW bestand aanmaken met de nieuwe inhoud, en pas als dat is
- * gelukt het oude bestand naar de prullenbak. Vooraf wordt een version gate
- * gecontroleerd (optimistic locking, spec §4.4): als de modifiedTime van het
- * bekende bestand niet meer klopt, is er buiten deze sessie om al geschreven
- * en wordt hier geweigerd met VersionConflictError — nooit stilzwijgend
- * overschrijven.
+ * Schrijft een dossierbestand weg.
  *
- * LET OP — bewuste architectuurkeuze, geen technische noodzaak:
- * De Google Drive API kan in werkelijkheid een bestand gewoon in-place
- * overschrijven met `drive.files.update({ fileId, media: { body: ... } })`.
- * Dat zou hier prima werken, en zelfs eenvoudiger zijn dan dit create+trash-
- * patroon. We nemen het patroon toch bewust over van de bestaande Claude
- * Artifact-tool — die tool moest wel create+trash gebruiken omdat de
- * MCP Drive-toolset die de artifact tot zijn beschikking had geen
- * "overschrijf bestaand bestand"-primitive bood — puur voor
- * gedragsconsistentie tussen de oude en de nieuwe tool tijdens de
- * overgangsperiode (dezelfde zichtbare dubbelgangers-afhandeling als er iets
- * misgaat, dezelfde "laatste editor wint niet stilzwijgend"-aanpak). Zodra de
- * oude artifact is uitgefaseerd mag dit gerust vervangen worden door een
- * gewone files.update()-call.
+ * GEWIJZIGD 08-09-2026 (productiebug, opgelost): dit gebruikte eerder het
+ * create-then-trash-patroon van de bestaande Klantcockpit-artifact
+ * (klantcockpit_specificatie.md §4.3) — eerst een NIEUW bestand aanmaken,
+ * dan het oude naar de prullenbak. Dat faalde in productie altijd met
+ * "Service Accounts do not have storage quota" (Google Drive 403): een
+ * service-account heeft, anders dan een ingelogde gebruiker, GEEN eigen
+ * opslagruimte om een nieuw bestand in eigendom te nemen — ongeacht welke
+ * map het in staat. Zichtbaar voor Maarten als "kon geen taak opslaan" /
+ * Minified React error #441 op elke schrijfactie (Klaar melden, nieuwe taak,
+ * status wijzigen, enz.).
+ *
+ * Fix: bij een BEKEND bestand (knownFileId gezet — verreweg het meeste
+ * gebruik, elk dossierbestand bestaat al) wordt de inhoud nu in-place
+ * overschreven met `drive.files.update({ fileId, media })`. Dat bestand
+ * blijft in eigendom van de oorspronkelijke eigenaar (Maarten), dus geen
+ * quota-probleem, geen prullenbak-stap, geen dubbelgangers-risico meer.
+ * De version gate (optimistic locking, spec §4.4) blijft ongewijzigd vooraf
+ * staan: als de modifiedTime van het bekende bestand niet meer klopt, is er
+ * buiten deze sessie om al geschreven en wordt hier geweigerd met
+ * VersionConflictError.
+ *
+ * Blijft een echt onopgelost gat: een compleet NIEUW bestand (knownFileId
+ * null — bijv. het allereerste developer.md voor een klant die nog nooit
+ * een Developerbord-taak had) moet nog steeds via `files.create()`, en dat
+ * raakt dezelfde quota-muur. Zonder Google Workspace (Shared Drives/OAuth-
+ * delegation) kan een service-account principieel geen eigen bestand
+ * aanmaken. Zolang dat niet is opgelost, moet zo'n bestand één keer
+ * handmatig (leeg) aangemaakt worden in Drive door Maarten zelf — daarna
+ * kan de app het probleemloos bijwerken. De foutmelding hieronder maakt dat
+ * expliciet in plaats van de kale Google-fout door te geven.
  */
 export async function writeDocument(
   params: WriteDocumentParams,
@@ -244,7 +254,7 @@ export async function writeDocument(
   const { folderId, fileName, content, knownFileId, knownModifiedTime } = params;
   const drive = getDriveClient();
 
-  // 1. Version gate — zie versiePoort() in de bestaande artifact (spec §4.4).
+  // Version gate — zie versiePoort() in de bestaande artifact (spec §4.4).
   if (knownFileId) {
     const actueel = await getFileMetadata(knownFileId);
     if (actueel && knownModifiedTime && actueel.modifiedTime !== knownModifiedTime) {
@@ -252,35 +262,54 @@ export async function writeDocument(
     }
   }
 
-  // 2. Nieuw bestand aanmaken met de nieuwe inhoud.
-  const createRes = await drive.files.create({
-    requestBody: { name: fileName, parents: [folderId] },
-    media: { mimeType: "text/markdown", body: Readable.from([content]) },
-    fields: "id, name, mimeType, modifiedTime",
-  });
+  if (knownFileId) {
+    // Bestaand bestand: inhoud in-place overschrijven, geen nieuw bestand.
+    const updateRes = await drive.files.update({
+      fileId: knownFileId,
+      media: { mimeType: "text/markdown", body: Readable.from([content]) },
+      fields: "id, name, mimeType, modifiedTime",
+    });
+    const bijgewerkt = updateRes.data;
+    if (!bijgewerkt.id || !bijgewerkt.name || !bijgewerkt.mimeType || !bijgewerkt.modifiedTime) {
+      throw new Error(
+        "Bijwerken van het bestand op Drive is mislukt (onvolledige respons).",
+      );
+    }
+    return {
+      file: {
+        id: bijgewerkt.id,
+        name: bijgewerkt.name,
+        mimeType: bijgewerkt.mimeType,
+        modifiedTime: bijgewerkt.modifiedTime,
+      },
+      dubbel: false,
+    };
+  }
+
+  // Compleet nieuw bestand: moet nog via create(), zie doc-comment hierboven.
+  let createRes;
+  try {
+    createRes = await drive.files.create({
+      requestBody: { name: fileName, parents: [folderId] },
+      media: { mimeType: "text/markdown", body: Readable.from([content]) },
+      fields: "id, name, mimeType, modifiedTime",
+    });
+  } catch (err) {
+    const bericht = err instanceof Error ? err.message : String(err);
+    if (bericht.includes("storage quota")) {
+      throw new Error(
+        `Het bestand "${fileName}" bestaat nog niet en kan niet automatisch aangemaakt worden ` +
+          "(het service-account heeft geen eigen opslagruimte op Drive). Maak dit bestand één " +
+          "keer leeg aan in de klantmap in Drive — daarna kan de app het wel bijwerken.",
+      );
+    }
+    throw err;
+  }
   const nieuw = createRes.data;
   if (!nieuw.id || !nieuw.name || !nieuw.mimeType || !nieuw.modifiedTime) {
     throw new Error(
       "Aanmaken van het nieuwe bestand op Drive is mislukt (onvolledige respons).",
     );
-  }
-
-  // 3. Pas als het aanmaken is gelukt: het oude bestand naar de prullenbak.
-  let dubbel = false;
-  if (knownFileId) {
-    try {
-      await drive.files.update({
-        fileId: knownFileId,
-        requestBody: { trashed: true },
-      });
-    } catch {
-      // Zelfde gedrag als de bestaande artifact: als trashen mislukt, blijft
-      // het oude bestand liggen (naamcollisie). Dit wordt zichtbaar gemaakt
-      // (dubbel: true), niet stilzwijgend genegeerd. Bij de eerstvolgende
-      // folder-listing wordt dit vanzelf weer opgeruimd — het bestand met de
-      // nieuwste modifiedTime geldt dan als "de waarheid" (spec §4.3).
-      dubbel = true;
-    }
   }
 
   return {
@@ -290,7 +319,7 @@ export async function writeDocument(
       mimeType: nieuw.mimeType,
       modifiedTime: nieuw.modifiedTime,
     },
-    dubbel,
+    dubbel: false,
   };
 }
 
