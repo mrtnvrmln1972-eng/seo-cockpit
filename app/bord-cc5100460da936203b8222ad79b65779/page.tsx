@@ -59,15 +59,10 @@ export default async function DeveloperbordPagina() {
       <div className="kop">
         <h2>Developerbord</h2>
       </div>
-      <p className="subkop">
-        Taken die zijn doorgezet vanuit de klantcockpits, over alle klanten heen. Wijzigingen hier
-        gaan rechtstreeks naar het dossier van de betreffende klant in Drive.
-      </p>
 
       {taken.length === 0 ? (
-        <div className="state">
-          <h3>Er staat nog niets op het bord</h3>
-          <p>Zodra er vanuit een klant-Takenlijst een taak wordt doorgezet, verschijnt die hier.</p>
+        <div className="paneel">
+          <p className="placeholder">Nog niets op het bord.</p>
         </div>
       ) : (
         <>
