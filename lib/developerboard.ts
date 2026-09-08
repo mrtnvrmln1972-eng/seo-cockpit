@@ -50,6 +50,13 @@ export interface DevTaak {
   terugkoppeling: string;
   status: string;
   doorgezetOp: string;
+  /**
+   * Datum waarop de taak in de weekplanning is ingepland (JJJJ-MM-DD),
+   * 08-09-2026 toegevoegd voor de weekplanning-kalenderweergave van het
+   * Developerbord — los van doorgezetOp (wanneer de taak is aangemaakt).
+   * Leeg = nog niet ingepland (komt in de "nog niet ingepland"-pool terecht).
+   */
+  uitvoerdatum: string;
   /** Volledige context uit het `## <titel>`-blok onder de tabel, indien aanwezig. */
   detail: string;
 }
@@ -136,6 +143,7 @@ interface KolomIndex {
   terugkoppeling?: number;
   status?: number;
   datum?: number;
+  uitvoerdatum?: number;
 }
 
 function kolomIndex(header: string[]): KolomIndex {
@@ -150,7 +158,13 @@ function kolomIndex(header: string[]): KolomIndex {
     if (kol.tijdsduur === undefined && /tijdsduur/.test(h)) kol.tijdsduur = i;
     if (kol.terugkoppeling === undefined && /terugkoppeling/.test(h)) kol.terugkoppeling = i;
     if (kol.status === undefined && /status/.test(h)) kol.status = i;
-    if (kol.datum === undefined && /datum|doorgezet/.test(h)) kol.datum = i;
+    // "Doorgezet op" (wanneer aangemaakt). Bewust NIET meer op de brede
+    // /datum/-substring matchen — sinds 08-09-2026 bestaat ook "Uitvoerdatum"
+    // (wanneer ingepland), en "Uitvoerdatum" bevat zelf de substring "datum".
+    // Beide kolommen moeten apart matchen, dus dit is nu specifiek op
+    // "doorgezet".
+    if (kol.datum === undefined && /doorgezet/.test(h)) kol.datum = i;
+    if (kol.uitvoerdatum === undefined && /uitvoerdatum/.test(h)) kol.uitvoerdatum = i;
   });
   return kol;
 }
@@ -216,6 +230,7 @@ export function parseDeveloperMd(md: string, klantNaam: string, klantSlug: strin
       terugkoppeling: (kol.terugkoppeling !== undefined ? r[kol.terugkoppeling] : "") || "",
       status: (kol.status !== undefined ? r[kol.status] : "") || "open",
       doorgezetOp: (kol.datum !== undefined ? r[kol.datum] : "") || "",
+      uitvoerdatum: (kol.uitvoerdatum !== undefined ? r[kol.uitvoerdatum] : "") || "",
       detail: blok?.inhoud ?? "",
     });
   }
@@ -266,9 +281,9 @@ export function developerMetRegel(
     regels.splice(
       grens,
       0,
-      "| # | Taak | Opmerking | Pagina | Werkorder | Tijdsduur | Terugkoppeling | Status | Doorgezet op |",
-      "|---|---|---|---|---|---|---|---|---|",
-      `| ${taakN} | ${schoon(titel)} | ${schoon(opmerking)} | ${schoon(pagina)} | ${schoon(werkorder)} |  |  | open | ${vandaagIso()} |`,
+      "| # | Taak | Opmerking | Pagina | Werkorder | Tijdsduur | Terugkoppeling | Status | Doorgezet op | Uitvoerdatum |",
+      "|---|---|---|---|---|---|---|---|---|---|",
+      `| ${taakN} | ${schoon(titel)} | ${schoon(opmerking)} | ${schoon(pagina)} | ${schoon(werkorder)} |  |  | open | ${vandaagIso()} |  |`,
       "",
     );
     uit = regels.join("\n");
@@ -283,7 +298,13 @@ export function developerMetRegel(
       if (/tijdsduur/.test(hh)) return " ";
       if (/terugkoppeling/.test(hh)) return " ";
       if (/status/.test(hh)) return " open ";
-      if (/datum|doorgezet/.test(hh)) return ` ${vandaagIso()} `;
+      // Zelfde collision-risico als kolomIndex() hierboven: "Uitvoerdatum"
+      // bevat de substring "datum" en mag NIET de doorgezet-op-datum krijgen.
+      // "Doorgezet op" (specifiek /doorgezet/) krijgt vandaag; Uitvoerdatum
+      // blijft leeg (nog niet ingepland) totdat iemand de taak in de
+      // weekplanning sleept.
+      if (/doorgezet/.test(hh)) return ` ${vandaagIso()} `;
+      if (/uitvoerdatum/.test(hh)) return " ";
       return " ";
     });
     regels.splice(laatste + 1, 0, "|" + cellen.join("|") + "|");
@@ -317,6 +338,32 @@ export function developerStatus(md: string, n: number, waarde: string): string |
     if (parseInt(c[idxN] ?? "", 10) !== n) continue;
     while (c.length <= kolS) c.push(" ");
     c[kolS] = ` ${waarde} `;
+    regels[j] = "|" + c.join("|") + "|";
+    return regels.join("\n");
+  }
+  return null;
+}
+
+/**
+ * Zet (of wist, bij lege datum) de Uitvoerdatum van taak n — de dag waarop de
+ * taak in de weekplanning-kalender staat. Migreert oudere developer.md-
+ * bestanden zonder Uitvoerdatum-kolom automatisch (zorgKolomBestaat()), net
+ * als developerKlaarMelden() dat al deed voor Tijdsduur/Terugkoppeling.
+ */
+export function developerUitvoerdatum(md: string, n: number, datum: string): string | null {
+  const regels = String(md || "").replace(/\r/g, "").split("\n");
+  const pos = eersteTabelVoorKop(regels);
+  if (!pos) return null;
+  zorgKolomBestaat(regels, pos.kopRegel, pos.scheidingRegel, "Uitvoerdatum", /uitvoerdatum/);
+  const kol = kolomIndex(splitCells(regels[pos.kopRegel]));
+  const idxN = kol.n ?? 0;
+  if (kol.uitvoerdatum === undefined) return null;
+  for (let j = pos.scheidingRegel + 1; j < regels.length; j++) {
+    if (regels[j].trim().charAt(0) !== "|") break;
+    const c = splitCells(regels[j]);
+    if (parseInt(c[idxN] ?? "", 10) !== n) continue;
+    while (c.length <= kol.uitvoerdatum) c.push(" ");
+    c[kol.uitvoerdatum] = ` ${schoon(datum)} `;
     regels[j] = "|" + c.join("|") + "|";
     return regels.join("\n");
   }
@@ -532,6 +579,30 @@ export async function developerStatusOpslaan(
   if (!bestand) throw new Error("Er is nog geen developer.md voor deze klant.");
   const md = await readFileContent(bestand.id);
   const nieuw = developerStatus(md, n, waarde);
+  if (!nieuw) throw new Error("Kon deze taak niet in developer.md vinden.");
+  await writeDocument({
+    folderId: klantFolderId,
+    fileName: "developer.md",
+    content: nieuw,
+    knownFileId: bestand.id,
+    knownModifiedTime: bestand.modifiedTime,
+  });
+}
+
+/**
+ * Slaat de Uitvoerdatum van taak n op — aangeroepen bij een drag-and-drop in
+ * de weekplanning-kalender (of bij "terug naar de pool", met datum "").
+ * Zelfde Drive-wrapper-patroon als developerStatusOpslaan() hierboven.
+ */
+export async function developerUitvoerdatumOpslaan(
+  klantFolderId: string,
+  n: number,
+  datum: string,
+): Promise<void> {
+  const bestand = await findFileByName(klantFolderId, "developer.md");
+  if (!bestand) throw new Error("Er is nog geen developer.md voor deze klant.");
+  const md = await readFileContent(bestand.id);
+  const nieuw = developerUitvoerdatum(md, n, datum);
   if (!nieuw) throw new Error("Kon deze taak niet in developer.md vinden.");
   await writeDocument({
     folderId: klantFolderId,

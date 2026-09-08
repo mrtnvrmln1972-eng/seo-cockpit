@@ -5,6 +5,7 @@ import { zetStatusAction } from "./actions";
 import KlaarMeldenForm from "./KlaarMeldenForm";
 import BewerkTaakForm from "./BewerkTaakForm";
 import AutoOpenHash from "./AutoOpenHash";
+import DeveloperbordView from "./DeveloperbordView";
 
 /**
  * app/bord-cc5100460da936203b8222ad79b65779/page.tsx — het Developerbord.
@@ -42,6 +43,14 @@ import AutoOpenHash from "./AutoOpenHash";
  * klantnamen — mag niet meelekken. Vandaar [data-bord-secret] op het
  * buitenste element: globals.css verbergt daarmee automatisch de hele
  * Nav-sidebar op deze ene route (zie de regel onderaan globals.css).
+ *
+ * Weekplanning (08-09-2026, naar het voorbeeld van de oude
+ * pingwin-seo-dashboard.vercel.app op Maartens verzoek): naast deze
+ * "Lijst per klant"-weergave is er nu ook een weekplanning-kalender
+ * (DeveloperbordView.tsx/Weekplanning.tsx). Deze pagina zelf blijft de
+ * per-klant-lijst precies zo server-renderen als voorheen — de
+ * view-schakelaar en de kalender zijn een client-wrapper eromheen, geen
+ * herbouw van deze functie.
  */
 
 export const dynamic = "force-dynamic";
@@ -225,43 +234,46 @@ export default async function DeveloperbordPagina() {
             </div>
           </div>
 
-          {klantNamen.map((klantNaam) => {
-            const groep = groepen.get(klantNaam)!;
-            // Afgerond gaat naar een apart, standaard dichtgeklapt blok
-            // onderaan de klantkaart, zodat het de open taken niet verdringt
-            // (zie doc-comment TaakRij hierboven voor de gedeelde rij-JSX).
-            const actief = groep.filter((t) => !isAfgerond(t));
-            const afgerond = groep.filter((t) => isAfgerond(t));
-            return (
-              <div className="blok kaart" key={klantNaam}>
-                <div className="blokkop">
-                  <h3>{klantNaam}</h3>
-                  <span className="c">{groep.length}</span>
-                </div>
-                {actief.length > 0 && (
-                  <div className="binnenlijst">
-                    {actief.map((taak) => (
-                      <TaakRij taak={taak} basisUrl={basisUrl} key={`${taak.klantSlug}-${taak.n}`} />
-                    ))}
+          <DeveloperbordView
+            taken={taken}
+            lijst={klantNamen.map((klantNaam) => {
+              const groep = groepen.get(klantNaam)!;
+              // Afgerond gaat naar een apart, standaard dichtgeklapt blok
+              // onderaan de klantkaart, zodat het de open taken niet verdringt
+              // (zie doc-comment TaakRij hierboven voor de gedeelde rij-JSX).
+              const actief = groep.filter((t) => !isAfgerond(t));
+              const afgerond = groep.filter((t) => isAfgerond(t));
+              return (
+                <div className="blok kaart" key={klantNaam}>
+                  <div className="blokkop">
+                    <h3>{klantNaam}</h3>
+                    <span className="c">{groep.length}</span>
                   </div>
-                )}
-
-                {afgerond.length > 0 && (
-                  <details className="afgerondgroep">
-                    <summary className="afgerondkop">
-                      Afgerond ({afgerond.length})
-                      <span className="chev2" />
-                    </summary>
+                  {actief.length > 0 && (
                     <div className="binnenlijst">
-                      {afgerond.map((taak) => (
+                      {actief.map((taak) => (
                         <TaakRij taak={taak} basisUrl={basisUrl} key={`${taak.klantSlug}-${taak.n}`} />
                       ))}
                     </div>
-                  </details>
-                )}
-              </div>
-            );
-          })}
+                  )}
+
+                  {afgerond.length > 0 && (
+                    <details className="afgerondgroep">
+                      <summary className="afgerondkop">
+                        Afgerond ({afgerond.length})
+                        <span className="chev2" />
+                      </summary>
+                      <div className="binnenlijst">
+                        {afgerond.map((taak) => (
+                          <TaakRij taak={taak} basisUrl={basisUrl} key={`${taak.klantSlug}-${taak.n}`} />
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              );
+            })}
+          />
         </>
       )}
     </div>

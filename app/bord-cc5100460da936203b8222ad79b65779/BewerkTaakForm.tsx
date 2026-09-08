@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { bewerkTaakAction, verwijderTaakAction } from "./actions";
+import RijkTekstVeld from "@/app/_ui/RijkTekstVeld";
 
 /**
  * Bewerken/verwijderen van een bestaande taak op het Developerbord
@@ -17,11 +18,15 @@ import { bewerkTaakAction, verwijderTaakAction } from "./actions";
  * dubbele props/boilerplate opleveren zonder dat er iets herbruikbaars mee
  * wordt gewonnen.
  *
- * Bewust GEEN Notion-stijl toolbar (bold/lijst/link-knoppen) op het
- * detailveld: dat is een latere, grotere klus ("RijkEditor"). Dit is een
- * plat tekstformulier — de opmaakregels (bullets, vinkjes, genummerde
- * lijsten, kale URL's) worden al herkend door renderAlineas()/renderCel()
- * zodra iemand ze zo typt, dus daar hoeft dit formulier niets voor te doen.
+ * Opmerking en Volledige context gebruiken sinds 08-09-2026 het
+ * RijkTekstVeld-component (app/_ui/RijkTekstVeld.tsx) in plaats van een
+ * platte <textarea> — de knoppenbalk (B, I, lijsten, uitklapper, link,
+ * beeld) die Maarten uit de oude pingwin-seo-dashboard.vercel.app als
+ * voorbeeld gaf, ziet er via die knoppen zo een markdown-teken om de
+ * selectie heen — geen los HTML-opslagformaat, zie de doc-comment daar. De
+ * twee velden zijn hier gecontroleerd (lokale state) omdat RijkTekstVeld
+ * zelf een controlled textarea is (nodig om de cursor/selectie na een
+ * knopklik terug te kunnen zetten).
  */
 export default function BewerkTaakForm({
   klantSlug,
@@ -45,6 +50,8 @@ export default function BewerkTaakForm({
   const [foutVerwijderen, setFoutVerwijderen] = useState<string | null>(null);
   const [pendingBewerken, startBewerken] = useTransition();
   const [pendingVerwijderen, startVerwijderen] = useTransition();
+  const [opmerkingWaarde, setOpmerkingWaarde] = useState(opmerking);
+  const [detailWaarde, setDetailWaarde] = useState(detail);
 
   if (modus === "idle") {
     return (
@@ -129,7 +136,13 @@ export default function BewerkTaakForm({
       </div>
       <div className="metaveld">
         <label>Opmerking</label>
-        <textarea name="opmerking" defaultValue={opmerking} disabled={pendingBewerken} />
+        <RijkTekstVeld
+          naam="opmerking"
+          waarde={opmerkingWaarde}
+          onChange={setOpmerkingWaarde}
+          rows={3}
+          disabled={pendingBewerken}
+        />
       </div>
       <div className="metaveld">
         <label>Pagina</label>
@@ -143,10 +156,11 @@ export default function BewerkTaakForm({
       </div>
       <div className="metaveld">
         <label>Volledige context</label>
-        <textarea
-          name="detail"
-          className="groot"
-          defaultValue={detail}
+        <RijkTekstVeld
+          naam="detail"
+          waarde={detailWaarde}
+          onChange={setDetailWaarde}
+          rows={7}
           disabled={pendingBewerken}
         />
       </div>

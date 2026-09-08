@@ -29,6 +29,7 @@ import {
   developerStatusOpslaan,
   developerTaakBewerkenOpslaan,
   developerTaakVerwijderenOpslaan,
+  developerUitvoerdatumOpslaan,
 } from "@/lib/developerboard";
 import { VersionConflictError } from "@/lib/drive";
 
@@ -89,6 +90,31 @@ export async function zetStatusAction(klantSlug: string, formData: FormData) {
   }
   revalidatePath(DEVBORD_PATH);
   revalidatePath(`/klant/${klantSlug}/werkbord`);
+}
+
+/**
+ * zetUitvoerdatumAction — de Uitvoerdatum van een taak zetten (of wissen,
+ * datum "") vanuit de weekplanning-kalender. AFWIJKEND FORMAAT t.o.v. de
+ * andere acties hierboven: geen FormData, maar directe argumenten — deze
+ * actie wordt aangeroepen bij een drag-and-drop-gebeurtenis (Weekplanning.tsx),
+ * niet vanuit een <form>, dus er is geen FormData om uit te lezen. Een server
+ * action mag ook zo, rechtstreeks als async functie, aangeroepen worden.
+ */
+export async function zetUitvoerdatumAction(
+  klantSlug: string,
+  klantFolderId: string,
+  n: number,
+  datum: string,
+): Promise<void> {
+  if (!klantFolderId || !Number.isFinite(n)) {
+    throw new Error("Ontbrekende gegevens bij het inplannen van de taak.");
+  }
+  try {
+    await developerUitvoerdatumOpslaan(klantFolderId, n, datum);
+  } catch (err) {
+    throw foutmelding(err, "Kon de uitvoerdatum niet opslaan.");
+  }
+  revalidatePath(DEVBORD_PATH);
 }
 
 /**

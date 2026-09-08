@@ -227,6 +227,21 @@ export function renderCel(tekst: string): string {
   out = out.replace(/&lt;br&gt;/g, "<br />");
   out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
   out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  // Cursief (08-09-2026, bij het bouwen van de rijke-tekst-editor voor het
+  // Developerbord): *tekst* -> <em>. Draait ALTIJD na de **vet**-vervanging
+  // hierboven, zodat een dubbele ster nooit als twee losse enkele sterren
+  // wordt gelezen (anders zou "**vet**" al kapot zijn voor deze regel er
+  // langs kwam).
+  out = out.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  // Afbeelding, ![alt](url) — zelfde toolbar-knop "beeld" als de rest van de
+  // opmaakset hieronder. ALTIJD vóór de link-regex (die begint met `[`), want
+  // een niet-herkende `!` voor een linkpatroon zou anders gewoon als kale
+  // uitroeptekens vóór een link blijven staan in plaats van een afbeelding.
+  out = out.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+)\)/g, (_m, alt, url) => {
+    const veiligeUrl = String(url).replace(/"/g, "&quot;");
+    const veiligeAlt = String(alt).replace(/"/g, "&quot;");
+    return `<img src="${veiligeUrl}" alt="${veiligeAlt}" loading="lazy" />`;
+  });
   out = out.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/g,
     (_m, label, mdUrl, kaleUrl) => {
@@ -329,6 +344,39 @@ export function renderAlineas(tekst: string): string {
 
   for (const regelRuw of regels) {
     const regel = regelRuw.trim();
+    // Uitklapper (08-09-2026, rijke-tekst-editor Developerbord): drie vaste,
+    // letterlijke structuurregels — "<details>", "<summary>titel</summary>"
+    // en "</details>" — worden herkend en doorgezet naar echte HTML, in
+    // plaats van (zoals de rest van de tekst) weg-geëscaped te worden. Dit
+    // is bewust een héél kleine, exacte match (geen algemene HTML-doorlaat):
+    // bestaande dossierteksten die toevallig ergens "<" typen blijven dus
+    // gewoon veilig geëscaped, alleen deze drie precieze regels krijgen een
+    // uitzondering.
+    if (regel === "<details>") {
+      flushParagraaf();
+      flushLijst();
+      flushGenLijst();
+      if (tabelRijen) flushTabel();
+      out.push("<details>");
+      continue;
+    }
+    if (regel === "</details>") {
+      flushParagraaf();
+      flushLijst();
+      flushGenLijst();
+      if (tabelRijen) flushTabel();
+      out.push("</details>");
+      continue;
+    }
+    const samenvattingMatch = /^<summary>(.*)<\/summary>$/.exec(regel);
+    if (samenvattingMatch) {
+      flushParagraaf();
+      flushLijst();
+      flushGenLijst();
+      if (tabelRijen) flushTabel();
+      out.push(`<summary>${renderCel(samenvattingMatch[1].trim())}</summary>`);
+      continue;
+    }
     // "## " zonder tekst erachter (leeg gebleven kopje, gezien in een echte
     // notities.md) levert niets op — geen lege <h5>, geen letterlijke "##".
     if (/^#{2,4}$/.test(regel)) {

@@ -787,6 +787,57 @@ ul.checks .code {
   resize: vertical;
 }
 
+/* ---- rijke-tekst-veld (opmaakbalk + textarea), 08-09-2026 -------------- */
+
+.rijktekstveld {
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ground);
+}
+.rijktekstbalk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 6px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-2);
+}
+.rtk-btn {
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rtk-btn:hover {
+  border-color: var(--accent-2, #e7773f);
+}
+.rtk-b {
+  font-weight: 700;
+}
+.rtk-i {
+  font-style: italic;
+}
+.rijktekstinvoer {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 14.5px;
+  color: var(--ink);
+  background: var(--ground);
+  border: none;
+  padding: 11px 14px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 110px;
+}
+.rijktekstinvoer:focus {
+  outline: none;
+}
+
 /* ---- klaar-meldformulier (Developerbord): compacte variant van .metaveld ---- */
 
 .klaarmeldform {
@@ -1493,6 +1544,53 @@ strong {
   color: var(--head);
 }
 
+/* ---- uitklapper (<details>/<summary>) binnen .doc-inhoud, 08-09-2026 ----
+   Hoort bij de nieuwe <details>-doorlaat in lib/markdown.ts (renderAlineas):
+   een auteur kan met de "uitklapper"-knop in RijkTekstVeld een blok tekst
+   inklappen. Los, bewust eigen uiterlijk (geen browser-standaard driehoekje)
+   dat aansluit bij de bestaande chevron-stijl van .chev2 hierboven, maar dan
+   compact genoeg voor binnen een tekstblok. */
+.doc details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 8px 0;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.doc summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  list-style: none;
+}
+.doc summary::-webkit-details-marker {
+  display: none;
+}
+.doc summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+  flex: none;
+  transition: transform 0.15s;
+}
+.doc details[open] summary::before {
+  transform: rotate(45deg);
+}
+.doc details[open] summary {
+  border-bottom: 1px solid var(--line);
+}
+.doc details > *:not(summary) {
+  padding: 2px 12px 10px;
+}
+
 /* ---- placeholder/foutmelding (deze app-laag, geen 1-op-1 in de artifact) ---- */
 
 .paneel {
@@ -1672,4 +1770,218 @@ strong {
   background: var(--crit);
   border-color: var(--crit);
   color: var(--ground);
+}
+
+/* ---- Developerbord: weekplanning-kalender, 08-09-2026 ----
+   Naar het voorbeeld van de oude pingwin-seo-dashboard.vercel.app
+   (DeveloperOverview.tsx, "week"-weergave). Eigen, aparte klassenset
+   (wp-voorvoegsel) zodat dit niet met de bestaande .blok/.binnenrij-stijlen
+   van de "Lijst per klant"-weergave kan botsen — beide weergaven delen
+   dezelfde pagina. */
+
+.wpwrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wpToggle {
+  display: flex;
+  gap: 6px;
+}
+.schakelknop {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 30px;
+  border: 1px solid var(--line);
+  background: var(--ground);
+  color: var(--muted);
+  cursor: pointer;
+}
+.schakelknop.aan {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.wpscherm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wpNaarWeek {
+  align-self: flex-start;
+}
+
+.wpWekenScroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 320px);
+  min-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+.wpWeekRij {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wpWeekRijNu {
+  scroll-margin-top: 8px;
+}
+
+.wpWeekLabel {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wpWeekNuBadge {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--accent-wash);
+  color: var(--accent);
+  border-radius: 30px;
+  padding: 2px 8px;
+}
+
+.wpWeekGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.wpDag {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--ground);
+  display: flex;
+  flex-direction: column;
+  min-height: 64px;
+}
+.wpDagVandaag {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.wpDagKop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.wpDagKop span {
+  font-weight: 500;
+  color: var(--muted-2);
+}
+
+.wpDagBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  min-height: 40px;
+}
+.wpDagLeeg {
+  flex: 1;
+  min-height: 24px;
+}
+
+.wpkaart {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 7px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: grab;
+}
+.wpkaart:active {
+  cursor: grabbing;
+}
+.wpkaartBezig {
+  opacity: 0.5;
+}
+
+.wpkaartTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.wpklant {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wpTitel {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1.35;
+}
+.wpTitel:hover {
+  color: var(--accent-2);
+  text-decoration: underline;
+}
+
+.wpMeta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.wpPool {
+  border: 1px dashed var(--line-2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+.wpPoolKop {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.wpPoolBody {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wpPoolBody .wpkaart {
+  width: 220px;
+  flex: none;
+}
+.wpPoolLeeg {
+  font-size: 12px;
+  color: var(--muted-2);
 }
