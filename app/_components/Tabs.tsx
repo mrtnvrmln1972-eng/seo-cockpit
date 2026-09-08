@@ -16,8 +16,14 @@ import { usePathname } from "next/navigation";
  * één "Signalen"-tab omdat de echte, actuele signalen.md-bestanden van live
  * klanten geen "## Issues"/"## Kansen"-secties meer hebben — zie de
  * doc-comment in app/klant/[klantslug]/signalen/page.tsx en CLAUDE.md.
+ *
+ * Takenlijst (werkbord) is, net als in de artifact (vKlant()'s taboptreden
+ * begint met "werkbord|Takenlijst"), de EERSTE tab — een klant opent op de
+ * Takenlijst, niet op de Roadmap (08-09-2026, op Maartens uitdrukkelijke
+ * verzoek zo gecorrigeerd).
  */
 const TABS = [
+  { segment: "werkbord", label: "Takenlijst" },
   { segment: "roadmap", label: "Roadmap" },
   { segment: "signalen", label: "Signalen" },
   { segment: "meta", label: "Meta-tool" },

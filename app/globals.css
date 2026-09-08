@@ -1424,6 +1424,17 @@ table.matrix td.num {
 
 /* ---- opmaak binnen cellen (renderCel) ---- */
 
+.doc h5 {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--accent);
+  margin: 16px 0 5px;
+}
+.doc h5:first-child {
+  margin-top: 0;
+}
 .doc code,
 code {
   font-size: 12.5px;
@@ -1466,4 +1477,72 @@ strong {
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
+}
+
+/* ---- modal: nieuwe taak, taak hernoemen ---- */
+
+.modalachter {
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 24, 24, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 60;
+  padding: 20px;
+}
+.modal {
+  background: var(--ground);
+  border-radius: 14px;
+  padding: 22px 24px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 86vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.modal h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.modal p {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: none;
+}
+.modal input,
+.modal textarea {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 11px 14px;
+  margin-bottom: 10px;
+}
+.modal textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.modal input:focus,
+.modal textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.modal .acties {
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+/* ---- Developerbord: een klant-loze, nav-loze weergave op een geheime link.
+   De pagina zelf zet [data-bord-secret] op zijn buitenste element; de rest
+   van de app blijft ongewijzigd (deze regel raakt alleen die ene route). */
+.shell:has([data-bord-secret]) .nav {
+  display: none;
+}
+.shell:has([data-bord-secret]) main {
+  max-width: 1100px;
 }

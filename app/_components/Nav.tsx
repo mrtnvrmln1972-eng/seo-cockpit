@@ -63,7 +63,7 @@ export default async function Nav() {
                 groep.klanten.map((klant, i) => (
                   <NavLink
                     key={klant.slug}
-                    href={`/klant/${klant.slug}/roadmap`}
+                    href={`/klant/${klant.slug}/werkbord`}
                     klantSlug={klant.slug}
                     nr={i + 1}
                     stil={klant.fase.trim().toLowerCase() === "stil"}
