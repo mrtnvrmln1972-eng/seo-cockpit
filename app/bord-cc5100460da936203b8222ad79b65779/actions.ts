@@ -24,7 +24,12 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { developerKlaarMeldenOpslaan, developerStatusOpslaan } from "@/lib/developerboard";
+import {
+  developerKlaarMeldenOpslaan,
+  developerStatusOpslaan,
+  developerTaakBewerkenOpslaan,
+  developerTaakVerwijderenOpslaan,
+} from "@/lib/developerboard";
 import { VersionConflictError } from "@/lib/drive";
 
 const DEVBORD_PATH = "/bord-cc5100460da936203b8222ad79b65779";
@@ -81,6 +86,63 @@ export async function zetStatusAction(klantSlug: string, formData: FormData) {
     await developerStatusOpslaan(klantFolderId, n, waarde);
   } catch (err) {
     throw foutmelding(err, "Kon de status niet opslaan.");
+  }
+  revalidatePath(DEVBORD_PATH);
+  revalidatePath(`/klant/${klantSlug}/werkbord`);
+}
+
+/**
+ * bewerkTaakAction — een bestaande taak op het Developerbord aanpassen
+ * (titel, opmerking, pagina, volledige context/detail) zonder ze opnieuw
+ * door te hoeven zetten vanuit de werklijst. klantFolderId/n gaan, net als
+ * bij zetStatusAction hierboven, als verborgen formuliervelden mee. Titel is
+ * verplicht — zelfde validatiepatroon als maakTaakAction in
+ * app/klant/[klantslug]/werkbord/actions.ts (lege titel na trim() ->
+ * duidelijke Nederlandse foutmelding, geen stille no-op).
+ */
+export async function bewerkTaakAction(klantSlug: string, formData: FormData) {
+  const klantFolderId = String(formData.get("klantFolderId") ?? "");
+  const n = parseInt(String(formData.get("n") ?? ""), 10);
+  const titel = String(formData.get("titel") ?? "").trim();
+  const opmerking = String(formData.get("opmerking") ?? "").trim();
+  const pagina = String(formData.get("pagina") ?? "").trim();
+  const detail = String(formData.get("detail") ?? "").trim();
+
+  if (!klantFolderId || !Number.isFinite(n)) {
+    throw new Error("Ontbrekende gegevens bij het bewerken van de taak.");
+  }
+  if (!titel) {
+    throw new Error("Een taak heeft een titel nodig.");
+  }
+
+  try {
+    await developerTaakBewerkenOpslaan(klantFolderId, n, titel, opmerking, pagina, detail);
+  } catch (err) {
+    throw foutmelding(err, "Kon de taak niet bewerken.");
+  }
+  revalidatePath(DEVBORD_PATH);
+  revalidatePath(`/klant/${klantSlug}/werkbord`);
+}
+
+/**
+ * verwijderTaakAction — een taak volledig van het Developerbord verwijderen
+ * (tabelrij + bijbehorend detailblok, zie developerTaakVerwijderen() in
+ * lib/developerboard.ts). Zelfde formulierpatroon als zetStatusAction
+ * hierboven: klantFolderId/n als verborgen velden, geen extra
+ * .bind()-argumenten.
+ */
+export async function verwijderTaakAction(klantSlug: string, formData: FormData) {
+  const klantFolderId = String(formData.get("klantFolderId") ?? "");
+  const n = parseInt(String(formData.get("n") ?? ""), 10);
+
+  if (!klantFolderId || !Number.isFinite(n)) {
+    throw new Error("Ontbrekende gegevens bij het verwijderen van de taak.");
+  }
+
+  try {
+    await developerTaakVerwijderenOpslaan(klantFolderId, n);
+  } catch (err) {
+    throw foutmelding(err, "Kon de taak niet verwijderen.");
   }
   revalidatePath(DEVBORD_PATH);
   revalidatePath(`/klant/${klantSlug}/werkbord`);

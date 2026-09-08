@@ -204,6 +204,20 @@ export function alleSecties(md: string): { kop: string; inhoud: string }[] {
  * en zonder linkherkenning zou de letterlijke `[tekst](url)`-syntax gewoon
  * als platte tekst op het scherm blijven staan. Alleen http(s)-links, en de
  * url gaat door quote-escaping voor het href-attribuut.
+ *
+ * Kale url's erbij (08-09-2026, bij het uitbreiden van de Developerbord-
+ * opmaak): naast `[tekst](url)` typt men in de praktijk ook gewoon een kale
+ * "https://..." zonder markdown-haakjes (bijv. rechtstreeks een Drive-link
+ * in een opmerking geplakt). Dit moet in ÉÉN gecombineerde regex-pass met
+ * alternation gebeuren (`[tekst](url)` OF een kale url), NIET als twee losse
+ * .replace()-aanroepen na elkaar: een kale-url-pass die na de
+ * markdown-link-pass draait zou de zojuist gegenereerde `<a href="...">`
+ * opnieuw doorzoeken en de href-inhoud (die ook met "https://" begint)
+ * per ongeluk nogmaals in een `<a>`-tag wikkelen. Met één regex en een
+ * replacer die op de matchende capture-groep reageert, komt elk stukje
+ * brontekst maar één keer langs. Gangbare afsluitende leestekens (. , ; : !
+ * ? )) horen NIET bij de url zelf (bijv. "zie https://voorbeeld.nl/pad." mag
+ * de punt niet meeslepen in de link) en blijven dus buiten de match staan.
  */
 export function renderCel(tekst: string): string {
   let out = tekst
@@ -213,10 +227,27 @@ export function renderCel(tekst: string): string {
   out = out.replace(/&lt;br&gt;/g, "<br />");
   out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
   out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, url) => {
-    const veiligeUrl = String(url).replace(/"/g, "&quot;");
-    return `<a href="${veiligeUrl}" target="_blank" rel="noopener">${label}</a>`;
-  });
+  out = out.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/g,
+    (_m, label, mdUrl, kaleUrl) => {
+      if (mdUrl) {
+        const veiligeUrl = String(mdUrl).replace(/"/g, "&quot;");
+        return `<a href="${veiligeUrl}" target="_blank" rel="noopener">${label}</a>`;
+      }
+      // Kale url: afsluitende leestekens die vrijwel zeker bij de omringende
+      // zin horen (en niet bij de url) buiten de link houden.
+      let url = String(kaleUrl);
+      let staart = "";
+      const staartMatch = /[.,;:!?)]+$/.exec(url);
+      if (staartMatch) {
+        staart = staartMatch[0];
+        url = url.slice(0, url.length - staart.length);
+      }
+      if (!url) return String(kaleUrl); // niets over na het strippen -> ongewijzigd laten
+      const veiligeUrl = url.replace(/"/g, "&quot;");
+      return `<a href="${veiligeUrl}" target="_blank" rel="noopener">${url}</a>${staart}`;
+    },
+  );
   return out;
 }
 
@@ -251,6 +282,15 @@ export function renderAlineas(tekst: string): string {
   const out: string[] = [];
   let paragraaf: string[] = [];
   let inLijst = false;
+  // Genummerde lijst ("1. item") krijgt bewust een EIGEN state/flush, los van
+  // inLijst/<ul> hierboven (die is alleen voor bullets "- item"/"* item" en
+  // vinkjes "- [ ] item"). Zonder aparte state zou een genummerde lijst als
+  // bullets worden weergegeven (nummering gaat verloren) of, andersom, een
+  // overgang van "- item" naar "1. item" niet netjes tussen twee losse
+  // lijst-elementen wisselen (zie flushLijst()-aanroep in flushGenLijst()
+  // hieronder en vice versa, zodat de ene lijst altijd eerst sluit voordat
+  // de andere opent).
+  let inGenLijst = false;
   let tabelRijen: string[][] | null = null;
 
   const flushParagraaf = () => {
@@ -263,6 +303,12 @@ export function renderAlineas(tekst: string): string {
     if (inLijst) {
       out.push("</ul>");
       inLijst = false;
+    }
+  };
+  const flushGenLijst = () => {
+    if (inGenLijst) {
+      out.push("</ol>");
+      inGenLijst = false;
     }
   };
   const flushTabel = () => {
@@ -288,12 +334,20 @@ export function renderAlineas(tekst: string): string {
     if (/^#{2,4}$/.test(regel)) {
       flushParagraaf();
       flushLijst();
+      flushGenLijst();
       if (tabelRijen) flushTabel();
       continue;
     }
     const kopMatch = /^#{2,4}\s+(.*)$/.exec(regel);
     const vinkMatch = /^[-*]\s+\[([ xX])\]\s+(.*)$/.exec(regel);
     const bulletMatch = /^[-*]\s+(.*)$/.exec(regel);
+    // Genummerde lijst ("1. item", "2. item", ...) — het volgnummer zelf
+    // wordt NIET gebruikt (de browser nummert een <ol> zelf op volgorde), dus
+    // een auteur die per ongeluk twee keer "1." typt of een stap overslaat
+    // krijgt gewoon een doorlopend correct genummerde lijst te zien, in
+    // plaats van dat dit dashboard zelf iets over de "juiste" nummering zou
+    // oordelen (zie CLAUDE.md, "toont, oordeelt nooit").
+    const genummerdMatch = /^\d+\.\s+(.*)$/.exec(regel);
     // Een tabelregel begint EN eindigt met "|" (splitCells trimt de randen
     // dus dat hoeft niet expliciet); een scheidingsregel (":---:"-cellen)
     // markeert alleen de grens tussen kop en inhoud en levert zelf geen rij.
@@ -304,6 +358,7 @@ export function renderAlineas(tekst: string): string {
     if (isTabelregel && !scheidingsregel) {
       flushParagraaf();
       flushLijst();
+      flushGenLijst();
       if (!tabelRijen) tabelRijen = [];
       tabelRijen.push(splitCells(regel));
       continue;
@@ -314,11 +369,13 @@ export function renderAlineas(tekst: string): string {
     if (kopMatch) {
       flushParagraaf();
       flushLijst();
+      flushGenLijst();
       out.push(`<h5>${renderCel(kopMatch[1].trim())}</h5>`);
       continue;
     }
     if (vinkMatch) {
       flushParagraaf();
+      flushGenLijst();
       if (!inLijst) {
         out.push("<ul>");
         inLijst = true;
@@ -329,6 +386,7 @@ export function renderAlineas(tekst: string): string {
     }
     if (bulletMatch) {
       flushParagraaf();
+      flushGenLijst();
       if (!inLijst) {
         out.push("<ul>");
         inLijst = true;
@@ -336,16 +394,29 @@ export function renderAlineas(tekst: string): string {
       out.push(`<li>${renderCel(bulletMatch[1].trim())}</li>`);
       continue;
     }
+    if (genummerdMatch) {
+      flushParagraaf();
+      flushLijst();
+      if (!inGenLijst) {
+        out.push("<ol>");
+        inGenLijst = true;
+      }
+      out.push(`<li>${renderCel(genummerdMatch[1].trim())}</li>`);
+      continue;
+    }
     if (regel === "") {
       flushParagraaf();
       flushLijst();
+      flushGenLijst();
       continue;
     }
     flushLijst();
+    flushGenLijst();
     paragraaf.push(regel);
   }
   flushParagraaf();
   flushLijst();
+  flushGenLijst();
   flushTabel();
   return out.join("\n");
 }

@@ -362,6 +362,107 @@ export function developerKlaarMelden(
 }
 
 /**
+ * Vervangt (of verwijdert, of maakt) het `## <titel>`-detailblok van een
+ * taak. Gedeeld door developerTaakBewerken() (titel kan wijzigen, dus de kop
+ * moet mee hernoemen) en developerTaakVerwijderen() (nieuweInhoud "" ->
+ * blok weg). Werkt op de ruwe tekst, niet op de regel-array van de tabel,
+ * want een blok kan meerdere regels beslaan.
+ */
+function vervangDetailBlok(
+  md: string,
+  oudeTitel: string,
+  nieuweTitel: string,
+  nieuweInhoud: string,
+): string {
+  const tekst = String(md || "").replace(/\r/g, "");
+  const re = /^##[ \t]+(.+?)[ \t]*$/gm;
+  const koppen: { titel: string; kopStart: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(tekst))) {
+    koppen.push({ titel: m[1].trim(), kopStart: m.index });
+  }
+  const idx = koppen.findIndex((k) => normTitel(k.titel) === normTitel(oudeTitel));
+
+  if (idx < 0) {
+    if (!nieuweInhoud.trim()) return tekst;
+    return tekst.replace(/\s+$/, "") + "\n\n## " + nieuweTitel.trim() + "\n\n" + nieuweInhoud.trim() + "\n";
+  }
+
+  const blokStart = koppen[idx].kopStart;
+  const blokEind = idx + 1 < koppen.length ? koppen[idx + 1].kopStart : tekst.length;
+
+  if (!nieuweInhoud.trim()) {
+    return (tekst.slice(0, blokStart) + tekst.slice(blokEind)).replace(/\n{3,}/g, "\n\n");
+  }
+
+  const nieuwBlok = "## " + nieuweTitel.trim() + "\n\n" + nieuweInhoud.trim() + "\n";
+  return tekst.slice(0, blokStart) + nieuwBlok + tekst.slice(blokEind);
+}
+
+/**
+ * De taak zelf bewerken (titel, opmerking, pagina, volledige context) —
+ * Maarten wil taken kunnen aanpassen zonder ze opnieuw te hoeven doorzetten.
+ * Wijzigt titel ook in het bijbehorende `## <titel>`-detailblok mee, anders
+ * raakt de koppeling tussen tabelrij en blok los (die loopt op naam, zie
+ * detailBlokken()).
+ */
+export function developerTaakBewerken(
+  md: string,
+  n: number,
+  titel: string,
+  opmerking: string,
+  pagina: string,
+  detail: string,
+): string | null {
+  const regels = String(md || "").replace(/\r/g, "").split("\n");
+  const pos = eersteTabelVoorKop(regels);
+  if (!pos) return null;
+  const kol = kolomIndex(splitCells(regels[pos.kopRegel]));
+  const idxN = kol.n ?? 0;
+  const idxTitel = kol.titel ?? 1;
+
+  for (let j = pos.scheidingRegel + 1; j < regels.length; j++) {
+    if (regels[j] === undefined || regels[j].trim().charAt(0) !== "|") break;
+    const c = splitCells(regels[j]);
+    if (parseInt(c[idxN] ?? "", 10) !== n) continue;
+    const oudeTitel = c[idxTitel] ?? "";
+    while (c.length <= idxTitel) c.push(" ");
+    c[idxTitel] = ` ${schoon(titel)} `;
+    if (kol.opmerking !== undefined) {
+      while (c.length <= kol.opmerking) c.push(" ");
+      c[kol.opmerking] = ` ${schoon(opmerking)} `;
+    }
+    if (kol.pagina !== undefined) {
+      while (c.length <= kol.pagina) c.push(" ");
+      c[kol.pagina] = ` ${schoon(pagina)} `;
+    }
+    regels[j] = "|" + c.join("|") + "|";
+    return vervangDetailBlok(regels.join("\n"), oudeTitel, titel, detail);
+  }
+  return null;
+}
+
+/** Verwijdert taak n volledig: de tabelrij én het bijbehorende detailblok. */
+export function developerTaakVerwijderen(md: string, n: number): string | null {
+  const regels = String(md || "").replace(/\r/g, "").split("\n");
+  const pos = eersteTabelVoorKop(regels);
+  if (!pos) return null;
+  const kol = kolomIndex(splitCells(regels[pos.kopRegel]));
+  const idxN = kol.n ?? 0;
+  const idxTitel = kol.titel ?? 1;
+
+  for (let j = pos.scheidingRegel + 1; j < regels.length; j++) {
+    if (regels[j] === undefined || regels[j].trim().charAt(0) !== "|") break;
+    const c = splitCells(regels[j]);
+    if (parseInt(c[idxN] ?? "", 10) !== n) continue;
+    const titel = c[idxTitel] ?? "";
+    regels.splice(j, 1);
+    return vervangDetailBlok(regels.join("\n"), titel, titel, "");
+  }
+  return null;
+}
+
+/**
  * Zet een taak uit werklijst.md/toelichting.md door naar developer.md van
  * dezelfde klant. Schrijft developer.md; de aanroeper is verantwoordelijk
  * voor het (los) bijwerken van de werklijst-status naar "bij developer",
@@ -451,6 +552,64 @@ export async function developerKlaarMeldenOpslaan(
   if (!bestand) throw new Error("Er is nog geen developer.md voor deze klant.");
   const md = await readFileContent(bestand.id);
   const nieuw = developerKlaarMelden(md, n, tijdsduur, terugkoppeling);
+  if (!nieuw) throw new Error("Kon deze taak niet in developer.md vinden.");
+  await writeDocument({
+    folderId: klantFolderId,
+    fileName: "developer.md",
+    content: nieuw,
+    knownFileId: bestand.id,
+    knownModifiedTime: bestand.modifiedTime,
+  });
+}
+
+/**
+ * Slaat een bewerking van taak n op in developer.md — Drive-wrapper rond de
+ * pure developerTaakBewerken() hierboven, exact naar het patroon van
+ * developerStatusOpslaan()/developerKlaarMeldenOpslaan(): bestand opzoeken
+ * (geen developer.md -> duidelijke Nederlandse foutmelding, want er is dan
+ * simpelweg niets om in te bewerken), inhoud lezen, de pure functie
+ * toepassen (null -> taak n bestaat niet (meer) in dit bestand -> eigen
+ * foutmelding), en het resultaat terugschrijven met de version gate
+ * (knownModifiedTime) zodat een gelijktijdige wijziging elders (bijv. door
+ * de developer zelf, of door Maarten op dezelfde taak) een VersionConflictError
+ * geeft in plaats van stilzwijgend overschreven te worden.
+ */
+export async function developerTaakBewerkenOpslaan(
+  klantFolderId: string,
+  n: number,
+  titel: string,
+  opmerking: string,
+  pagina: string,
+  detail: string,
+): Promise<void> {
+  const bestand = await findFileByName(klantFolderId, "developer.md");
+  if (!bestand) throw new Error("Er is nog geen developer.md voor deze klant.");
+  const md = await readFileContent(bestand.id);
+  const nieuw = developerTaakBewerken(md, n, titel, opmerking, pagina, detail);
+  if (!nieuw) throw new Error("Kon deze taak niet in developer.md vinden.");
+  await writeDocument({
+    folderId: klantFolderId,
+    fileName: "developer.md",
+    content: nieuw,
+    knownFileId: bestand.id,
+    knownModifiedTime: bestand.modifiedTime,
+  });
+}
+
+/**
+ * Verwijdert taak n uit developer.md — Drive-wrapper rond de pure
+ * developerTaakVerwijderen() hierboven, zelfde patroon als
+ * developerTaakBewerkenOpslaan() hierboven (zie die doc-comment voor de
+ * reden achter elke stap).
+ */
+export async function developerTaakVerwijderenOpslaan(
+  klantFolderId: string,
+  n: number,
+): Promise<void> {
+  const bestand = await findFileByName(klantFolderId, "developer.md");
+  if (!bestand) throw new Error("Er is nog geen developer.md voor deze klant.");
+  const md = await readFileContent(bestand.id);
+  const nieuw = developerTaakVerwijderen(md, n);
   if (!nieuw) throw new Error("Kon deze taak niet in developer.md vinden.");
   await writeDocument({
     folderId: klantFolderId,

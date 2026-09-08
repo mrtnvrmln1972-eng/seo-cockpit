@@ -1,0 +1,306 @@
+/*
+ * roadmap.module.css — eigen stijl voor de Roadmap-tab, bewust als losse CSS
+ * Module in plaats van in app/globals.css. Twee andere agents werken
+ * tegelijk aan het Developerbord (incl. een restyle van globals.css) — door
+ * hier niets in globals.css te wijzigen kan deze tab zonder samenvoegconflict
+ * naast dat werk gebouwd worden. Waar mogelijk wordt wel teruggegrepen op de
+ * bestaande, globale kleur-tokens (var(--ink), var(--accent), ...) uit
+ * globals.css :root, zodat de tab visueel bij de rest van de app blijft
+ * passen zonder zelf kleuren te verzinnen of dat bestand aan te raken.
+ *
+ * Licht thema, geen dark mode — conform de rest van dit dashboard.
+ */
+
+.sum {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.sumItem {
+  background: var(--surface, #f7f7f7);
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 10px;
+  padding: 10px 16px;
+  min-width: 110px;
+}
+
+.sumNum {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--head, #222);
+  line-height: 1.1;
+}
+
+.sumLabel {
+  display: block;
+  font-size: 12px;
+  color: var(--muted, #616161);
+  margin-top: 2px;
+}
+
+/* ---- Hoofdmenu-groepen (navigatiehiërarchie, geen kanban) --------------- */
+
+.groepen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.groep {
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 12px;
+  background: var(--ground, #fff);
+  overflow: hidden;
+}
+
+.groepKop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface, #f7f7f7);
+  border-bottom: 1px solid var(--line, #e0e0e0);
+}
+
+.groepNaam {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--head, #222);
+}
+
+.groepCount {
+  font-size: 12px;
+  color: var(--muted, #616161);
+  white-space: nowrap;
+}
+
+/* ---- Eén pagina — dochterpagina onder het hoofdmenu, standaard dicht ---- */
+
+.pagina {
+  border-bottom: 1px solid var(--line, #e0e0e0);
+}
+
+.pagina:last-child {
+  border-bottom: none;
+}
+
+.paginaSamenvatting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px 9px 26px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.paginaSamenvatting::-webkit-details-marker {
+  display: none;
+}
+
+.paginaSamenvatting::before {
+  content: "▸";
+  color: var(--muted-2, #9e9e9e);
+  font-size: 11px;
+  margin-left: -16px;
+  transition: transform 0.15s ease;
+}
+
+.pagina[open] > .paginaSamenvatting::before {
+  transform: rotate(90deg);
+}
+
+.paginaNaam {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.paginaTitel {
+  font-size: 13px;
+  color: var(--ink, #181818);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paginaPad {
+  font-size: 11.5px;
+  color: var(--muted, #616161);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pillen {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.pil {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2, #eee);
+  color: var(--muted, #616161);
+  white-space: nowrap;
+}
+
+.pilStatus {
+  background: var(--info-wash, #e8f1f5);
+  color: var(--info, #2a6f8e);
+}
+
+.pilScoreGoed {
+  background: var(--ok-wash, #e9f3ec);
+  color: var(--ok, #2f7a45);
+}
+
+.pilScoreMiddel {
+  background: var(--warn-wash, #fbf2df);
+  color: var(--warn, #b07308);
+}
+
+.pilScoreSlecht {
+  background: var(--crit-wash, #fbebe7);
+  color: var(--crit, #c0341b);
+}
+
+.pilGeblokkeerd {
+  background: var(--crit-wash, #fbebe7);
+  color: var(--crit, #c0341b);
+}
+
+.signaalTeller {
+  background: var(--accent-wash, #fdeee8);
+  color: var(--accent-2, #e7773f);
+}
+
+/* ---- Opengeklapt: volledige-context-blok --------------------------------- */
+
+.detail {
+  padding: 4px 14px 16px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.veldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px 16px;
+  background: var(--surface, #f7f7f7);
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.veld {
+  min-width: 0;
+}
+
+.veldLabel {
+  display: block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted-2, #9e9e9e);
+  margin-bottom: 2px;
+}
+
+.veldWaarde {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink, #181818);
+  word-break: break-word;
+}
+
+.veldWaarde :global(code) {
+  background: var(--surface-2, #eee);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+
+.veldWaarde :global(a) {
+  color: var(--accent-2, #e7773f);
+}
+
+/* ---- Gekoppelde signalen.md-rijen bij deze pagina ----------------------- */
+
+.signalenKop {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted, #616161);
+  margin: 0;
+}
+
+.signalenLijst {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.signaalKaart {
+  border: 1px solid var(--line, #e0e0e0);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--ground, #fff);
+}
+
+.signaalKop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.signaalTitel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink, #181818);
+}
+
+.signaalMeta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.signaalVeld {
+  margin-top: 6px;
+}
+
+.signaalVeldLabel {
+  display: block;
+  font-size: 10.5px;
+  color: var(--muted-2, #9e9e9e);
+  margin-bottom: 2px;
+}
+
+.signaalVeldWaarde {
+  font-size: 12px;
+  color: var(--ink, #181818);
+  line-height: 1.5;
+}
+
+.signaalVeldWaarde :global(code) {
+  background: var(--surface-2, #eee);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+}
