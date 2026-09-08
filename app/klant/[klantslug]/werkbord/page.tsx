@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { getKlantBySlug } from "@/lib/klanten";
 import { leesWerklijstDossier, parseWerklijst, toelichtingVoor } from "@/lib/werklijst";
 import { leesNotities } from "@/lib/notities";
-import { renderAlineas } from "@/lib/markdown";
+import { leesMailLog, parseMailLog, type MailStatus } from "@/lib/mail";
+import { renderAlineas, statusClass } from "@/lib/markdown";
 import NieuweTaakForm from "./NieuweTaakForm";
 import TakenlijstItems, { type TaakItem } from "./TakenlijstItems";
 
@@ -58,6 +59,18 @@ function toelichtingBlokken(tekst: string): ToelichtingBlok[] {
   }
 
   return blokken.map((b) => ({ label: b.label, inhoud: b.inhoud.join("\n").trim() }));
+}
+
+/**
+ * Mail-status ("bij klant"/"bij Pingwin"/"afgerond") hergebruikt de
+ * bestaande pill-kleuren uit lib/markdown.ts (statusClass) — "bij Pingwin"
+ * heeft daar geen eigen waarde, dat krijgt de kleur van "bezig" (oranje: bij
+ * ons, actie nodig), de andere twee bestaan al letterlijk zo in de
+ * werklijst-statussen.
+ */
+function mailStatusClass(status: MailStatus): string {
+  if (status === "bij Pingwin") return statusClass("bezig");
+  return statusClass(status);
 }
 
 export default async function WerkbordPagina({
@@ -128,6 +141,16 @@ export default async function WerkbordPagina({
     // stil: de Notities-tab zelf toont een echte foutmelding als het lezen mislukt
   }
 
+  // Mailoverzicht (mail-log.md) — zelfde aanpak als notities.md hierboven:
+  // los bestand, een leesfout blokkeert de rest van de Takenlijst niet. Nog
+  // geen bestand voor een klant betekent gewoon een lege lijst, geen fout.
+  let mailThreads: Awaited<ReturnType<typeof parseMailLog>> = [];
+  try {
+    mailThreads = parseMailLog((await leesMailLog(klant.mapId)).md);
+  } catch {
+    // stil: zie hierboven
+  }
+
   return (
     <div>
       <details className="blok kaart">
@@ -146,6 +169,64 @@ export default async function WerkbordPagina({
       ) : (
         <TakenlijstItems klantSlug={klant.slug} items={items} />
       )}
+
+      <details className="blok kaart">
+        <summary className="blokkop">
+          <h3>Mailoverzicht</h3>
+          <span className="c">{mailThreads.length}</span>
+        </summary>
+        <div className="blokbody">
+          {mailThreads.length === 0 ? (
+            <p className="mailLeeg">Nog geen mail-log.md voor {klant.naam}.</p>
+          ) : (
+            <div className="binnenlijst">
+              {mailThreads.map((thread, ti) => (
+                <details className="binnenrij" key={ti}>
+                  <summary className="binnenregel">
+                    <span className="binnenkop">
+                      <span className="tk">{thread.onderwerp}</span>
+                      <span className="chev2" />
+                    </span>
+                    <span className="binnenmeta">
+                      <span className={`pill ${mailStatusClass(thread.status)}`}>
+                        {thread.status}
+                      </span>
+                    </span>
+                  </summary>
+                  <div className="binnenbody">
+                    <div className="mailtijdlijn">
+                      {thread.berichten.map((b, bi) => (
+                        <div
+                          key={bi}
+                          className={"mailbericht" + (b.van === "Klant" ? " vanKlant" : "")}
+                        >
+                          <span className="mailberichtDatum">
+                            {b.datum} · {b.van}
+                          </span>
+                          <span className="mailberichtTekst">{b.tekst}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {thread.punten.length > 0 && (
+                      <details>
+                        <summary>Punten</summary>
+                        <div className="mailpunten">
+                          {thread.punten.map((p, pi) => (
+                            <div className="mailpunt" key={pi}>
+                              <span className="mailpuntType">{p.type}</span>
+                              <span>{p.tekst}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                </details>
+              ))}
+            </div>
+          )}
+        </div>
+      </details>
 
       <details className="blok kaart">
         <summary className="blokkop">
