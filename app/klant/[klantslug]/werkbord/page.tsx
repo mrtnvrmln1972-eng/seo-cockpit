@@ -8,7 +8,8 @@ import {
 } from "@/lib/werklijst";
 import { leesNotities } from "@/lib/notities";
 import { statusClass, renderAlineas } from "@/lib/markdown";
-import { maakTaakAction, zetNaarDeveloperbordAction } from "./actions";
+import { zetNaarDeveloperbordAction } from "./actions";
+import NieuweTaakForm from "./NieuweTaakForm";
 
 export const dynamic = "force-dynamic";
 
@@ -130,19 +131,7 @@ export default async function WerkbordPagina({
           <h3>Nieuwe taak</h3>
         </summary>
         <div className="blokbody">
-          <form action={maakTaakAction.bind(null, klant.slug)}>
-            <div className="metaveld">
-              <label>Titel</label>
-              <input type="text" name="titel" required placeholder="Wat moet er gebeuren?" />
-            </div>
-            <div className="metaveld">
-              <label>Notities (optioneel)</label>
-              <textarea name="notities" placeholder="Korte context, mag leeg blijven" />
-            </div>
-            <button className="pillbtn sterk" type="submit">
-              Toevoegen
-            </button>
-          </form>
+          <NieuweTaakForm klantSlug={klant.slug} />
         </div>
       </details>
 
