@@ -1540,9 +1540,17 @@ strong {
 /* ---- Developerbord: een klant-loze, nav-loze weergave op een geheime link.
    De pagina zelf zet [data-bord-secret] op zijn buitenste element; de rest
    van de app blijft ongewijzigd (deze regel raakt alleen die ene route). */
+.shell:has([data-bord-secret]) {
+  /* .shell is een 278px-1fr grid voor sidebar + inhoud (zie hierboven). Met
+     de sidebar op display:none blijft die eerste 278px-kolom leeg gedefinieerd
+     staan, en zonder deze regel plaatst het grid "main" daar automatisch in
+     in plaats van in de volle breedte — vandaar expliciet één kolom hier. */
+  grid-template-columns: 1fr;
+}
 .shell:has([data-bord-secret]) .nav {
   display: none;
 }
 .shell:has([data-bord-secret]) main {
   max-width: 1100px;
+  margin: 0 auto;
 }
