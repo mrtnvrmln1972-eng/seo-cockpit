@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getKlantBySlug } from "@/lib/klanten";
 import { leesNotities, notitiesOpslaan } from "@/lib/notities";
 import { VersionConflictError } from "@/lib/drive";
+import { resolveDriveLinksInText } from "@/lib/links";
 
 /**
  * app/klant/[klantslug]/notities/actions.ts — server action voor de
@@ -18,7 +19,10 @@ export async function notitiesOpslaanAction(klantSlug: string, formData: FormDat
   const klant = await getKlantBySlug(klantSlug);
   if (!klant?.mapId) throw new Error("Deze klant heeft nog geen dossier in Drive.");
 
-  const tekst = String(formData.get("tekst") ?? "");
+  const tekstRuw = String(formData.get("tekst") ?? "");
+  // Kale Drive-links worden vóór het schrijven omgezet naar `[Titel](url)`
+  // — zie de doc-comment in lib/links.ts.
+  const tekst = await resolveDriveLinksInText(tekstRuw);
 
   try {
     const huidig = await leesNotities(klant.mapId);

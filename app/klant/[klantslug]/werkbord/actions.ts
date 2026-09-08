@@ -11,6 +11,7 @@ import {
 } from "@/lib/werklijst";
 import { taakNaarDeveloperbord } from "@/lib/developerboard";
 import { VersionConflictError } from "@/lib/drive";
+import { resolveDriveLinksInText } from "@/lib/links";
 
 /**
  * app/klant/[klantslug]/werkbord/actions.ts — server actions voor de
@@ -43,7 +44,10 @@ export async function maakTaakAction(klantSlug: string, formData: FormData) {
 
   const titel = String(formData.get("titel") || "").trim();
   if (!titel) throw new Error("Een taak heeft een titel nodig.");
-  const notities = String(formData.get("notities") || "").trim();
+  const notitiesRuw = String(formData.get("notities") || "").trim();
+  // Kale Drive-links in de notities worden vóór het schrijven omgezet naar
+  // `[Titel](url)` — zie de doc-comment in lib/links.ts.
+  const notities = await resolveDriveLinksInText(notitiesRuw);
 
   try {
     const dossier = await leesWerklijstDossier(klant.mapId);

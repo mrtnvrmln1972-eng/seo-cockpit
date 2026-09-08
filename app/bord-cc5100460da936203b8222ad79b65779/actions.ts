@@ -32,6 +32,7 @@ import {
   developerUitvoerdatumOpslaan,
 } from "@/lib/developerboard";
 import { VersionConflictError } from "@/lib/drive";
+import { resolveDriveLinksInText } from "@/lib/links";
 
 const DEVBORD_PATH = "/bord-cc5100460da936203b8222ad79b65779";
 
@@ -46,7 +47,7 @@ export async function klaarMeldenAction(klantSlug: string, formData: FormData) {
   const klantFolderId = String(formData.get("klantFolderId") ?? "");
   const n = parseInt(String(formData.get("n") ?? ""), 10);
   const tijdsduur = String(formData.get("tijdsduur") ?? "").trim();
-  const terugkoppeling = String(formData.get("terugkoppeling") ?? "").trim();
+  const terugkoppelingRuw = String(formData.get("terugkoppeling") ?? "").trim();
 
   if (!klantFolderId || !Number.isFinite(n)) {
     throw new Error("Ontbrekende gegevens bij het klaar melden.");
@@ -54,6 +55,10 @@ export async function klaarMeldenAction(klantSlug: string, formData: FormData) {
   if (!tijdsduur) {
     throw new Error("Vul in hoe lang je met deze taak bezig bent geweest.");
   }
+
+  // Kale Drive-links in de terugkoppeling worden vóór het schrijven omgezet
+  // naar `[Titel](url)` — zie de doc-comment in lib/links.ts.
+  const terugkoppeling = await resolveDriveLinksInText(terugkoppelingRuw);
 
   try {
     await developerKlaarMeldenOpslaan(klantFolderId, n, tijdsduur, terugkoppeling);
@@ -130,9 +135,9 @@ export async function bewerkTaakAction(klantSlug: string, formData: FormData) {
   const klantFolderId = String(formData.get("klantFolderId") ?? "");
   const n = parseInt(String(formData.get("n") ?? ""), 10);
   const titel = String(formData.get("titel") ?? "").trim();
-  const opmerking = String(formData.get("opmerking") ?? "").trim();
+  const opmerkingRuw = String(formData.get("opmerking") ?? "").trim();
   const pagina = String(formData.get("pagina") ?? "").trim();
-  const detail = String(formData.get("detail") ?? "").trim();
+  const detailRuw = String(formData.get("detail") ?? "").trim();
 
   if (!klantFolderId || !Number.isFinite(n)) {
     throw new Error("Ontbrekende gegevens bij het bewerken van de taak.");
@@ -140,6 +145,15 @@ export async function bewerkTaakAction(klantSlug: string, formData: FormData) {
   if (!titel) {
     throw new Error("Een taak heeft een titel nodig.");
   }
+
+  // Kale Drive-links in opmerking/volledige context worden vóór het
+  // schrijven omgezet naar `[Titel](url)` — zie de doc-comment in
+  // lib/links.ts. "Pagina" blijft bewust ongemoeid: dat is de live
+  // klantpagina, geen Drive-document.
+  const [opmerking, detail] = await Promise.all([
+    resolveDriveLinksInText(opmerkingRuw),
+    resolveDriveLinksInText(detailRuw),
+  ]);
 
   try {
     await developerTaakBewerkenOpslaan(klantFolderId, n, titel, opmerking, pagina, detail);
