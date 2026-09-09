@@ -72,7 +72,7 @@ export default async function RoadmapPagina({
   if (!bestand) {
     return (
       <div className="paneel">
-        <p className="placeholder">Nog geen roadmap.md gevonden in de dossiermap van {klant.naam}.</p>
+        <p className="placeholder">Nog geen roadmap.md gevonden in de dossiermap van {klant.weergavenaam}.</p>
       </div>
     );
   }

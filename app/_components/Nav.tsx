@@ -1,15 +1,19 @@
 import { getKlantGroepen } from "@/lib/klanten";
 import Link from "next/link";
-import NavLink from "./NavLink";
+import NavKlanten from "./NavKlanten";
 import NavZoek from "./NavZoek";
 
 /**
  * Linker klantenlijst — zo dicht mogelijk bij de vormgeving van de
  * bestaande artifact (renderNav()): een "brand"-blok, een zoekveld, en per
  * groep (Eigen klanten / Leads / Multimedia Concepts) een uitklapbare lijst
- * met genummerde klantregels. Drag-and-drop-herordenen uit de artifact is
- * bewust (nog) niet overgenomen — die vraagt een client-side volgorde-
- * state die hier nog niet bestaat; zie CLAUDE.md voor wat er nog ontbreekt.
+ * met genummerde klantregels.
+ *
+ * Sinds 09-09-2026 zijn de klanten binnen een groep te slepen (NavKlanten.tsx)
+ * en toont de lijst de korte naam als die in cockpit-weergave.md staat. Alleen
+ * "Eigen klanten" staat standaard open: Leads en Multimedia Concepts zijn de
+ * langste lijsten en de minst gebruikte, en zo past het geheel weer op één
+ * scherm zonder scrollen.
  *
  * Server Component die rechtstreeks uit Drive leest — als Drive niet
  * geconfigureerd is (ontbrekende env-vars, zie README.md) faalt dit netjes
@@ -53,28 +57,22 @@ export default async function Nav() {
         </div>
       ) : (
         groepen.map((groep) => (
-          <details className="navgroep" key={groep.id} open>
+          <details className="navgroep" key={groep.id} open={groep.id === "eigen"}>
             <summary className="navgroepkop">
               <span className="chev" />
               <span className="lbl">{groep.naam}</span>
               <span className="tel">{groep.klanten.length}</span>
             </summary>
             <div className="navlijst">
-              {groep.klanten.length === 0 ? (
-                <p className="navhulp">Geen klanten in deze groep.</p>
-              ) : (
-                groep.klanten.map((klant, i) => (
-                  <NavLink
-                    key={klant.slug}
-                    href={`/klant/${klant.slug}/werkbord`}
-                    klantSlug={klant.slug}
-                    nr={i + 1}
-                    stil={klant.fase.trim().toLowerCase() === "stil"}
-                  >
-                    {klant.naam}
-                  </NavLink>
-                ))
-              )}
+              <NavKlanten
+                groepId={groep.id}
+                klanten={groep.klanten.map((klant) => ({
+                  naam: klant.naam,
+                  weergavenaam: klant.weergavenaam,
+                  slug: klant.slug,
+                  stil: klant.fase.trim().toLowerCase() === "stil",
+                }))}
+              />
             </div>
           </details>
         ))

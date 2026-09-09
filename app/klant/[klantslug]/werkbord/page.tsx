@@ -227,12 +227,12 @@ export default async function WerkbordPagina({
           {mailThreads.length === 0 ? (
             !mailBestandBestaat ? (
               <p className="mailLeeg">
-                Er is nog geen mailoverzicht aangelegd voor {klant.naam}.
+                Er is nog geen mailoverzicht aangelegd voor {klant.weergavenaam}.
               </p>
             ) : mailInleiding ? (
               <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(mailInleiding) }} />
             ) : (
-              <p className="mailLeeg">Het mailoverzicht van {klant.naam} is nog leeg.</p>
+              <p className="mailLeeg">Het mailoverzicht van {klant.weergavenaam} is nog leeg.</p>
             )
           ) : (
             <div className="binnenlijst">
@@ -292,7 +292,7 @@ export default async function WerkbordPagina({
           {notitiesMd.trim() ? (
             <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(notitiesMd) }} />
           ) : (
-            <p className="note">Nog geen notities voor {klant.naam}.</p>
+            <p className="note">Nog geen notities voor {klant.weergavenaam}.</p>
           )}
           <div className="acties">
             <a className="pillbtn licht" href={`/klant/${klant.slug}/notities`}>

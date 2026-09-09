@@ -259,6 +259,57 @@ export function werklijstHerschikken(md: string, volgordeNs: number[]): string |
 }
 
 /** Past de titel (kolom Taak) van taak n aan; het nummer blijft gelijk. */
+/**
+ * Haalt de regel van taak n uit de eerste tabel in werklijst.md. Geeft null
+ * terug als die taak er niet (meer) in staat, zodat de aanroeper weet dat er
+ * niets te verwijderen viel in plaats van een leeg bestand terug te schrijven.
+ *
+ * De nummers van de overige taken blijven staan zoals ze waren. Hernummeren
+ * zou de koppeling met toelichting.md ("## Taak 7"), developer.md en alles wat
+ * er buiten deze app naar verwijst stilletjes verschuiven.
+ */
+export function werklijstZonderTaak(md: string, n: number): string | null {
+  const regels = String(md || "").replace(/\r/g, "").split("\n");
+  const pos = eersteTabel(regels);
+  if (!pos) return null;
+  const header = splitCells(regels[pos.kopRegel]).map((c) => c.toLowerCase());
+  let kolN = 0;
+  header.forEach((hh, i) => {
+    if (hh === "#" || /^(nr|nummer)$/.test(hh)) kolN = i;
+  });
+
+  const rijStart = pos.scheidingRegel + 1;
+  let rijEind = rijStart;
+  while (rijEind < regels.length && regels[rijEind].trim().charAt(0) === "|") rijEind++;
+
+  let gevonden = -1;
+  for (let i = rijStart; i < rijEind; i++) {
+    if (parseInt(splitCells(regels[i])[kolN] ?? "", 10) === n) {
+      gevonden = i;
+      break;
+    }
+  }
+  if (gevonden === -1) return null;
+  regels.splice(gevonden, 1);
+  return regels.join("\n");
+}
+
+/**
+ * Haalt de hele "## Taak n"-sectie uit toelichting.md. Dit hoort bij het
+ * weggooien van een taak: laat je de sectie staan, dan krijgt de eerstvolgende
+ * nieuwe taak (nieuweTaakNummer telt door op het hoogste nummer) diezelfde kop
+ * en dus de toelichting van de weggegooide taak op zijn scherm.
+ */
+export function toelichtingZonderTaak(md: string, n: number): string {
+  const basis = String(md || "").replace(/\r/g, "");
+  const re = new RegExp(
+    `^##\\s*Taak\\s*${n}\\s*$[\\r\\n]+[\\s\\S]*?(?=^##\\s|$(?![\\s\\S]))`,
+    "m",
+  );
+  if (!re.test(basis)) return basis;
+  return basis.replace(re, "").replace(/\n{3,}/g, "\n\n");
+}
+
 export function werklijstTitel(md: string, n: number, tekst: string): string | null {
   const regels = String(md || "").replace(/\r/g, "").split("\n");
   const pos = eersteTabel(regels);

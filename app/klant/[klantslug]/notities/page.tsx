@@ -76,7 +76,7 @@ export default async function NotitiesPagina({
         </div>
       ) : (
         <div className="paneel">
-          <p className="placeholder">Nog geen notities voor {klant.naam}.</p>
+          <p className="placeholder">Nog geen notities voor {klant.weergavenaam}.</p>
         </div>
       )}
 

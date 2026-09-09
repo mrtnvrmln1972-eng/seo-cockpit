@@ -8,6 +8,7 @@ import {
   type DriveFileRef,
 } from "./drive";
 import { tableWith } from "./markdown";
+import { leesWeergave, type WeergaveRegel } from "./weergave";
 
 /**
  * lib/klanten.ts — leest KLANTEN.md (de root-index in de Drive-map
@@ -27,7 +28,10 @@ import { tableWith } from "./markdown";
 export type GroepId = "eigen" | "lead" | "mc";
 
 export interface Klant {
+  /** De naam zoals hij in KLANTEN.md staat. Sleutel naar de Drive-map. */
   naam: string;
+  /** De naam die op het scherm komt: de korte naam uit cockpit-weergave.md, anders gewoon naam. */
+  weergavenaam: string;
   slug: string;
   groep: GroepId;
   domein: string;
@@ -108,6 +112,24 @@ function rijenUitIndex(md: string): IndexRij[] {
   return out;
 }
 
+/**
+ * De volgorde van cockpit-weergave.md (door Maarten zelf gesleept) gaat voor;
+ * klanten zonder vastgelegde plaats houden de volgorde van KLANTEN.md en
+ * komen daarachter. Puur een weergave-volgorde: er wordt niets gewogen of
+ * gerangschikt door de app zelf.
+ */
+function opVolgorde(klanten: Klant[], weergave: Map<string, WeergaveRegel>): Klant[] {
+  return klanten
+    .map((k, i) => ({ k, i, v: weergave.get(k.naam)?.volgorde ?? null }))
+    .sort((a, b) => {
+      if (a.v !== null && b.v !== null) return a.v - b.v;
+      if (a.v !== null) return -1;
+      if (b.v !== null) return 1;
+      return a.i - b.i;
+    })
+    .map((r) => r.k);
+}
+
 let cache: { at: number; groepen: KlantGroep[] } | null = null;
 /**
  * Twee minuten (09-09-2026, was 30 seconden). Deze lijst wordt bij ELKE
@@ -128,11 +150,13 @@ export async function getKlantGroepen(): Promise<KlantGroep[]> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.groepen;
 
   const root = getRootFolderId();
-  const [indexFile, mappen] = await Promise.all([
+  const [indexFile, mappen, weergaveBestand] = await Promise.all([
     findFileByName(root, "KLANTEN.md"),
     listFilesInFolder(root, { onlyFolders: true }),
+    leesWeergave(),
   ]);
   const indexMd = indexFile ? await readFileContent(indexFile.id) : "";
+  const weergave = new Map(weergaveBestand.regels.map((r) => [r.klant, r]));
 
   const mapPerNaam = new Map<string, DriveFileRef>();
   for (const m of mappen) mapPerNaam.set(m.name, m);
@@ -143,17 +167,27 @@ export async function getKlantGroepen(): Promise<KlantGroep[]> {
       .filter((r) => r.groep === g.id)
       .map((r) => ({
         naam: r.naam,
+        weergavenaam: weergave.get(r.naam)?.korteNaam || r.naam,
         slug: slugify(r.naam),
         groep: g.id,
         domein: r.domein,
         fase: r.fase,
         mapId: mapPerNaam.get(r.naam)?.id ?? null,
       }));
-    return { id: g.id, naam: g.naam, klanten };
+    return { id: g.id, naam: g.naam, klanten: opVolgorde(klanten, weergave) };
   });
 
   cache = { at: Date.now(), groepen };
   return groepen;
+}
+
+/**
+ * Gooit de gecachete klantenlijst weg. Nodig na het opslaan van een nieuwe
+ * volgorde: zonder dit zou de zijbalk tot twee minuten lang de oude volgorde
+ * blijven tonen en zou een sleepactie lijken alsof hij niets deed.
+ */
+export function vergeetKlanten(): void {
+  cache = null;
 }
 
 export async function getKlantBySlug(slug: string): Promise<Klant | null> {

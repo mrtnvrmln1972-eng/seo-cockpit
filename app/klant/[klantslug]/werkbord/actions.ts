@@ -10,7 +10,9 @@ import {
   parseWerklijst,
   werklijstHerschikken,
   werklijstTitel,
+  werklijstZonderTaak,
   toelichtingVervangen,
+  toelichtingZonderTaak,
 } from "@/lib/werklijst";
 import { taakNaarDeveloperbord } from "@/lib/developerboard";
 import { VersionConflictError, writeDocument } from "@/lib/drive";
@@ -116,6 +118,57 @@ export async function herschikTakenAction(
     });
   } catch (err) {
     throw foutmelding(err, "Kon de volgorde niet opslaan.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/werkbord`);
+}
+
+/**
+ * Gooit een taak weg: de regel uit werklijst.md en de bijbehorende
+ * "## Taak N"-sectie uit toelichting.md.
+ *
+ * Twee keuzes die hier bewust zo staan:
+ *
+ *   1. De nummers van de overige taken blijven staan zoals ze waren. Zou je
+ *      hernummeren, dan verschuift stilletjes waar developer.md, een mail of
+ *      een Cowork-gesprek naar verwijst.
+ *   2. De toelichting gaat mee weg. Blijft die staan, dan krijgt de
+ *      eerstvolgende nieuwe taak (die telt door op het hoogste nummer) de
+ *      tekst van de weggegooide taak op zijn scherm.
+ *
+ * Een taak die al op het Developerbord staat, blijft daar staan: developer.md
+ * is een eigen bestand met een eigen nummering, en daar iets weghalen zonder
+ * dat Tonny het weet hoort niet bij het weggooien van een regel hier.
+ */
+export async function taakVerwijderenAction(klantSlug: string, n: number): Promise<void> {
+  const klant = await getKlantBySlug(klantSlug);
+  if (!klant?.mapId) throw new Error("Deze klant heeft nog geen dossier in Drive.");
+
+  try {
+    const dossier = await leesWerklijstDossier(klant.mapId);
+    const nieuweWerklijst = werklijstZonderTaak(dossier.werklijstMd, n);
+    if (!nieuweWerklijst) throw new Error("Deze taak staat niet (meer) in werklijst.md.");
+
+    await writeDocument({
+      folderId: klant.mapId,
+      fileName: "werklijst.md",
+      content: nieuweWerklijst,
+      knownFileId: dossier.werklijstBestand?.id ?? null,
+      knownModifiedTime: dossier.werklijstBestand?.modifiedTime ?? null,
+    });
+
+    const zonderToelichting = toelichtingZonderTaak(dossier.toelichtingMd, n);
+    if (zonderToelichting !== dossier.toelichtingMd) {
+      await writeDocument({
+        folderId: klant.mapId,
+        fileName: "toelichting.md",
+        content: zonderToelichting,
+        knownFileId: dossier.toelichtingBestand?.id ?? null,
+        knownModifiedTime: dossier.toelichtingBestand?.modifiedTime ?? null,
+      });
+    }
+  } catch (err) {
+    throw foutmelding(err, "Kon de taak niet weggooien.");
   }
 
   revalidatePath(`/klant/${klantSlug}/werkbord`);

@@ -81,7 +81,7 @@ export default async function SignalenPagina({
     return (
       <div className="paneel">
         <p className="placeholder">
-          Nog geen signalen.md gevonden in de dossiermap van {klant.naam}.
+          Nog geen signalen.md gevonden in de dossiermap van {klant.weergavenaam}.
         </p>
       </div>
     );

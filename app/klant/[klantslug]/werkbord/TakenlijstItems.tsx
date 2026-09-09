@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { statusClass } from "@/lib/markdown";
-import { herschikTakenAction } from "./actions";
+import { herschikTakenAction, taakVerwijderenAction } from "./actions";
 import BewerkTaak from "./BewerkTaak";
 import DoorzettenKnop from "./DoorzettenKnop";
 
@@ -57,6 +57,12 @@ export default function TakenlijstItems({
   const [lijst, setLijst] = useState(items);
   const [dragN, setDragN] = useState<number | null>(null);
   /**
+   * Welke taak nu om een bevestiging vraagt om weggegooid te worden. Een
+   * kruisje dat meteen wist is te makkelijk misgeklikt in een lijst waar je
+   * ook in sleept, en wat hier weg is, is weg uit het dossierbestand in Drive.
+   */
+  const [weggooienN, setWeggooienN] = useState<number | null>(null);
+  /**
    * Welke rij op dit moment gesleept MAG worden. Stond eerst vast op elke
    * rij (draggable op de hele <details>), en dat maakte de tekst in een taak
    * onselecteerbaar: de browser begint bij ingedrukte muis dan een sleep in
@@ -106,6 +112,22 @@ export default function TakenlijstItems({
     });
   }
 
+  function gooiWeg(n: number) {
+    setWeggooienN(null);
+    setFout(null);
+    // Meteen uit de lijst halen, anders staat de taak er tot de server
+    // klaar is nog gewoon tussen en lijkt het kruisje niets te doen.
+    setLijst((oud) => oud.filter((t) => t.n !== n));
+    startTransition(async () => {
+      try {
+        await taakVerwijderenAction(klantSlug, n);
+      } catch (err) {
+        setLijst(items);
+        setFout(err instanceof Error ? err.message : "Kon de taak niet weggooien.");
+      }
+    });
+  }
+
   return (
     <div className="blok kaart">
       <div className="blokkop" style={{ cursor: "default" }}>
@@ -151,6 +173,47 @@ export default function TakenlijstItems({
                 <span className="binnenmeta">
                   {taak.status && taak.status.toLowerCase() !== "open" && (
                     <span className={`pill ${statusClass(taak.status)}`}>{taak.status}</span>
+                  )}
+                  {weggooienN === taak.n ? (
+                    <span className="weggooivraag">
+                      <span className="weggooitekst">Weggooien?</span>
+                      <button
+                        type="button"
+                        className="pillbtn sterk klein"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          gooiWeg(taak.n);
+                        }}
+                      >
+                        Ja
+                      </button>
+                      <button
+                        type="button"
+                        className="pillbtn licht klein"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setWeggooienN(null);
+                        }}
+                      >
+                        Nee
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="weggooikruis"
+                      title="Deze taak weggooien"
+                      aria-label={`Taak "${taak.titel}" weggooien`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setWeggooienN(taak.n);
+                      }}
+                    >
+                      ×
+                    </button>
                   )}
                 </span>
               </summary>

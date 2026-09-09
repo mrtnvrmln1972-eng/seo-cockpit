@@ -41,12 +41,17 @@ export default function NavLink({
   nr,
   stil,
   children,
+  onGreep,
+  greepLos,
 }: {
   href: string;
   klantSlug: string;
   nr: number;
   stil?: boolean;
   children: React.ReactNode;
+  /** Het volgnummer is tevens de sleepgreep; zie NavKlanten.tsx. */
+  onGreep?: () => void;
+  greepLos?: () => void;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -70,7 +75,15 @@ export default function NavLink({
       className={`navlink${stil ? " stil" : ""}`}
       data-naam={typeof children === "string" ? children.toLowerCase() : undefined}
     >
-      <span className="nr">{nr}</span>
+      <span
+        className={"nr" + (onGreep ? " greep" : "")}
+        title={onGreep ? "Sleep om te herschikken" : undefined}
+        onMouseDown={onGreep}
+        onTouchStart={onGreep}
+        onMouseUp={greepLos}
+      >
+        {nr}
+      </span>
       <span className="stip" />
       {children}
     </Link>

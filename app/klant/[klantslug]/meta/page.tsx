@@ -59,7 +59,7 @@ export default async function MetaPagina({
   if (!bestand) {
     return (
       <div className="paneel">
-        <p className="placeholder">Nog geen meta.md gevonden in de dossiermap van {klant.naam}.</p>
+        <p className="placeholder">Nog geen meta.md gevonden in de dossiermap van {klant.weergavenaam}.</p>
       </div>
     );
   }

@@ -71,7 +71,7 @@ export default async function ServicepuntenPagina({
     return (
       <div className="paneel">
         <p className="placeholder">
-          Nog geen servicepunten.md gevonden in de dossiermap van {klant.naam}.
+          Nog geen servicepunten.md gevonden in de dossiermap van {klant.weergavenaam}.
         </p>
       </div>
     );

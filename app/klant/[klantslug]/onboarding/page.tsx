@@ -99,7 +99,7 @@ export default async function OnboardingPagina({
                     style={{ padding: "8px 10px", fontWeight: isHuidig ? 700 : 400 }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span>{v.klant.naam}</span>
+                      <span>{v.klant.weergavenaam}</span>
                       <span>{v.taakN ? `${v.klaar}/${v.totaal}` : "geen onboardingtaak"}</span>
                     </div>
                     {v.taakN && (

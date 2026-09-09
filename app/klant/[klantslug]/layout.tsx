@@ -47,7 +47,7 @@ export default async function KlantLayout({
   return (
     <div>
       <div className="kop">
-        <h2>{klant.naam}</h2>
+        <h2>{klant.weergavenaam}</h2>
         {klant.domein && <span className="dom">{klant.domein}</span>}
       </div>
       <p className="subkop">

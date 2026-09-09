@@ -23,6 +23,15 @@ export default function NieuweTaakForm({ klantSlug }: { klantSlug: string }) {
   const [fout, setFout] = useState<string | null>(null);
   const [gelukt, setGelukt] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  /**
+   * Teller die het notitieveld leegmaakt na een gelukte opslag (09-09-2026,
+   * gemeld door Maarten: de twee links uit de vorige taak bleven staan bij een
+   * volgende). form.reset() haalt alleen de gewone velden leeg; het
+   * opmaakveld houdt zijn tekst in de editor zelf vast, en die leegt pas als
+   * hij opnieuw wordt opgebouwd. Vandaar deze sleutel: een nieuwe taak begint
+   * echt met een leeg veld.
+   */
+  const [veldSleutel, setVeldSleutel] = useState(0);
 
   return (
     <form
@@ -34,6 +43,7 @@ export default function NieuweTaakForm({ klantSlug }: { klantSlug: string }) {
           try {
             await maakTaakAction(klantSlug, formData);
             formRef.current?.reset();
+            setVeldSleutel((n) => n + 1);
             setGelukt(true);
             setTimeout(() => setGelukt(false), 2500);
           } catch (err) {
@@ -53,6 +63,7 @@ export default function NieuweTaakForm({ klantSlug }: { klantSlug: string }) {
         />
       </div>
       <Opmaakveld
+        key={veldSleutel}
         naam="notities"
         waarde=""
         label="Notities (optioneel)"
