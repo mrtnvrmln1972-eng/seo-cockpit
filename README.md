@@ -77,9 +77,25 @@ voordat het project gebouwd wordt. Vul daar het volgende in:
 |---|---|
 | `GOOGLE_SERVICE_ACCOUNT_KEY` | De **hele inhoud** van het JSON-sleutelbestand uit stap 3, als **één regel tekst**. Open het `.json`-bestand in een teksteditor, selecteer alles, kopieer het, en plak het in dit veld. Vercel accepteert de tekst gewoon zoals hij is, ook met alle accolades en aanhalingstekens erin. |
 | `GOOGLE_DRIVE_ROOT_FOLDER_ID` | De map-id van "Pingwin Klanten". Dat is het stuk tekst uit de adresbalk van je browser als je die map in Drive open hebt staan, bijvoorbeeld: `https://drive.google.com/drive/folders/`**`1OE60BWBnTpBpqfJoRfMR6k5tRSAe86kr`** — alleen het vetgedrukte deel (na de laatste `/`) vul je in, niet de hele link. |
+| `COCKPIT_WACHTWOORD` | Het wachtwoord waarmee je de cockpit binnenkomt. Verzin er zelf een en zet hem alleen hier; nooit in een bestand in deze repo. Zolang deze variabele leeg is of ontbreekt, kan **iedereen met de link** de hele cockpit lezen, en waarschuwt de app daar bovenaan elke pagina over. |
 
 Na het invullen klik je op **Deploy**. Vercel bouwt en publiceert de app
 daarna vanzelf.
+
+### Wie kan er bij?
+
+Er zijn twee soorten toegang, en ze staan los van elkaar (zie
+`lib/toegang.ts`):
+
+1. **De cockpit zelf** (de klantenlijst en alle tabbladen) zit achter het
+   wachtwoord uit `COCKPIT_WACHTWOORD`. Eén keer inloggen is genoeg; je blijft
+   negentig dagen ingelogd op dat apparaat. Wil je iedereen in één klap
+   uitloggen, wijzig dan het wachtwoord in Vercel.
+2. **Deelbare links** blijven bewust open, want de lange, onraadbare URL is
+   daar zelf de sleutel: het Developerbord (voor de developer) en de
+   alleen-lezen servicepuntenpagina van Nationaal Oogcentrum. Op zo'n pagina
+   wordt de klantenlijst helemaal niet meegestuurd, dus er lekken daar geen
+   namen van andere klanten uit.
 
 ### Later een omgevingsvariabele wijzigen
 
