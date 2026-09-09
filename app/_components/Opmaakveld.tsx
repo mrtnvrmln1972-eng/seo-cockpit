@@ -142,7 +142,17 @@ export default function Opmaakveld({
       extensions: [
         StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
         Underline,
-        Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
+        // openOnClick: een klik op een link opent hem gewoon, ook terwijl je in
+        // de tekst aan het werk bent (09-09-2026, gemeld door Maarten: "als je
+        // nu op een link klikt, dan ga je niet naar de pagina"). Altijd in een
+        // nieuw tabblad: in ditzelfde tabblad zou je de cockpit verlaten, en
+        // een tekst die net is gewijzigd wordt pas een seconde later opgeslagen.
+        Link.configure({
+          openOnClick: true,
+          autolink: true,
+          linkOnPaste: true,
+          HTMLAttributes: { target: "_blank", rel: "noreferrer" },
+        }),
         TaskList,
         VinkPunt.configure({ nested: true }),
         Table.configure({ resizable: false }),

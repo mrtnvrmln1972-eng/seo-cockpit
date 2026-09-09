@@ -106,6 +106,20 @@ loopt(
   readFileSync(join(__dirname, "scanbaar-fixture.md"), "utf8"),
 );
 
+// Vier vormen die in bestaande dossiers staan en die we bij het opslaan
+// rechttrekken in plaats van erop af te ketsen. Alle vier zijn ze schade of
+// ruis, geen tekst: er gaat niets verloren (09-09-2026).
+loopt(
+  "twee codeblokken direct achter elkaar",
+  "Zet dit live:\n\n```\nTitle: Iets\n```\n```\nMetabeschrijving: Iets anders\n```\n",
+);
+loopt("een liggend streepje dat ooit is ge-escaped", "Exporteer internal\\_all en images\\_missing\\_alt.\n");
+loopt("een kopregel zonder tekst", "**In het kort**\n\n###\n\n**Klaar als**\n");
+loopt(
+  "een backslash die ooit in een webadres is beland",
+  "[Document](https://docs.google.com/document/d/1Qx4Bmbr\\\\_ZLd/edit)\n",
+);
+
 console.log("\n--- 2. Het vangnet slaat aan bij wat we niet exact teruggeven ---");
 
 vangnetSlaatAan("kop in setext-vorm", "Een kop\n=======\n");

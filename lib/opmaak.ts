@@ -287,9 +287,7 @@ export function htmlNaarMarkdown(html: string): string {
   const md = turndown().turndown(
     lijstpuntenStrak(eersteAlineaLos(kolomgroepenWeg(String(html ?? "")))),
   );
-  return normaliseerUitvoer(
-    legeTabelcellenCompact(onnodigeBackslashesWeg(lijstenInHuisvorm(scheidingsregelsCompact(md)))),
-  );
+  return normaliseerUitvoer(legeTabelcellenCompact(lijstenInHuisvorm(scheidingsregelsCompact(md))));
 }
 
 /**
@@ -323,15 +321,56 @@ function witregelVoorLijsten(md: string): string {
     r.trim() === "" || isLijstregel(r) || /^\s*(?:#|>|\||```|<)/.test(r);
   for (let i = 0; i < regels.length; i++) {
     const regel = regels[i];
-    if (/^\s*```/.test(regel)) inHek = !inHek;
+    const isHekregel = /^\s*```/.test(regel);
+    if (isHekregel) inHek = !inHek;
     uit.push(regel);
-    if (inHek) continue;
     const volgende = regels[i + 1];
-    if (volgende !== undefined && !isBlokregel(regel) && isLijstregel(volgende)) {
+    if (volgende === undefined) continue;
+    // Twee codeblokken die direct op elkaar volgen (een sluitende ``` met
+    // meteen daaronder een openende) krijgen er ook een lege regel tussen.
+    // Zonder die regel sloeg het vangnet aan bij elke taak met twee blokjes
+    // tekst onder elkaar, bijvoorbeeld een title en een metabeschrijving.
+    if (isHekregel && !inHek && /^\s*```/.test(volgende)) {
+      uit.push("");
+      continue;
+    }
+    if (inHek) continue;
+    if (!isBlokregel(regel) && isLijstregel(volgende)) {
       uit.push("");
     }
   }
   return uit.join("\n");
+}
+
+/**
+ * Een kopregel zonder tekst ("###") levert niets op en verdwijnt bij het
+ * terugschrijven. Ze staan in oudere dossierbestanden en zijn de zoveelste
+ * reden waarom zo'n bestand alleen als broncode in beeld kwam. Weghalen aan
+ * beide kanten van de vergelijking: er gaat geen tekst verloren, want er
+ * stond niets.
+ */
+function legeKoppenWeg(md: string): string {
+  return String(md ?? "")
+    .split("\n")
+    .filter((regel) => !/^\s*#{1,6}\s*$/.test(regel))
+    .join("\n");
+}
+
+/**
+ * Backslashes binnen een webadres horen daar niet. Ze zijn er ooit ingekomen
+ * doordat een eerdere versie het liggende streepje in een Drive-id als opmaak
+ * las en er een backslash voor zette; bij elke volgende opslag kwam er weer
+ * één bij ("1Qx4\\_ZLd" en erger). Een link met zo'n backslash werkt niet
+ * meer, en het bestand kwam alleen nog als broncode in beeld.
+ *
+ * Nieuwe schade kan niet meer ontstaan (een gewone url met een liggend
+ * streepje loopt netjes rond), maar de bestanden waar het al in staat moeten
+ * er ook weer uit kunnen komen. Daarom halen we die backslashes weg aan beide
+ * kanten van de vergelijking: het veld toont dan gewoon opgemaakte tekst, en
+ * zodra je iets opslaat is het adres in het dossier meteen weer heel.
+ */
+function backslashesInUrlsWeg(md: string): string {
+  return String(md ?? "").replace(/https?:\/\/[^\s)<>"]+/g, (url) => url.replace(/\\/g, ""));
 }
 
 /**
@@ -341,7 +380,9 @@ function witregelVoorLijsten(md: string): string {
  * rondlopen() echte verschillen kunnen wegpoetsen.
  */
 function normaliseerUitvoer(md: string): string {
-  return witregelVoorLijsten(String(md ?? ""))
+  return witregelVoorLijsten(
+    legeKoppenWeg(onnodigeBackslashesWeg(backslashesInUrlsWeg(String(md ?? "")))),
+  )
     .replace(/\r\n?/g, "\n")
     .split("\n")
     .map((r) => r.replace(/[ \t]+$/, ""))
