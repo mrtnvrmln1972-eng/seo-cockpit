@@ -1,7 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 /**
  * Eén klantregel in de navigatie (artifact: .navlink). Client-wrapper rond
@@ -22,6 +23,17 @@ import { usePathname } from "next/navigation";
  * melden) te laten mislukken met een onduidelijke serverfout. Live
  * gereproduceerd: de zijbalk prefetchte alle klanten tegelijk en
  * Nationaal Oogcentrum kwam terug met een 503 van Drive.
+ *
+ * VOORLADEN BIJ AANWIJZEN (09-09-2026, omdat het wisselen tussen klanten
+ * traag aanvoelde): prefetch={false} betekent in Next 16 dat er ook bij
+ * hover NIETS wordt voorgeladen (nagelezen in de documentatie van de
+ * Link-component, niet uit het hoofd). Elke klik wachtte dus op een
+ * volledige serverrender. Daarom laden we hier zelf voor zodra je een regel
+ * aanwijst of hem met de toetsenbordfocus raakt: dat is één klant tegelijk,
+ * de klant die je waarschijnlijk gaat openen, in plaats van alle
+ * zevenentwintig ineens. De ratelimiet-oorzaak hierboven blijft daarmee
+ * afgedekt, en de klik zelf voelt direct. Eén keer per regel, want een
+ * herhaalde prefetch is een herhaalde serverrender.
  */
 export default function NavLink({
   href,
@@ -37,12 +49,23 @@ export default function NavLink({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const alVoorgeladen = useRef(false);
   const actief = pathname?.startsWith(`/klant/${klantSlug}`) ?? false;
+
+  function laadVoor() {
+    if (alVoorgeladen.current || actief) return;
+    alVoorgeladen.current = true;
+    router.prefetch(href);
+  }
 
   return (
     <Link
       href={href}
       prefetch={false}
+      onMouseEnter={laadVoor}
+      onFocus={laadVoor}
+      onTouchStart={laadVoor}
       aria-current={actief ? "true" : undefined}
       className={`navlink${stil ? " stil" : ""}`}
       data-naam={typeof children === "string" ? children.toLowerCase() : undefined}

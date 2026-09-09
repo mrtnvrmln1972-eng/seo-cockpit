@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Readable } from "node:stream";
+import { cache } from "react";
 import { google, type drive_v3 } from "googleapis";
 
 /**
@@ -120,13 +121,57 @@ export async function listFilesInFolder(
   return bestanden;
 }
 
+/**
+ * De inhoud van één map, per serververzoek onthouden (09-09-2026, omdat het
+ * wisselen tussen klanten traag aanvoelde).
+ *
+ * Waarom dit veel scheelt: findFileByName() deed voorheen per bestandsnaam
+ * een eigen zoekopdracht bij Drive. Eén Takenlijst-pagina vraagt om
+ * werklijst.md, toelichting.md, notities.md en mail-log.md, dus dat waren
+ * vier aparte aanroepen, achter elkaar, elk met de volle netwerklatentie van
+ * een Drive-verzoek. Terwijl één aanroep de hele klantmap teruggeeft: alle
+ * bestanden staan in dezelfde map en er zijn er maar een stuk of twintig.
+ * Sindsdien: één aanroep per map per pagina, en elke volgende naam is een
+ * opzoeking in het geheugen.
+ *
+ * React's cache() geeft per serververzoek een eigen exemplaar terug, dus dit
+ * lekt niet tussen bezoekers of tussen twee paginaladingen door. We bewaren
+ * de belofte, niet het resultaat: twee tegelijk startende lookups op dezelfde
+ * map delen dan dezelfde aanroep in plaats van er twee te doen.
+ */
+const mapCachePerVerzoek = cache(() => new Map<string, Promise<DriveFileRef[]>>());
+
+function bestandenInMap(folderId: string): Promise<DriveFileRef[]> {
+  const cache = mapCachePerVerzoek();
+  const bestaand = cache.get(folderId);
+  if (bestaand) return bestaand;
+  const belofte = listFilesInFolder(folderId).catch((err) => {
+    // Een mislukte aanroep mag niet blijven plakken voor de rest van het
+    // verzoek, anders faalt ook een latere poging meteen weer.
+    cache.delete(folderId);
+    throw err;
+  });
+  cache.set(folderId, belofte);
+  return belofte;
+}
+
+/**
+ * Gooit de onthouden inhoud van één map weg. Nodig op de plek waar juist een
+ * VERSE modifiedTime nodig is: de retry-lus bij een schrijfconflict (zie
+ * muteerEnSchrijf in lib/servicepunten.ts) moet na een botsing echt opnieuw
+ * kijken, anders probeert hij het eindeloos met dezelfde verouderde versie.
+ */
+export function vergeetMapInhoud(folderId: string): void {
+  mapCachePerVerzoek().delete(folderId);
+}
+
 /** Zoekt een submap met een exacte naam binnen een map. */
 export async function findFolderByName(
   parentId: string,
   name: string,
 ): Promise<DriveFileRef | null> {
-  const matches = await listFilesInFolder(parentId, { name, onlyFolders: true });
-  return matches[0] ?? null;
+  const alles = await bestandenInMap(parentId);
+  return alles.find((f) => f.mimeType === FOLDER_MIME && f.name === name) ?? null;
 }
 
 /** Zoekt een bestand (geen map) met een exacte naam binnen een map. */
@@ -134,8 +179,8 @@ export async function findFileByName(
   parentId: string,
   name: string,
 ): Promise<DriveFileRef | null> {
-  const matches = await listFilesInFolder(parentId, { name, onlyFiles: true });
-  return matches[0] ?? null;
+  const alles = await bestandenInMap(parentId);
+  return alles.find((f) => f.mimeType !== FOLDER_MIME && f.name === name) ?? null;
 }
 
 /** Leest de tekstinhoud van één bestand op id. Mirrors read_file_content. */

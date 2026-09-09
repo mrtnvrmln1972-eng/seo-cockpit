@@ -109,12 +109,20 @@ function rijenUitIndex(md: string): IndexRij[] {
 }
 
 let cache: { at: number; groepen: KlantGroep[] } | null = null;
-const CACHE_MS = 30_000;
+/**
+ * Twee minuten (09-09-2026, was 30 seconden). Deze lijst wordt bij ELKE
+ * paginalading gelezen, want de klantenlijst in de zijbalk staat overal, en
+ * hij kost drie Drive-aanroepen. KLANTEN.md verandert hooguit een paar keer
+ * per maand, dus dertig seconden was onnodig kort: bij het doorklikken langs
+ * klanten viel de cache steeds net weer buiten de tijd. Een nieuwe klant is
+ * hooguit twee minuten later zichtbaar, of meteen na een verversing.
+ */
+const CACHE_MS = 120_000;
 
 /**
  * Haalt de drie klantgroepen op, samengesteld uit KLANTEN.md + de
  * daadwerkelijke Drive-mappen in de root. Kortstondig in-memory gecached
- * (30s) zodat elke tab/route-navigatie niet steeds opnieuw hoeft te lezen.
+ * zodat elke tab/route-navigatie niet steeds opnieuw hoeft te lezen.
  */
 export async function getKlantGroepen(): Promise<KlantGroep[]> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.groepen;

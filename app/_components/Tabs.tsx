@@ -1,7 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { NOC_SLUG } from "@/lib/servicepunten-model";
 
 /**
@@ -50,6 +51,10 @@ const TABS = [
 
 export default function Tabs({ klantSlug }: { klantSlug: string }) {
   const pathname = usePathname();
+  // Zelfde voorlaad-bij-aanwijzen als in de klantenlijst (zie NavLink.tsx):
+  // één tabblad tegelijk, alleen degene die je aanwijst.
+  const router = useRouter();
+  const voorgeladen = useRef(new Set<string>());
   const tabs: readonly { segment: string; label: string }[] =
     klantSlug === NOC_SLUG ? [...TABS, { segment: "servicepunten", label: "Servicepunten" }] : TABS;
 
@@ -58,11 +63,19 @@ export default function Tabs({ klantSlug }: { klantSlug: string }) {
       {tabs.map((tab) => {
         const href = `/klant/${klantSlug}/${tab.segment}`;
         const actief = pathname === href;
+        const laadVoor = () => {
+          if (actief || voorgeladen.current.has(href)) return;
+          voorgeladen.current.add(href);
+          router.prefetch(href);
+        };
         return (
           <Link
             key={tab.segment}
             href={href}
             prefetch={false}
+            onMouseEnter={laadVoor}
+            onFocus={laadVoor}
+            onTouchStart={laadVoor}
             role="tab"
             aria-selected={actief}
             className="tab"

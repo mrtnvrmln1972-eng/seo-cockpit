@@ -108,11 +108,23 @@ export default async function WerkbordPagina({
     );
   }
 
+  // De drie dossierbestanden naast elkaar ophalen in plaats van achter elkaar
+  // (09-09-2026, samen met de mapcache in lib/drive.ts). Ze hangen niet van
+  // elkaar af, dus wachten kost puur tijd: dit was drie keer de latentie van
+  // een Drive-verzoek achter elkaar, nu één keer. Notities en mailoverzicht
+  // falen bewust stil: een leesfout daar mag de Takenlijst niet blokkeren.
+  const [dossierUitkomst, notitiesUitkomst, mailUitkomst] = await Promise.allSettled([
+    leesWerklijstDossier(klant.mapId),
+    leesNotities(klant.mapId),
+    leesMailLog(klant.mapId),
+  ]);
+
   let dossier: Awaited<ReturnType<typeof leesWerklijstDossier>> | null = null;
   let foutmelding: string | null = null;
-  try {
-    dossier = await leesWerklijstDossier(klant.mapId);
-  } catch (err) {
+  if (dossierUitkomst.status === "fulfilled") {
+    dossier = dossierUitkomst.value;
+  } else {
+    const err = dossierUitkomst.reason;
     foutmelding =
       err instanceof Error ? err.message : "Onbekende fout bij het laden van werklijst.md.";
   }
@@ -160,12 +172,7 @@ export default async function WerkbordPagina({
   // notities.md-inhoud toont als de eigen Notities-tab, maar dan dichtgeklapt
   // onderaan de Takenlijst. Een leesfout hier blokkeert de rest van de
   // Takenlijst niet: de kaart valt gewoon terug op "geen notities".
-  let notitiesMd = "";
-  try {
-    notitiesMd = (await leesNotities(klant.mapId)).md;
-  } catch {
-    // stil: de Notities-tab zelf toont een echte foutmelding als het lezen mislukt
-  }
+  const notitiesMd = notitiesUitkomst.status === "fulfilled" ? notitiesUitkomst.value.md : "";
 
   // Mailoverzicht (mail-log.md) — zelfde aanpak als notities.md hierboven:
   // los bestand, een leesfout blokkeert de rest van de Takenlijst niet.
@@ -179,8 +186,8 @@ export default async function WerkbordPagina({
   let mailThreads: Awaited<ReturnType<typeof parseMailLog>> = [];
   let mailBestandBestaat = false;
   let mailInleiding = "";
-  try {
-    const mailLog = await leesMailLog(klant.mapId);
+  if (mailUitkomst.status === "fulfilled") {
+    const mailLog = mailUitkomst.value;
     mailBestandBestaat = mailLog.bestand !== null;
     mailThreads = parseMailLog(mailLog.md);
     // De vrije tekst boven de eerste "## "-kop: bedoeld voor een uitleg waarom
@@ -189,8 +196,6 @@ export default async function WerkbordPagina({
       .split(/^##\s/m)[0]
       .replace(/^#\s*Mailoverzicht\s*$/m, "")
       .trim();
-  } catch {
-    // stil: zie hierboven
   }
 
   return (

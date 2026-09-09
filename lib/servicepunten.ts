@@ -1,6 +1,13 @@
 import "server-only";
 
-import { findFileByName, readFileContent, writeDocument, VersionConflictError, type DriveFileRef } from "./drive";
+import {
+  findFileByName,
+  readFileContent,
+  writeDocument,
+  vergeetMapInhoud,
+  VersionConflictError,
+  type DriveFileRef,
+} from "./drive";
 import {
   parseServicepunten,
   serialiseerServicepunten,
@@ -106,6 +113,10 @@ export async function muteerEnSchrijf(
     } catch (err) {
       if (err instanceof VersionConflictError && pogingenOver > 0) {
         pogingenOver -= 1;
+        // Verse mapinhoud afdwingen, anders leest de volgende poging dezelfde
+        // verouderde modifiedTime terug en botst hij opnieuw (zie
+        // vergeetMapInhoud in lib/drive.ts).
+        vergeetMapInhoud(klantFolderId);
         continue;
       }
       throw err;
