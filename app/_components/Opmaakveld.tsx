@@ -13,6 +13,7 @@ import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import { htmlNaarMarkdown, markdownNaarHtml, rondlopen } from "@/lib/opmaak";
+import { titelVanLinkAction } from "./link-acties";
 
 /**
  * De vinklijst zoals hij het bestand weer in gaat. De uitbreiding schrijft van
@@ -131,6 +132,10 @@ export default function Opmaakveld({
   const opentLink = useRef<() => void>(() => {});
 
 
+  // De plak-afhandeling hieronder heeft de editor nodig terwijl hij hem zelf
+  // aan het opbouwen is; vandaar een ref in plaats van de variabele zelf.
+  const editorRef = useRef<Editor | null>(null);
+
   const editor = useEditor(
     {
       immediatelyRender: false,
@@ -161,6 +166,58 @@ export default function Opmaakveld({
           }
           return false;
         },
+        /**
+         * Een geplakte link krijgt de titel van de pagina als linktekst
+         * (09-09-2026, op verzoek: "ik wil gewoon de titel zien"). De link
+         * verschijnt meteen, met de url als tekst; zodra de titel binnen is
+         * wordt alleen die tekst vervangen. Lukt het opzoeken niet, dan blijft
+         * de link staan zoals je hem plakte.
+         *
+         * De controle vóór het vervangen kijkt of er op die plek nog steeds
+         * precies dezelfde url staat: heb je in de tussentijd doorgetypt of
+         * ergens anders geklikt, dan gebeurt er niets.
+         */
+        handlePaste: (view, event) => {
+          const geplakt = event.clipboardData?.getData("text/plain")?.trim() ?? "";
+          if (!/^https?:\/\/\S+$/.test(geplakt)) return false;
+          event.preventDefault();
+
+          const start = view.state.selection.from;
+          const editorNu = editorRef.current;
+          if (!editorNu) return false;
+          editorNu
+            .chain()
+            .focus()
+            .insertContent({
+              type: "text",
+              text: geplakt,
+              marks: [{ type: "link", attrs: { href: geplakt } }],
+            })
+            .run();
+
+          void titelVanLinkAction(geplakt).then((titel) => {
+            const e = editorRef.current;
+            if (!e || !titel || titel === geplakt) return;
+            const eind = start + geplakt.length;
+            if (e.state.doc.textBetween(start, eind) !== geplakt) return;
+            e.chain()
+              .focus()
+              .command(({ tr }) => {
+                tr.insertText(titel, start, eind);
+                tr.addMark(
+                  start,
+                  start + titel.length,
+                  e.schema.marks.link.create({ href: geplakt }),
+                );
+                return true;
+              })
+              .run();
+          });
+          return true;
+        },
+      },
+      onCreate: ({ editor: e }) => {
+        editorRef.current = e as Editor;
       },
       onUpdate: ({ editor: e }) => setMarkdown(htmlNaarMarkdown(e.getHTML())),
     },

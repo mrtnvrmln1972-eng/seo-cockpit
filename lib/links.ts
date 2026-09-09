@@ -33,6 +33,94 @@ import { getFileMetadata } from "@/lib/drive";
  * ("de titel van het document" — dat zijn hier steeds Drive-documenten).
  */
 
+/**
+ * De titel van een gewone webpagina ophalen (09-09-2026, op verzoek: "als ik
+ * een link plak wil ik gewoon de titel zien, of het nu een webpagina, een
+ * document of een sheet is"). Dit stond hierboven eerst als bewust NIET
+ * gedaan; Maarten wil het wel.
+ *
+ * Bewust klein gehouden en nooit blokkerend:
+ * - alleen http en https, en geen adressen op het eigen netwerk;
+ * - drie seconden geduld, daarna geen titel;
+ * - hooguit de eerste 200 kB, want we hebben alleen de <head> nodig;
+ * - elke fout betekent gewoon "geen titel", nooit een mislukte opslag.
+ */
+const PRIVATE_HOSTS =
+  /^(?:localhost|127\.|0\.|10\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|\[?::1)/i;
+
+function tekenreeksTerug(tekst: string): string {
+  return tekst
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;|&rsquo;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_h, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** De titel uit een stuk HTML halen. Los testbaar, zonder netwerk. */
+export function titelUitHtml(html: string): string | null {
+  const ogTitel = /<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)["']/i.exec(html);
+  const titel = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+  const gevonden = tekenreeksTerug(ogTitel?.[1] ?? titel?.[1] ?? "");
+  return gevonden.length > 0 && gevonden.length < 300 ? gevonden : null;
+}
+
+/** Mag deze url opgehaald worden? Geen adressen op het eigen netwerk. */
+export function magOpgehaaldWorden(url: string): boolean {
+  try {
+    const adres = new URL(url);
+    if (adres.protocol !== "http:" && adres.protocol !== "https:") return false;
+    return !PRIVATE_HOSTS.test(adres.hostname);
+  } catch {
+    return false;
+  }
+}
+
+export async function titelVanWebpagina(url: string): Promise<string | null> {
+  if (!magOpgehaaldWorden(url)) return null;
+  const adres = new URL(url);
+
+  const stop = AbortSignal.timeout(3000);
+  try {
+    const res = await fetch(adres.toString(), {
+      signal: stop,
+      redirect: "follow",
+      headers: {
+        // Sommige sites geven zonder deze twee een kale 403 terug.
+        "user-agent": "Mozilla/5.0 (compatible; PingwinCockpit/1.0)",
+        accept: "text/html,application/xhtml+xml",
+      },
+    });
+    if (!res.ok) return null;
+    const type = res.headers.get("content-type") ?? "";
+    if (!type.includes("html")) return null;
+    return titelUitHtml((await res.text()).slice(0, 200_000));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * De titel bij een geplakte link: eerst Drive (dan hebben we de echte
+ * bestandsnaam), anders de <title> van de pagina zelf.
+ */
+export async function titelVanLink(url: string): Promise<string | null> {
+  const fileId = driveFileIdVan(url);
+  if (fileId) {
+    try {
+      const meta = await getFileMetadata(fileId);
+      if (meta?.name) return meta.name;
+    } catch {
+      // valt hieronder terug op de pagina zelf
+    }
+  }
+  return titelVanWebpagina(url);
+}
+
 /** Combinatie van elk Drive-URL-patroon dat in de praktijk wordt geplakt. */
 const DRIVE_ID_PATRONEN: RegExp[] = [
   /docs\.google\.com\/(?:document|spreadsheets|presentation|forms)\/d\/([a-zA-Z0-9_-]+)/,
@@ -108,23 +196,16 @@ export async function resolveDriveLinksInText(tekst: string): Promise<string> {
       continue;
     }
 
-    const fileId = driveFileIdVan(url);
-    if (!fileId) {
-      out += url + staart;
-      continue;
-    }
-
-    if (!titelCache.has(fileId)) {
+    if (!titelCache.has(url)) {
       let titel: string | null = null;
       try {
-        const meta = await getFileMetadata(fileId);
-        titel = meta?.name ?? null;
+        titel = await titelVanLink(url);
       } catch {
         titel = null;
       }
-      titelCache.set(fileId, titel);
+      titelCache.set(url, titel);
     }
-    const titel = titelCache.get(fileId) ?? null;
+    const titel = titelCache.get(url) ?? null;
 
     if (titel) {
       // Vierkante haken uit de titel halen zodat de `[label](url)`-syntax

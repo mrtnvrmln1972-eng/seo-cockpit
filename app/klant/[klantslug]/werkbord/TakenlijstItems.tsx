@@ -219,32 +219,34 @@ export default function TakenlijstItems({
               </summary>
 
               <div className="binnenbody">
-                {taak.blokken.length === 0 ? (
-                  <p>Nog geen toelichting.</p>
-                ) : (
-                  taak.blokken.map((blok, bi) => (
-                    <div key={bi} className={"toelichtingblok" + (blok.kleur ? " " + blok.kleur : "")}>
-                      <h6>{blok.label}</h6>
-                      {blok.html ? (
-                        <div dangerouslySetInnerHTML={{ __html: blok.html }} />
-                      ) : (
-                        <p>—</p>
-                      )}
-                    </div>
-                  ))
-                )}
+                {/*
+                  Een open taak toont meteen de tekst zelf, met de opmaakstrip
+                  erboven (09-09-2026, op verzoek). Hier stonden eerst de
+                  opgemaakte blokken én daaronder een apart bewerkformulier met
+                  dezelfde tekst er nog een keer in; je moest dus eerst iets
+                  aanklikken om te mogen wijzigen, en zag alles dubbel.
+                */}
+                <BewerkTaak
+                  klantSlug={klantSlug}
+                  n={taak.n}
+                  titel={taak.titel}
+                  toelichting={taak.toelichtingRuw}
+                  onOpgeslagen={(nieuweTitel, nieuweToelichting) =>
+                    setLijst((oud) =>
+                      oud.map((t) =>
+                        t.n === taak.n
+                          ? { ...t, titel: nieuweTitel, toelichtingRuw: nieuweToelichting }
+                          : t,
+                      ),
+                    )
+                  }
+                />
 
                 <div className="acties">
                   <DoorzettenKnop klantSlug={klantSlug} n={taak.n} />
                   <a className="pillbtn licht" href={taak.mailHref}>
                     Mailen naar Tonny
                   </a>
-                  <BewerkTaak
-                    klantSlug={klantSlug}
-                    n={taak.n}
-                    titel={taak.titel}
-                    toelichting={taak.toelichtingRuw}
-                  />
                 </div>
               </div>
             </details>

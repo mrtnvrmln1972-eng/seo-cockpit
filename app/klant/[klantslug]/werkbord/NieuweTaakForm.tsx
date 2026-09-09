@@ -44,6 +44,10 @@ export default function NieuweTaakForm({ klantSlug }: { klantSlug: string }) {
             await maakTaakAction(klantSlug, formData);
             formRef.current?.reset();
             setVeldSleutel((n) => n + 1);
+            // Het "Nieuwe taak"-venster klapt zichzelf weer dicht (09-09-2026,
+            // op verzoek): de taak staat in de lijst eronder, dus het formulier
+            // hoeft niet open te blijven staan.
+            formRef.current?.closest("details")?.removeAttribute("open");
             setGelukt(true);
             setTimeout(() => setGelukt(false), 2500);
           } catch (err) {

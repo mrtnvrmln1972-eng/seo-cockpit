@@ -3529,3 +3529,14 @@ pre.codeblok code {
 .kopvuller {
   flex: 1 1 auto;
 }
+
+/* Het regeltje onder een taak dat vertelt of er is opgeslagen. Rustig van
+   toon: het hoort te bevestigen, niet in de weg te zitten. */
+.opslagstand {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  color: var(--muted-2);
+}
+.opslagstand.fout {
+  color: var(--crit);
+}

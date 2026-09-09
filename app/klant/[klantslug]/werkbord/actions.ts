@@ -187,16 +187,17 @@ export async function taakVerwijderenAction(klantSlug: string, n: number): Promi
 export async function taakBewerkenAction(
   klantSlug: string,
   n: number,
-  formData: FormData,
+  titelRuw: string,
+  toelichtingRuw: string,
 ): Promise<void> {
   const klant = await getKlantBySlug(klantSlug);
   if (!klant?.mapId) throw new Error("Deze klant heeft nog geen dossier in Drive.");
 
-  const titel = String(formData.get("titel") || "").trim();
+  const titel = String(titelRuw ?? "").trim();
   if (!titel) throw new Error("Een taak heeft een titel nodig.");
-  // Kale Drive-links worden ook hier omgezet naar `[Titel](url)`, net als bij
-  // een nieuwe taak — zie de doc-comment in lib/links.ts.
-  const toelichting = await resolveDriveLinksInText(String(formData.get("toelichting") ?? ""));
+  // Kale links worden ook hier omgezet naar `[Titel](url)`, net als bij een
+  // nieuwe taak — zie de doc-comment in lib/links.ts.
+  const toelichting = await resolveDriveLinksInText(String(toelichtingRuw ?? ""));
 
   try {
     const dossier = await leesWerklijstDossier(klant.mapId);
@@ -229,5 +230,10 @@ export async function taakBewerkenAction(
     throw foutmelding(err, "Kon deze taak niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/werkbord`);
+  // BEWUST geen revalidatePath: deze actie loopt tijdens het typen (autosave,
+  // zie BewerkTaak.tsx). Een verversing zou de tekst midden in het typen
+  // vervangen door de verse serverversie, de editor opnieuw opbouwen en de
+  // cursor laten wegspringen. De lijst op het scherm krijgt de nieuwe titel
+  // rechtstreeks van de editor door; bij de volgende paginalading komt alles
+  // sowieso weer vers uit Drive.
 }

@@ -1,86 +1,121 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { taakBewerkenAction } from "./actions";
 import Opmaakveld from "@/app/_components/Opmaakveld";
 
 /**
  * app/klant/[klantslug]/werkbord/BewerkTaak.tsx — de titel en de toelichting
- * van één taak aanpassen, vanuit de taak zelf (09-09-2026, op verzoek).
+ * van één taak, direct bewerkbaar zodra je de taak openklapt.
  *
- * Sinds 09-09-2026 is dit een Opmaakveld: je ziet vet als vet in plaats van
- * sterretjes, met een opmaakstrip en de gewone sneltoetsen. Wat er wordt
- * opgeslagen blijft exact dezelfde markdown, en bevat het bestand iets wat
- * niet ongewijzigd terug te schrijven is, dan valt het veld zichtbaar terug op
- * broncode-modus. Zie app/_components/Opmaakveld.tsx en lib/opmaak.ts.
+ * HERZIEN 09-09-2026, op Maartens verzoek. Het was: bovenin de opgemaakte
+ * tekst, daaronder een knop "Tekst aanpassen", en daar weer onder een apart
+ * formulier met diezelfde tekst er nog een keer in en een knop "Opslaan". Zijn
+ * woorden: "Als ik iets wil aanpassen, wil ik gewoon in het veld klikken dat
+ * ik wil aanpassen. En niet ergens moeilijk over doen, maar gewoon dat het
+ * autosaved."
  *
- * De oude uitleg hieronder blijft gelden voor WAT er opgeslagen wordt: dat
- * bestand wordt ook buiten deze app gelezen en geschreven (zie CLAUDE.md),
- * dus wat je hier typt is precies wat
- * er in het dossier komt te staan. Een tekstvak dat de opmaak zelf
- * "verbetert" zou dat stilletjes uit elkaar laten lopen.
+ * Nu: je klapt de taak open, de opmaakstrip staat bovenin, en je typt gewoon
+ * in de tekst. Een seconde nadat je stopt met typen wordt het opgeslagen, met
+ * een klein regeltje ernaast dat zegt wat er gebeurt. Geen knop, geen tweede
+ * kopie van dezelfde tekst.
  *
- * Dichtgeklapt tenzij je hem opent, zodat de taak zelf leesbaar blijft en het
- * lezen niet steeds langs een formulier moet.
+ * Waarom het opslaan hier GEEN paginaverversing doet (revalidatePath): dat zou
+ * midden in het typen verse tekst van de server terugsturen, en dan bouwt de
+ * editor zichzelf opnieuw op en springt je cursor weg. De lijst eromheen krijgt
+ * de nieuwe titel daarom rechtstreeks van hier door (onOpgeslagen).
  */
+
+/** Zoveel wachten na de laatste toetsaanslag voordat we opslaan. */
+const WACHT_MS = 900;
+
+type Stand = "rust" | "bezig" | "klaar" | "fout";
+
 export default function BewerkTaak({
   klantSlug,
   n,
   titel,
   toelichting,
+  onOpgeslagen,
 }: {
   klantSlug: string;
   n: number;
   titel: string;
   toelichting: string;
+  onOpgeslagen?: (titel: string, toelichting: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [stand, setStand] = useState<Stand>("rust");
   const [fout, setFout] = useState<string | null>(null);
-  const [gelukt, setGelukt] = useState(false);
-  const [bezig, startTransition] = useTransition();
-  const formRef = useRef<HTMLFormElement>(null);
 
-  if (!open) {
-    return (
-      <button type="button" className="pillbtn licht" onClick={() => setOpen(true)}>
-        Tekst aanpassen
-      </button>
-    );
+  const laatstOpgeslagen = useRef({ titel, toelichting });
+  const huidig = useRef({ titel, toelichting });
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, []);
+
+  function planOpslaan() {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => void slaOp(), WACHT_MS);
+  }
+
+  async function slaOp() {
+    const { titel: t, toelichting: tl } = huidig.current;
+    if (t.trim() === "") return; // een taak zonder titel slaan we niet op
+    if (t === laatstOpgeslagen.current.titel && tl === laatstOpgeslagen.current.toelichting) return;
+    setStand("bezig");
+    setFout(null);
+    try {
+      await taakBewerkenAction(klantSlug, n, t, tl);
+      laatstOpgeslagen.current = { titel: t, toelichting: tl };
+      onOpgeslagen?.(t, tl);
+      setStand("klaar");
+      setTimeout(() => setStand((s) => (s === "klaar" ? "rust" : s)), 1800);
+    } catch {
+      // Bewust een vaste, gewone zin: wat een server action bij een fout
+      // teruggeeft is in productie een dichtgetimmerde technische melding
+      // ("Minified React error ..."), en daar heb je hier niets aan.
+      setStand("fout");
+      setFout("Opslaan lukte niet. Je tekst staat er nog; probeer het zo nog eens.");
+    }
   }
 
   return (
-    <form
-      ref={formRef}
-      className="taakbewerken"
-      action={(formData: FormData) => {
-        setFout(null);
-        setGelukt(false);
-        startTransition(async () => {
-          try {
-            await taakBewerkenAction(klantSlug, n, formData);
-            setGelukt(true);
-            setTimeout(() => setGelukt(false), 2500);
-          } catch (err) {
-            setFout(err instanceof Error ? err.message : "Kon deze taak niet opslaan.");
-          }
-        });
-      }}
-    >
+    <div className="taakbewerken">
       <div className="metaveld">
         <label htmlFor={`titel-${n}`}>Titel</label>
-        <input id={`titel-${n}`} name="titel" type="text" defaultValue={titel} required />
+        <input
+          id={`titel-${n}`}
+          type="text"
+          defaultValue={titel}
+          onChange={(e) => {
+            huidig.current = { ...huidig.current, titel: e.target.value };
+            planOpslaan();
+          }}
+          onBlur={() => void slaOp()}
+        />
       </div>
-      <Opmaakveld naam="toelichting" waarde={toelichting} label="Toelichting" minHoogte={220} />
-      {fout && <p className="foutregel">{fout}</p>}
-      <div className="acties">
-        <button className="pillbtn sterk" type="submit" disabled={bezig}>
-          {bezig ? "Bezig…" : "Opslaan"}
-        </button>
-        <button type="button" className="pillbtn licht" onClick={() => setOpen(false)}>
-          Sluiten
-        </button>
-        {gelukt && <span className="pill p-klaar">Opgeslagen</span>}
-      </div>
-    </form>
+
+      <Opmaakveld
+        naam={`toelichting-${n}`}
+        waarde={toelichting}
+        label="Toelichting"
+        minHoogte={200}
+        onChange={(markdown) => {
+          huidig.current = { ...huidig.current, toelichting: markdown };
+          planOpslaan();
+        }}
+      />
+
+      <p className={`opslagstand${stand === "fout" ? " fout" : ""}`}>
+        {stand === "bezig" && "Opslaan…"}
+        {stand === "klaar" && "Opgeslagen"}
+        {stand === "fout" && (fout ?? "Kon deze taak niet opslaan.")}
+        {stand === "rust" && "Wijzigingen worden vanzelf opgeslagen."}
+      </p>
+    </div>
   );
 }
