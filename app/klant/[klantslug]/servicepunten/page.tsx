@@ -1,6 +1,9 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getKlantBySlug } from "@/lib/klanten";
 import { leesServicepunten, NOC_SLUG, type ServicepuntenDossier } from "@/lib/servicepunten";
+import { SERVICEPUNTEN_DEELPAD } from "@/lib/toegang";
+import DeelLink from "./DeelLink";
 import ServicepuntenView from "./ServicepuntenView";
 
 export const dynamic = "force-dynamic";
@@ -74,5 +77,23 @@ export default async function ServicepuntenPagina({
     );
   }
 
-  return <ServicepuntenView klantSlug={klant.slug} dossier={dossier} />;
+  return (
+    <>
+      <DeelLink url={await deelUrl()} />
+      <ServicepuntenView klantSlug={klant.slug} dossier={dossier} />
+    </>
+  );
+}
+
+/**
+ * De volledige, deelbare link naar de alleen-lezen servicepuntenpagina. Het
+ * domein komt uit het verzoek zelf, zodat de link ook klopt als de cockpit
+ * ooit op een ander adres komt te staan — nooit een adres hardcoderen dat
+ * daarna stilletjes verkeerd wordt.
+ */
+async function deelUrl(): Promise<string> {
+  const kop = await headers();
+  const host = kop.get("x-forwarded-host") ?? kop.get("host") ?? "";
+  const protocol = kop.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${protocol}://${host}${SERVICEPUNTEN_DEELPAD}`;
 }

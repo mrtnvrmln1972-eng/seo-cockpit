@@ -82,6 +82,55 @@ voordat het project gebouwd wordt. Vul daar het volgende in:
 Na het invullen klik je op **Deploy**. Vercel bouwt en publiceert de app
 daarna vanzelf.
 
+### Het wachtwoord instellen, stap voor stap
+
+Zolang `COCKPIT_WACHTWOORD` niet is ingevuld, kan iedereen met de link de hele
+cockpit lezen. Zo zet je hem, klik voor klik. De namen tussen aanhalingstekens
+zijn de teksten zoals ze in Vercel op het scherm staan.
+
+1. Ga naar **https://vercel.com/dashboard** en log in.
+2. Klik in de projectenlijst op het project van deze cockpit (**seo-cockpit**).
+   Je komt dan op het overzicht van dat project.
+3. Klik bovenin op **"Settings"**.
+4. Klik in het menu aan de linkerkant op **"Environment Variables"**.
+5. Je ziet nu een formulier met de kop **"Add New"** (daaronder staat de lijst
+   met variabelen die er al zijn: `GOOGLE_SERVICE_ACCOUNT_KEY` en
+   `GOOGLE_DRIVE_ROOT_FOLDER_ID`).
+6. Vul bij **"Key"** (of **"Name"**, afhankelijk van de versie) exact dit in,
+   met hoofdletters en liggende streepjes:
+
+   ```
+   COCKPIT_WACHTWOORD
+   ```
+
+7. Vul bij **"Value"** het wachtwoord in dat je zelf verzint. Vercel versleutelt
+   die waarde, dus het is veilig om hem hier te zetten. Zet hem **nergens** in
+   een bestand in deze repository.
+8. Kies daaronder voor welke omgevingen de variabele geldt: **"Production"**,
+   **"Preview"** en **"Development"**. **Production is de belangrijkste**, dat
+   is de echte, live cockpit. Standaard staan alle drie aan; laat dat zo, dan
+   zit ook een testversie meteen achter hetzelfde wachtwoord. Staat er niets
+   aangevinkt, vink dan in elk geval **"Production"** aan, anders verandert er
+   live niets.
+9. Klik op **"Save"**.
+10. Nu het belangrijkste, en het stapje dat het vaakst wordt vergeten: **een
+    nieuwe variabele geldt niet voor wat al live staat.** Je moet opnieuw
+    laten uitrollen. Klik bovenin op **"Deployments"**, zoek de bovenste
+    (nieuwste) regel op, klik op de drie puntjes rechts ervan en kies
+    **"Redeploy"**. Bevestig in het venstertje nog een keer met **"Redeploy"**.
+11. Wacht tot de status op **"Ready"** staat (ongeveer een minuut) en open de
+    cockpit. Je krijgt nu een inlogscherm. Vul je wachtwoord in; je blijft
+    daarna negentig dagen ingelogd op dat apparaat.
+
+Werkt het? Dan is de oranje waarschuwingsbalk bovenaan de cockpit verdwenen.
+Staat hij er nog, dan is de variabele niet voor Production gezet of is er nog
+niet opnieuw uitgerold.
+
+**Het wachtwoord wijzigen of iedereen uitloggen:** verander in stap 6 tot 9 de
+waarde van dezelfde variabele (klik op de drie puntjes achter
+`COCKPIT_WACHTWOORD` en kies **"Edit"**) en rol opnieuw uit. Alle bestaande
+sessies vervallen dan meteen, want het koekje is aan het wachtwoord gekoppeld.
+
 ### Wie kan er bij?
 
 Er zijn twee soorten toegang, en ze staan los van elkaar (zie

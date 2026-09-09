@@ -2714,3 +2714,64 @@ strong {
     flex-wrap: wrap;
   }
 }
+
+/* Het deelblok bovenaan het Servicepunten-tabblad (09-09-2026): de deelbare
+   link staat er voluit en klikbaar, met een kopieerknop ernaast. Zelfde
+   tokens en dezelfde .pillbtn-knoppen als de rest van de app. */
+
+.deelblok {
+  background: var(--accent-wash);
+  border: 1px solid #f6d3c4;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 16px;
+}
+.deelblok-lbl {
+  display: block;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin-bottom: 3px;
+}
+.deelblok-tekst p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.deelblok-link {
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 11px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+}
+.deelblok-link a {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--accent-2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.deelblok-link a:hover {
+  text-decoration: underline;
+}
+.deelblok-knoppen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.deelblok-knoppen a.pillbtn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.deelblok-fout {
+  font-size: 12px;
+  color: var(--crit);
+}
