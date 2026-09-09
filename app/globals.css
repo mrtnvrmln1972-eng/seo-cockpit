@@ -2775,3 +2775,18 @@ strong {
   font-size: 12px;
   color: var(--crit);
 }
+
+/* Vangnet (09-09-2026): .shell is een raster van 278px voor de klantenlijst
+   plus de rest voor de inhoud. Staat die lijst er niet, dan blijft die eerste
+   kolom van 278px gewoon gereserveerd en propt het raster de hele inhoud
+   daarin. Dat is één keer echt gebeurd, na het inloggen, en het zag eruit
+   alsof het dashboard stuk was. Deze regel geldt voor élke pagina zonder
+   klantenlijst, wat de reden ook is, in plaats van alleen voor de routes die
+   er zelf een merkje voor zetten. */
+.shell:not(:has(.nav)) {
+  grid-template-columns: 1fr;
+}
+.shell:not(:has(.nav)) main {
+  max-width: 1100px;
+  margin: 0 auto;
+}
