@@ -9,6 +9,8 @@ import {
   toelichtingVoor,
   parseWerklijst,
   werklijstHerschikken,
+  werklijstTitel,
+  toelichtingVervangen,
 } from "@/lib/werklijst";
 import { taakNaarDeveloperbord } from "@/lib/developerboard";
 import { VersionConflictError, writeDocument } from "@/lib/drive";
@@ -114,6 +116,64 @@ export async function herschikTakenAction(
     });
   } catch (err) {
     throw foutmelding(err, "Kon de volgorde niet opslaan.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/werkbord`);
+}
+
+/**
+ * Past de tekst van één taak aan: de titel in werklijst.md en de volledige
+ * toelichting onder "## Taak N" in toelichting.md.
+ *
+ * Er wordt alleen geschreven wat ook echt veranderd is, zodat een taak
+ * openen, lezen en weer sluiten zonder wijziging geen schrijfactie op Drive
+ * oplevert. De toelichting gaat er letterlijk in zoals hij is ingetypt: het
+ * blijft een markdown-dossierbestand dat ook buiten deze app gelezen en
+ * bewerkt wordt (zie CLAUDE.md), dus we sleutelen hier niet aan de opmaak.
+ */
+export async function taakBewerkenAction(
+  klantSlug: string,
+  n: number,
+  formData: FormData,
+): Promise<void> {
+  const klant = await getKlantBySlug(klantSlug);
+  if (!klant?.mapId) throw new Error("Deze klant heeft nog geen dossier in Drive.");
+
+  const titel = String(formData.get("titel") || "").trim();
+  if (!titel) throw new Error("Een taak heeft een titel nodig.");
+  // Kale Drive-links worden ook hier omgezet naar `[Titel](url)`, net als bij
+  // een nieuwe taak — zie de doc-comment in lib/links.ts.
+  const toelichting = await resolveDriveLinksInText(String(formData.get("toelichting") ?? ""));
+
+  try {
+    const dossier = await leesWerklijstDossier(klant.mapId);
+
+    const huidigeTaak = parseWerklijst(dossier.werklijstMd).find((t) => t.n === n);
+    if (!huidigeTaak) throw new Error("Deze taak staat niet (meer) in werklijst.md.");
+
+    if (huidigeTaak.titel.trim() !== titel) {
+      const nieuweWerklijst = werklijstTitel(dossier.werklijstMd, n, titel);
+      if (!nieuweWerklijst) throw new Error("Kon de titel niet in werklijst.md verwerken.");
+      await writeDocument({
+        folderId: klant.mapId,
+        fileName: "werklijst.md",
+        content: nieuweWerklijst,
+        knownFileId: dossier.werklijstBestand?.id ?? null,
+        knownModifiedTime: dossier.werklijstBestand?.modifiedTime ?? null,
+      });
+    }
+
+    if (toelichtingVoor(dossier.toelichtingMd, n).trim() !== toelichting.trim()) {
+      await writeDocument({
+        folderId: klant.mapId,
+        fileName: "toelichting.md",
+        content: toelichtingVervangen(dossier.toelichtingMd, n, toelichting),
+        knownFileId: dossier.toelichtingBestand?.id ?? null,
+        knownModifiedTime: dossier.toelichtingBestand?.modifiedTime ?? null,
+      });
+    }
+  } catch (err) {
+    throw foutmelding(err, "Kon deze taak niet opslaan.");
   }
 
   revalidatePath(`/klant/${klantSlug}/werkbord`);

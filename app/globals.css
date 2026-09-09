@@ -2790,3 +2790,26 @@ strong {
   max-width: 1100px;
   margin: 0 auto;
 }
+
+/* Tekst in een taak moet gewoon te selecteren zijn om te kopiëren
+   (09-09-2026). Alleen de sleepgreep blijft onselecteerbaar; die heeft zijn
+   eigen user-select-regel hierboven. Slepen zit nu aan de greep vast, niet
+   aan de hele rij, dus een ingedrukte muis in de tekst begint weer een
+   selectie in plaats van een sleepactie. */
+.binnenbody,
+.binnenkop .tk {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Het bewerkveld onder een taak: valt binnen .acties, maar moet als blok
+   onder de knoppen komen te staan in plaats van ernaast. */
+.taakbewerken {
+  flex: 1 1 100%;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.taakbewerken .metaveld {
+  margin-bottom: 10px;
+}

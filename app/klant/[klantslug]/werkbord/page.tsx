@@ -126,7 +126,14 @@ export default async function WerkbordPagina({
       `mailto:tonny@pingwin.nl` +
       `?subject=${encodeURIComponent(`Klantcockpit, ${klant.naam}: ${taak.titel}`)}` +
       `&body=${encodeURIComponent(mailBody)}`;
-    return { n: taak.n, titel: taak.titel, status: taak.status.trim(), blokken, mailHref };
+    return {
+      n: taak.n,
+      titel: taak.titel,
+      status: taak.status.trim(),
+      blokken,
+      mailHref,
+      toelichtingRuw: toelichting,
+    };
   });
 
   // Notities is een los bestand (lib/notities.ts) en staat hier los van de

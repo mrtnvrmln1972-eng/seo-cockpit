@@ -299,6 +299,28 @@ export function toelichtingMetStub(md: string, n: number, notities: string): str
   return basis + "\n\n" + stub;
 }
 
+/**
+ * Vervangt de hele toelichting onder "## Taak N" door nieuwe tekst. Bestaat
+ * die kop nog niet, dan komt er een nieuwe sectie onderaan bij.
+ *
+ * De tekst gaat er letterlijk in zoals hij is ingetypt: dit is en blijft een
+ * markdown-dossierbestand dat ook buiten deze app bewerkt wordt, dus we
+ * herschrijven of "verbeteren" hier niets aan de opmaak. Alleen de vaste
+ * "## Taak N"-kop blijft van ons.
+ */
+export function toelichtingVervangen(md: string, n: number, tekst: string): string {
+  const nieuweInhoud = String(tekst || "").replace(/\r/g, "").trim();
+  const basis = String(md || "");
+  const re = new RegExp(
+    `(^##\\s*Taak\\s*${n}\\s*$)[\\r\\n]+([\\s\\S]*?)(?=^##\\s|$(?![\\s\\S]))`,
+    "m",
+  );
+  if (re.test(basis)) {
+    return basis.replace(re, `$1\n${nieuweInhoud}\n\n`);
+  }
+  return `${basis.replace(/\s+$/, "")}\n\n## Taak ${n}\n${nieuweInhoud}\n`;
+}
+
 // ---- Drive-laag: lezen/schrijven van werklijst.md + toelichting.md --------
 
 export interface WerklijstDossier {

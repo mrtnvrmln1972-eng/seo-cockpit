@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { statusClass } from "@/lib/markdown";
 import { herschikTakenAction } from "./actions";
+import BewerkTaak from "./BewerkTaak";
 import DoorzettenKnop from "./DoorzettenKnop";
 
 /**
@@ -40,6 +41,8 @@ export interface TaakItem {
   status: string;
   blokken: TaakItemBlok[];
   mailHref: string;
+  /** De onbewerkte tekst uit toelichting.md, voor het bewerkveld. */
+  toelichtingRuw: string;
 }
 
 export default function TakenlijstItems({
@@ -51,6 +54,14 @@ export default function TakenlijstItems({
 }) {
   const [lijst, setLijst] = useState(items);
   const [dragN, setDragN] = useState<number | null>(null);
+  /**
+   * Welke rij op dit moment gesleept MAG worden. Stond eerst vast op elke
+   * rij (draggable op de hele <details>), en dat maakte de tekst in een taak
+   * onselecteerbaar: de browser begint bij ingedrukte muis dan een sleep in
+   * plaats van een selectie, dus kopiëren en plakken lukte niet
+   * (09-09-2026). Nu zet je hem alleen aan door de greep vast te pakken.
+   */
+  const [greepN, setGreepN] = useState<number | null>(null);
   const [fout, setFout] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -106,7 +117,7 @@ export default function TakenlijstItems({
             <details
               className={"binnenrij" + (dragN === taak.n ? " binnenrijSlepend" : "")}
               key={taak.n}
-              draggable
+              draggable={greepN === taak.n}
               onDragStart={() => opDragStart(taak.n)}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -116,10 +127,19 @@ export default function TakenlijstItems({
                 e.preventDefault();
                 opDrop();
               }}
-              onDragEnd={() => setDragN(null)}
+              onDragEnd={() => {
+                setDragN(null);
+                setGreepN(null);
+              }}
             >
               <summary className="binnenregel">
-                <span className="sleepgreep" title="Sleep om te herschikken">
+                <span
+                  className="sleepgreep"
+                  title="Sleep om te herschikken"
+                  onMouseDown={() => setGreepN(taak.n)}
+                  onTouchStart={() => setGreepN(taak.n)}
+                  onMouseUp={() => setGreepN(null)}
+                >
                   ⠿
                 </span>
                 <span className="binnenkop">
@@ -154,6 +174,12 @@ export default function TakenlijstItems({
                   <a className="pillbtn licht" href={taak.mailHref}>
                     Mailen naar Tonny
                   </a>
+                  <BewerkTaak
+                    klantSlug={klantSlug}
+                    n={taak.n}
+                    titel={taak.titel}
+                    toelichting={taak.toelichtingRuw}
+                  />
                 </div>
               </div>
             </details>
