@@ -28,6 +28,24 @@ export const dynamic = "force-dynamic";
  * ("een dashboard mag tonen, nooit oordelen", CLAUDE.md).
  */
 
+/**
+ * De vaste kleur bij een van de drie standaard toelichting-labels. Komt uit
+ * het label zelf, dus een taak die deze labels niet gebruikt houdt gewoon een
+ * ongekleurd blok; er wordt hier niets afgeleid of geraden.
+ */
+function kleurVoorLabel(label: string): "roze" | "blauw" | "groen" | undefined {
+  switch (label.trim().toLowerCase()) {
+    case "waarom we dit oppakken":
+      return "roze";
+    case "hoe het er nu voor staat":
+      return "blauw";
+    case "wat we doen":
+      return "groen";
+    default:
+      return undefined;
+  }
+}
+
 /** Eén label-blok uit toelichting.md: "**Label**" op een eigen regel, gevolgd door de rest. */
 interface ToelichtingBlok {
   label: string;
@@ -120,6 +138,7 @@ export default async function WerkbordPagina({
     const blokken = toelichtingBlokken(toelichting).map((b) => ({
       label: b.label,
       html: b.inhoud ? renderAlineas(b.inhoud) : "",
+      kleur: kleurVoorLabel(b.label),
     }));
     const mailBody = toelichting.trim() || `Zie taak ${taak.n} in de klantcockpit.`;
     const mailHref =

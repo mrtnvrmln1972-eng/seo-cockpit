@@ -37,6 +37,8 @@
   --crit-wash: #fbebe7;
   --info: #2a6f8e;
   --info-wash: #e8f1f5;
+  --roze: #a8447a;
+  --roze-wash: #fbeaf3;
   --band: linear-gradient(228deg, #c7e2eb 38%, #f8dabc 80%);
   --sans: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
@@ -1505,6 +1507,28 @@ table.matrix td.num {
 .binnenbody h6:first-child {
   margin-top: 10px;
 }
+
+/* De drie vaste toelichtingblokken van een taak (Waarom we dit oppakken /
+   Hoe het er nu voor staat / Wat we doen) krijgen elk een eigen kleurvlak,
+   zodat een opengeklapte taak in een oogopslag te scannen is. De kleur komt
+   van het label zelf, zie kleurVoorLabel() in werkbord/page.tsx; een blok met
+   een ander label blijft ongekleurd. */
+.toelichtingblok.roze,
+.toelichtingblok.blauw,
+.toelichtingblok.groen {
+  border-radius: 10px;
+  padding: 10px 14px 12px;
+  margin: 10px 0 0;
+}
+.toelichtingblok.roze { background: var(--roze-wash); }
+.toelichtingblok.roze h6 { color: var(--roze); }
+.toelichtingblok.blauw { background: var(--info-wash); }
+.toelichtingblok.blauw h6 { color: var(--info); }
+.toelichtingblok.groen { background: var(--ok-wash); }
+.toelichtingblok.groen h6 { color: var(--ok); }
+.toelichtingblok.roze h6,
+.toelichtingblok.blauw h6,
+.toelichtingblok.groen h6 { margin-top: 0; }
 .binnenbody .doc p,
 .binnenbody p {
   margin: 0 0 6px;

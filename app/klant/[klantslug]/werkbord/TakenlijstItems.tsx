@@ -33,6 +33,8 @@ import DoorzettenKnop from "./DoorzettenKnop";
 export interface TaakItemBlok {
   label: string;
   html: string;
+  /** Vaste kleur bij een van de drie standaard labels, zie kleurVoorLabel() in page.tsx. */
+  kleur?: "roze" | "blauw" | "groen";
 }
 
 export interface TaakItem {
@@ -158,7 +160,7 @@ export default function TakenlijstItems({
                   <p>Nog geen toelichting.</p>
                 ) : (
                   taak.blokken.map((blok, bi) => (
-                    <div key={bi}>
+                    <div key={bi} className={"toelichtingblok" + (blok.kleur ? " " + blok.kleur : "")}>
                       <h6>{blok.label}</h6>
                       {blok.html ? (
                         <div dangerouslySetInnerHTML={{ __html: blok.html }} />

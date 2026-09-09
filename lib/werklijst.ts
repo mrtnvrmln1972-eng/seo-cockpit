@@ -12,16 +12,20 @@ import "server-only";
  * positie — dezelfde aanpak als lib/markdown.ts, en nodig omdat de werklijst
  * van de ene klant een extra kolom (bijv. Week) kan hebben t.o.v. een andere.
  *
- * Bewust NIET geport uit taakBlok() in de artifact: stapblokken (Waarom we dit
- * oppakken/Hoe het er nu voor staat/Wat we doen als vaste gekleurde blokken),
- * vinklijst met pagina-koppeling (Onderdelen/Afronding), sleepvolgorde, en de
- * inline onboarding-voortgangsbalk. Dat is functionaliteit die aanhaakt bij de
- * Roadmap- en Onboarding-tabs (nog niet gebouwd in deze fase) en bij
- * Maartens regel "een nieuwe taak heeft alleen een titel en een
- * notities-veld nodig" past een eenvoudige weergave beter dan die volledige
- * machinerie. toelichting.md wordt hier getoond als gewoon document (zelfde
- * renderer-aanpak als de Signalen-tab-fallback), niet uitgesplitst in vaste
- * gekleurde blokken.
+ * De stapblokken uit taakBlok() in de artifact (Waarom we dit oppakken / Hoe
+ * het er nu voor staat / Wat we doen als vaste gekleurde blokken) ZIJN
+ * inmiddels wel geport, sinds 09-09-2026, maar niet hier: het splitsen op de
+ * vetgedrukte labelregels en het toekennen van de kleur gebeurt in
+ * app/klant/[klantslug]/werkbord/page.tsx (toelichtingBlokken en
+ * kleurVoorLabel), en het tonen in TakenlijstItems.tsx. Dit bestand levert
+ * alleen de ruwe tekst per taak via toelichtingVoor(); het kent de labels
+ * niet en hoeft ze niet te kennen.
+ *
+ * Nog steeds NIET geport uit taakBlok(): de vinklijst met pagina-koppeling
+ * (Onderdelen/Afronding) en de inline onboarding-voortgangsbalk. Die haken
+ * aan bij de Onboarding-tab, die zijn eigen ladder al leest (lib/onboarding.ts).
+ * Sleepvolgorde is er inmiddels wel, maar als losse client-side herschikking
+ * in TakenlijstItems.tsx bovenop werklijstHerschikken() hieronder.
  */
 
 import {
