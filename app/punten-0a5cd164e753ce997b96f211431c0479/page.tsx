@@ -214,7 +214,12 @@ function VestigingLezen({ vestiging }: { vestiging: Vestiging }) {
         {vestiging.opmerking.trim() && (
           <>
             <div className="sp-subkop">Let op</div>
-            <p className="sp-opmerking">{vestiging.opmerking}</p>
+            {/* "Let op" is sinds 09-09-2026 vrije markdown (opsomming, links),
+                dus hier ook gerenderd in plaats van als platte regel getoond. */}
+            <div
+              className="doc sp-opmerking"
+              dangerouslySetInnerHTML={{ __html: renderTekst(vestiging.opmerking) }}
+            />
           </>
         )}
 

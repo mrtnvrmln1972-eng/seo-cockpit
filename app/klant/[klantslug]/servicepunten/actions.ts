@@ -75,16 +75,46 @@ export async function servicepuntStapOpslaanAction(
     await muteerEnSchrijf(klant.mapId!, (dossier) => {
       const vestiging = dossier.vestigingen.find((v) => v.id === vestigingId);
       if (!vestiging) throw new Error("Deze vestiging is niet gevonden in servicepunten.md.");
-      const bestaand = vestiging.checklist[stapId] || { afgevinkt: false, datum: "" };
+      const bestaand = vestiging.checklist[stapId] || { afgevinkt: false, datum: "", notitie: "" };
       // Vinkt iemand een stap voor het eerst aan zonder zelf een datum te
       // kiezen, dan valt de datum terug op vandaag — zelfde gedrag als de
       // artifact (change-handler op de checkbox zette ook automatisch de
       // datum van vandaag als die nog leeg was).
       const nieuweDatum = datum || (afgevinkt && !bestaand.datum ? new Date().toISOString().slice(0, 10) : bestaand.datum);
-      vestiging.checklist[stapId] = { afgevinkt, datum: nieuweDatum };
+      vestiging.checklist[stapId] = { afgevinkt, datum: nieuweDatum, notitie: bestaand.notitie };
     });
   } catch (err) {
     throw foutmelding(err, "Kon deze stap niet opslaan.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+}
+
+/**
+ * De vrije tekst bij één stap van het aansluitproces: waar het nu staat, met
+ * de links naar wat er is aangemaakt. Komt als "#### <stap>"-blok in
+ * servicepunten.md te staan, dus met volledige opmaak, en dus ook te vullen
+ * of aan te vullen vanuit een Cowork-gesprek.
+ */
+export async function servicepuntStapNotitieOpslaanAction(
+  klantSlug: string,
+  vestigingId: string,
+  stapId: string,
+  tekstRuw: string,
+): Promise<void> {
+  if (!ALLE_STAPPEN.some((s) => s.id === stapId)) throw new Error("Onbekende stap.");
+  const klant = await klantMetServicepuntenDossier(klantSlug);
+  const tekst = await resolveDriveLinksInText(String(tekstRuw ?? ""));
+
+  try {
+    await muteerEnSchrijf(klant.mapId!, (dossier) => {
+      const vestiging = dossier.vestigingen.find((v) => v.id === vestigingId);
+      if (!vestiging) throw new Error("Deze vestiging is niet gevonden in servicepunten.md.");
+      const bestaand = vestiging.checklist[stapId] || { afgevinkt: false, datum: "", notitie: "" };
+      vestiging.checklist[stapId] = { ...bestaand, notitie: tekst };
+    });
+  } catch (err) {
+    throw foutmelding(err, "Kon deze opmerking niet opslaan.");
   }
 
   revalidatePath(`/klant/${klantSlug}/servicepunten`);
@@ -115,10 +145,12 @@ export async function servicepuntLogToevoegenAction(
   revalidatePath(`/klant/${klantSlug}/servicepunten`);
 }
 
-export async function servicepuntEenmaligOpslaanAction(klantSlug: string, formData: FormData): Promise<void> {
+export async function servicepuntEenmaligOpslaanAction(
+  klantSlug: string,
+  tekstRuw: string,
+): Promise<void> {
   const klant = await klantMetServicepuntenDossier(klantSlug);
-  const tekstRuw = String(formData.get("tekst") ?? "");
-  const tekst = await resolveDriveLinksInText(tekstRuw);
+  const tekst = await resolveDriveLinksInText(String(tekstRuw ?? ""));
 
   try {
     await muteerEnSchrijf(klant.mapId!, (dossier) => {

@@ -177,6 +177,15 @@ function normaliseerStatus(ruw: string): ServicepuntStatus {
 export interface ServicepuntChecklistItem {
   afgevinkt: boolean;
   datum: string;
+  /**
+   * Vrije tekst bij deze stap: waar het nu staat, met links naar wat er is
+   * aangemaakt (Google-bedrijfsprofiel, de SEO-landingspagina, de Ads-pagina).
+   * Staat als een eigen "#### <stap>"-blok in servicepunten.md, dus met
+   * volledige opmaak (opsommingen, links, vet) en dus ook te schrijven vanuit
+   * een Cowork-gesprek, niet alleen vanuit dit scherm. Vandaar géén tabelcel:
+   * daar past geen regelovergang in.
+   */
+  notitie: string;
 }
 
 export interface ContactlogRegel {
@@ -243,12 +252,53 @@ function veldenUitGegevensTabel(tabel: MarkdownTable | null): Record<string, str
   return out;
 }
 
+/**
+ * Knipt de blokken onder een kop van een bepaald niveau uit een stuk tekst
+ * ("### Let op", "#### Contact gelegd"). Een codeblok tussen ``` telt niet
+ * mee, zodat een notitie met een stuk code de indeling niet omgooit.
+ */
+function blokkenOpNiveau(inhoud: string, hekjes: string): Map<string, string> {
+  const uit = new Map<string, string>();
+  const kopRe = new RegExp(`^${hekjes}\\s+(.+?)\\s*$`);
+  const andereKop = /^#{1,6}\s+/;
+  let huidig: string | null = null;
+  let regels: string[] = [];
+  let inHek = false;
+  const bewaar = () => {
+    if (huidig !== null) uit.set(huidig.toLowerCase(), regels.join("\n").trim());
+    huidig = null;
+    regels = [];
+  };
+  for (const regel of String(inhoud || "").replace(/\r/g, "").split("\n")) {
+    if (/^\s*```/.test(regel)) inHek = !inHek;
+    if (!inHek) {
+      const kop = kopRe.exec(regel);
+      if (kop) {
+        bewaar();
+        huidig = kop[1].trim();
+        continue;
+      }
+      if (huidig !== null && andereKop.test(regel)) {
+        bewaar();
+        continue;
+      }
+    }
+    if (huidig !== null) regels.push(regel);
+  }
+  bewaar();
+  return uit;
+}
+
+/** De kop waaronder de vrije tekst bij een vestiging staat. */
+const LETOP_KOP = "Let op";
+
 function parseVestigingSectie(naam: string, inhoud: string): Vestiging {
   const gegevens = veldenUitGegevensTabel(tableWith(inhoud, "waarde"));
 
   const prioriteitRuw = (gegevens["prioriteit"] || "").trim();
   const prioriteit = /^\d+$/.test(prioriteitRuw) ? parseInt(prioriteitRuw, 10) : null;
 
+  const stapNotities = blokkenOpNiveau(inhoud, "####");
   const checklist: Record<string, ServicepuntChecklistItem> = {};
   const stapTabel = tableWith(inhoud, "afgevinkt");
   if (stapTabel) {
@@ -263,12 +313,19 @@ function parseVestigingSectie(naam: string, inhoud: string): Vestiging {
         checklist[stap.id] = {
           afgevinkt: (rij[idxAf] ?? "").trim().toLowerCase() === "x",
           datum: idxDatum !== -1 ? (rij[idxDatum] ?? "").trim() : "",
+          notitie: stapNotities.get(stap.label.toLowerCase()) ?? "",
         };
       }
     }
   }
   for (const s of ALLE_STAPPEN) {
-    if (!checklist[s.id]) checklist[s.id] = { afgevinkt: false, datum: "" };
+    if (!checklist[s.id]) {
+      checklist[s.id] = {
+        afgevinkt: false,
+        datum: "",
+        notitie: stapNotities.get(s.label.toLowerCase()) ?? "",
+      };
+    }
   }
 
   const contactlog: ContactlogRegel[] = [];
@@ -298,7 +355,10 @@ function parseVestigingSectie(naam: string, inhoud: string): Vestiging {
     telefoon: gegevens["telefoon"] || "",
     email: gegevens["e-mail"] || "",
     beschikbaarheid: gegevens["beschikbaarheid quick scans"] || "",
-    opmerking: gegevens["opmerking"] || "",
+    // "Let op" stond eerst als tabelcel; daar past geen opsomming of
+    // regelovergang in. Nu een eigen blok, met de oude cel als terugval zodat
+    // bestaande bestanden niets kwijtraken.
+    opmerking: blokkenOpNiveau(inhoud, "###").get(LETOP_KOP.toLowerCase()) || gegevens["opmerking"] || "",
     prioriteit,
     volgordereden: gegevens["waarom deze volgorde"] || "",
     checklist,
@@ -339,7 +399,6 @@ function serialiseerVestiging(v: Vestiging): string {
     ["Beschikbaarheid quick scans", v.beschikbaarheid],
     ["Prioriteit", v.prioriteit != null ? String(v.prioriteit) : ""],
     ["Waarom deze volgorde", v.volgordereden],
-    ["Opmerking", v.opmerking],
   ];
   const gegevensTabel = [
     "| Veld | Waarde |",
@@ -360,15 +419,27 @@ function serialiseerVestiging(v: Vestiging): string {
     ...logGesorteerd.map((l) => `| ${escCel(l.datum)} | ${escCel(l.wie)} | ${escCel(l.tekst)} |`),
   ].join("\n");
 
+  // De notitie bij een stap krijgt een eigen blok onder de tabel: daar past
+  // wel een opsomming, een link of een stuk uitleg in, en een Cowork-gesprek
+  // kan er net zo goed bij als dit scherm.
+  const stapNotities = ALLE_STAPPEN.flatMap((s) => {
+    const tekst = (v.checklist[s.id]?.notitie || "").trim();
+    return tekst ? [`#### ${s.label}`, "", tekst, ""] : [];
+  });
+
+  const letOp = (v.opmerking || "").trim();
+
   return [
     `## ${v.plaats}`,
     "",
     gegevensTabel,
     "",
+    ...(letOp ? ["### Let op", "", letOp, ""] : []),
     "### Aansluitproces",
     "",
     stapTabel,
     "",
+    ...stapNotities,
     "### Contactlog",
     "",
     logTabel,

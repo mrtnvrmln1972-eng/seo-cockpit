@@ -44,8 +44,8 @@ check(
   "Testregel met een kolom-teken | erin, om escaping te controleren.",
 );
 
-check("eindhoven checklist: contact afgevinkt", eindhoven?.checklist["contact"], { afgevinkt: true, datum: "2026-09-06" });
-check("eindhoven checklist: login niet afgevinkt", eindhoven?.checklist["login"], { afgevinkt: false, datum: "" });
+check("eindhoven checklist: contact afgevinkt", eindhoven?.checklist["contact"], { afgevinkt: true, datum: "2026-09-06", notitie: "" });
+check("eindhoven checklist: login niet afgevinkt", eindhoven?.checklist["login"], { afgevinkt: false, datum: "", notitie: "" });
 check("eindhoven checklist: alle 15 stappen aanwezig", Object.keys(eindhoven?.checklist ?? {}).length, ALLE_STAPPEN.length);
 check("eindhoven voortgang", eindhoven ? voortgang(eindhoven) : null, { klaar: 4, totaal: 15 });
 
@@ -77,11 +77,11 @@ check("rondje: eenmaligGeregeld identiek", opnieuw.eenmaligGeregeld, model.eenma
 
 // ---- Mutatie: een stap afvinken en opnieuw serialiseren/parsen ----
 if (eindhoven) {
-  eindhoven.checklist["login"] = { afgevinkt: true, datum: "2026-09-09" };
+  eindhoven.checklist["login"] = { afgevinkt: true, datum: "2026-09-09", notitie: "" };
   eindhoven.contactlog.push({ datum: "2026-09-09", wie: "Tonny", tekst: "Testregel met een | teken erin." });
   const bijgewerkt = parseServicepunten(serialiseerServicepunten(model));
   const eindhoven2 = bijgewerkt.vestigingen.find((v) => v.id === "eindhoven-oosterhof");
-  check("mutatie: login nu afgevinkt", eindhoven2?.checklist["login"], { afgevinkt: true, datum: "2026-09-09" });
+  check("mutatie: login nu afgevinkt", eindhoven2?.checklist["login"], { afgevinkt: true, datum: "2026-09-09", notitie: "" });
   check("mutatie: contactlog nu 2 regels", eindhoven2?.contactlog.length, 2);
   check(
     "mutatie: nieuwe logregel met pipe-teken correct teruggelezen",
@@ -89,6 +89,62 @@ if (eindhoven) {
     "Testregel met een | teken erin.",
   );
 }
+
+// ---- Opmerking per stap en "Let op" als eigen blok (09-09-2026) ----------
+// Beide moeten volle markdown aankunnen (opsomming, link, vet) en dus in een
+// eigen blok staan in plaats van in een tabelcel, zodat een Cowork-gesprek ze
+// net zo goed kan vullen als dit scherm.
+if (eindhoven) {
+  const notitie = "- Profiel staat live: [Google-bedrijfsprofiel](https://maps.google.com/?cid=1)\n- **Nog doen**: foto's toevoegen";
+  const letOp = "Draait sinds 27-08-2026.\n\n- Twee handleidingen liggen bij Stijn\n- Eigen SEO-pagina staat nog niet live";
+  eindhoven.checklist["gmb"] = { afgevinkt: true, datum: "2026-09-09", notitie };
+  eindhoven.opmerking = letOp;
+  const tekst = serialiseerServicepunten(model);
+  check("notitie krijgt een eigen #### blok", tekst.includes("#### " + ALLE_STAPPEN.find((s) => s.id === "gmb")!.label), true);
+  check('"Let op" krijgt een eigen ### blok', tekst.includes("### Let op"), true);
+  check('"Let op" staat niet meer als tabelcel', /\| Opmerking \|/.test(tekst), false);
+
+  const na = parseServicepunten(tekst).vestigingen.find((v) => v.id === "eindhoven-oosterhof");
+  check("notitie komt ongewijzigd terug, met opsomming en link", na?.checklist["gmb"]?.notitie, notitie);
+  check("het vinkje en de datum blijven staan", na?.checklist["gmb"]?.afgevinkt, true);
+  check('"Let op" komt ongewijzigd terug, met witregel en opsomming', na?.opmerking, letOp);
+  check("een stap zonder opmerking blijft leeg", na?.checklist["telefoon"]?.notitie, "");
+  check("de andere stappen blijven kloppen", na?.checklist["contact"]?.afgevinkt, true);
+  check("het contactlog blijft staan", na?.contactlog.length, 2);
+}
+
+// Een bestand van vóór deze wijziging (Opmerking in de gegevenstabel) moet
+// gewoon blijven werken: het staat straks nog in Drive.
+const oudeVorm = `# Servicepunten
+
+Laatst bijgewerkt: 2026-09-01
+
+## Ergens
+
+| Veld | Waarde |
+|---|---|
+| Status | draait |
+| Opmerking | Oude vorm, uit de tabelcel. |
+
+### Aansluitproces
+
+| Stap | Afgevinkt | Datum |
+|---|---|---|
+
+### Contactlog
+
+| Datum | Wie | Wat |
+|---|---|---|
+
+## Eenmalig geregeld
+
+Niets.
+`;
+check(
+  "oude bestandsvorm: opmerking uit de tabelcel wordt nog gelezen",
+  parseServicepunten(oudeVorm).vestigingen[0]?.opmerking,
+  "Oude vorm, uit de tabelcel.",
+);
 
 console.log(fails === 0 ? `\nAlle checks geslaagd.` : `\n${fails} check(s) mislukt.`);
 process.exit(fails === 0 ? 0 : 1);

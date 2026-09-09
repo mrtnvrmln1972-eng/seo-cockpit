@@ -2420,20 +2420,21 @@ strong {
   margin-top: 0;
 }
 .sp-stap {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 8px 0;
+  padding: 5px 0;
   border-bottom: 1px solid var(--line);
+}
+.sp-stap-regel {
+  display: flex;
+  gap: 9px;
+  align-items: center;
 }
 .sp-stap:last-child {
   border-bottom: none;
 }
 .sp-stap input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   flex: none;
-  margin-top: 2px;
   accent-color: var(--accent);
   cursor: pointer;
 }
@@ -3363,4 +3364,163 @@ pre.codeblok code {
 }
 .navfout {
   color: var(--crit);
+}
+
+/* ---- Servicepunten compacter (09-09-2026) -------------------------------
+   Het was een ruim invulformulier; nu een lijstje met gegevens en per stap
+   een vinkje, een titel en een uitklapper met de stand erin. */
+.sp-gegevenslijst {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+.sp-gegevenslijst li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+  border-bottom: 1px dotted var(--line);
+}
+.sp-gegevenslijst li::before {
+  content: "";
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--line-2);
+  transform: translateY(-2px);
+}
+.sp-veldnaam {
+  flex: none;
+  width: 118px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted-2);
+}
+/* Een invoerveld dat eruitziet als tekst tot je erin gaat staan: aanpassen
+   kan gewoon, maar het leest als een lijstje en niet als een formulier. */
+.sp-veldwaarde {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+.sp-veldwaarde:hover {
+  border-color: var(--line);
+  background: var(--surface);
+}
+.sp-veldwaarde:focus {
+  outline: none;
+  border-color: var(--accent-2);
+  background: var(--ground);
+}
+
+/* Uitklapper voor "Let op" en het contactlog: één regel hoog zolang hij dicht is. */
+.sp-letop {
+  border-top: 1px solid var(--line);
+  padding: 7px 0 2px;
+}
+.sp-letop > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12.5px;
+}
+.sp-letop > summary::-webkit-details-marker {
+  display: none;
+}
+.sp-letop[open] > summary .chev2 {
+  transform: rotate(45deg);
+}
+.sp-letop-lbl {
+  flex: none;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
+.sp-letop-kort {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.sp-letop-leeg {
+  color: var(--muted-2);
+  font-size: 11.5px;
+}
+
+/* De stap zelf: knop met titel, eventueel de laatste stand eronder. */
+.sp-stap-knop {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--sans);
+}
+.sp-stap-knop .chev2 {
+  flex: none;
+}
+.sp-stap-knop .chev2-open {
+  transform: rotate(45deg);
+}
+.sp-stap-stand {
+  margin: 2px 0 4px 26px;
+  font-size: 12.5px;
+  color: var(--muted);
+  border-left: 2px solid var(--accent-wash);
+  padding-left: 10px;
+}
+.sp-stap-stand p {
+  margin: 0 0 4px;
+}
+.sp-stap-open {
+  margin: 4px 0 8px 26px;
+}
+.sp-stap-open .sp-stap-crit {
+  margin: 0 0 6px;
+}
+.sp-notitieveld .acties {
+  margin-top: 6px;
+}
+
+/* De deelbare link: één regel, verder niets. */
+.deelregel {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  overflow: hidden;
+}
+.deelregel-lbl {
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted-2);
+}
+.deelregel a {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

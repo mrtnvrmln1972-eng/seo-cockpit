@@ -10,32 +10,47 @@ import {
   type ServicepuntChecklistItem,
   type Vestiging,
 } from "@/lib/servicepunten-model";
-import { servicepuntVeldOpslaanAction, servicepuntLogToevoegenAction } from "./actions";
+import NotitieVeld from "./NotitieVeld";
+import { renderTekst } from "@/lib/scanbaar";
+import {
+  servicepuntVeldOpslaanAction,
+  servicepuntLogToevoegenAction,
+  servicepuntStapNotitieOpslaanAction,
+} from "./actions";
 
 /**
  * app/klant/[klantslug]/servicepunten/VestigingKaart.tsx — één vestiging,
- * als uitklapbare kaart (.blok.kaart, zelfde component als de rest van de
- * app). Drie delen: de vaste gegevens (los tekstveld per stuk, opslaan bij
- * onBlur), het aansluitproces (checklist — komt van de ouder aan, zie
- * ServicepuntenView, omdat de voortgang daar ook voor de pillen en de
- * Volgorde-tab nodig is), en het contactlog (puur lokaal aan deze kaart,
- * niets anders op de pagina hoeft dat te weten).
+ * als uitklapbare kaart.
+ *
+ * HERZIEN 09-09-2026, op Maartens verzoek: het was een ruim opgezet
+ * invulformulier met een raster van zeven labels en zeven invoervakken. Nu:
+ *
+ * - De gegevens staan als een compacte lijst onder elkaar, "Adres · waarde".
+ *   Je kunt ze nog steeds gewoon aanpassen (klik erin, hij slaat op zodra je
+ *   het veld verlaat), maar het leest als een lijstje, niet als een formulier.
+ * - Elke stap van het aansluitproces is een vinkje, een titel en een
+ *   uitklapper met vrije tekst erachter: waar het nu staat, met de link naar
+ *   wat er is aangemaakt (Google-bedrijfsprofiel, SEO-landingspagina,
+ *   Ads-pagina). Staat er iets in, dan zie je die stand meteen onder de titel,
+ *   zonder uit te klappen.
+ * - Die tekst is gewone markdown in servicepunten.md (een "#### <stap>"-blok),
+ *   dus een Cowork-gesprek kan hem net zo goed vullen of aanvullen als dit
+ *   scherm. Hetzelfde geldt voor "Let op" bij de vestiging.
  *
  * Tekstvelden zijn bewust ONGECONTROLEERD (defaultValue + onBlur), zelfde
- * aanpak als de Notities-tab: geen optimistic-sync nodig, en dat voorkomt
- * dat de cursor midden in het typen ergens naartoe springt. Elk veld slaat
- * pas op als de waarde ook echt is gewijzigd (laatsteWaarden-ref), zodat
- * doorheen de velden tabben zonder iets te wijzigen geen onnodige
- * Drive-schrijfactie geeft (zie lib/servicepunten.ts over het risico op
- * schrijfconflicten bij dit ene, gedeelde bestand).
+ * aanpak als de Notities-tab: dat voorkomt dat de cursor midden in het typen
+ * ergens naartoe springt. Elk veld slaat pas op als de waarde ook echt is
+ * gewijzigd (laatsteWaarden-ref), zodat door de velden tabben zonder iets te
+ * wijzigen geen onnodige Drive-schrijfactie geeft (zie lib/servicepunten.ts
+ * over het risico op schrijfconflicten bij dit ene, gedeelde bestand).
  */
 
 const VELDEN: { key: BewerkbaarVeld; label: string }[] = [
   { key: "adres", label: "Adres" },
-  { key: "contact", label: "Contactpersoon en rol" },
+  { key: "contact", label: "Contactpersoon" },
   { key: "telefoon", label: "Telefoon" },
   { key: "email", label: "E-mail" },
-  { key: "beschikbaarheid", label: "Beschikbaarheid quick scans" },
+  { key: "beschikbaarheid", label: "Quick scans" },
   { key: "partner", label: "Partner" },
 ];
 
@@ -52,6 +67,7 @@ export default function VestigingKaart({
 }) {
   const [, startTransition] = useTransition();
   const [veldFout, setVeldFout] = useState<string | null>(null);
+  const [openStap, setOpenStap] = useState<string | null>(null);
   const laatsteWaarden = useRef<Record<BewerkbaarVeld, string>>({
     partner: vestiging.partner,
     adres: vestiging.adres,
@@ -116,107 +132,159 @@ export default function VestigingKaart({
           </div>
         )}
 
-        <div className="sp-subkop">Gegevens</div>
-        <div className="sp-gegevens">
+        <ul className="sp-gegevenslijst">
           {VELDEN.map(({ key, label }) => (
-            <div className="metaveld" key={key}>
-              <label>{label}</label>
+            <li key={key}>
+              <span className="sp-veldnaam">{label}</span>
               <input
                 type="text"
+                className="sp-veldwaarde"
                 defaultValue={vestiging[key]}
+                placeholder="—"
                 onBlur={(e) => opBlurVeld(key, e.target.value)}
               />
-            </div>
+            </li>
           ))}
-        </div>
-        <div className="metaveld">
-          <label>Let op</label>
-          <textarea
-            rows={2}
-            defaultValue={vestiging.opmerking}
-            placeholder="Bijzonderheden bij deze vestiging, mag leeg blijven"
-            onBlur={(e) => opBlurVeld("opmerking", e.target.value)}
-          />
-        </div>
+        </ul>
         {veldFout && <p className="foutregel">{veldFout}</p>}
+
+        <details className="sp-letop">
+          <summary>
+            <span className="chev2" />
+            <span className="sp-letop-lbl">Let op</span>
+            {vestiging.opmerking.trim() ? (
+              <span className="sp-letop-kort">{eersteRegel(vestiging.opmerking)}</span>
+            ) : (
+              <span className="sp-letop-leeg">nog niets</span>
+            )}
+          </summary>
+          <NotitieVeld
+            naam={`letop-${vestiging.id}`}
+            waarde={vestiging.opmerking}
+            plaatshouder="Bijzonderheden bij deze vestiging"
+            opslaan={(tekst) => servicepuntVeldOpslaanAction(klantSlug, vestiging.id, "opmerking", tekst)}
+          />
+        </details>
 
         <div className="sp-subkop">Aansluitproces</div>
         {STAP_GROEPEN.map((groep) => (
           <div className="sp-checkgroep" key={groep.naam}>
             <div className="sp-checkgroep-lbl">{groep.naam}</div>
             {groep.stappen.map((stap) => {
-              const item = checklist[stap.id] || { afgevinkt: false, datum: "" };
+              const item = checklist[stap.id] || { afgevinkt: false, datum: "", notitie: "" };
+              const open = openStap === stap.id;
               return (
                 <div className={`sp-stap${item.afgevinkt ? " sp-stap-af" : ""}`} key={stap.id}>
-                  <input
-                    type="checkbox"
-                    checked={item.afgevinkt}
-                    onChange={(e) => onStapChange(stap.id, { afgevinkt: e.target.checked, datum: item.datum })}
-                  />
-                  <div className="sp-stap-tekst">
-                    <span className="sp-stap-label">{stap.label}</span>
-                    <span className="sp-stap-crit">{stap.crit}</span>
+                  <div className="sp-stap-regel">
+                    <input
+                      type="checkbox"
+                      checked={item.afgevinkt}
+                      onChange={(e) => onStapChange(stap.id, { ...item, afgevinkt: e.target.checked })}
+                    />
+                    <button
+                      type="button"
+                      className="sp-stap-knop"
+                      aria-expanded={open}
+                      onClick={() => setOpenStap(open ? null : stap.id)}
+                    >
+                      <span className={`chev2${open ? " chev2-open" : ""}`} />
+                      <span className="sp-stap-label">{stap.label}</span>
+                    </button>
+                    <input
+                      type="date"
+                      className="sp-stap-datum"
+                      value={item.datum}
+                      onChange={(e) => onStapChange(stap.id, { ...item, datum: e.target.value })}
+                    />
                   </div>
-                  <input
-                    type="date"
-                    className="sp-stap-datum"
-                    value={item.datum}
-                    onChange={(e) => onStapChange(stap.id, { afgevinkt: item.afgevinkt, datum: e.target.value })}
-                  />
+                  {!open && item.notitie.trim() && (
+                    <div
+                      className="doc sp-stap-stand"
+                      dangerouslySetInnerHTML={{ __html: renderTekst(item.notitie) }}
+                    />
+                  )}
+                  {open && (
+                    <div className="sp-stap-open">
+                      <p className="sp-stap-crit">{stap.crit}</p>
+                      <NotitieVeld
+                        naam={`stap-${vestiging.id}-${stap.id}`}
+                        waarde={item.notitie}
+                        plaatshouder="Waar staat dit nu? Zet hier de link naartoe."
+                        minHoogte={90}
+                        opslaan={(tekst) =>
+                          servicepuntStapNotitieOpslaanAction(klantSlug, vestiging.id, stap.id, tekst)
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         ))}
 
-        <div className="sp-subkop">Contactlog</div>
-        <div className="sp-log">
-          {logGesorteerd.length === 0 ? (
-            <p className="sp-log-leeg">Nog geen contactmomenten gelogd.</p>
-          ) : (
-            logGesorteerd.map((l, i) => (
+        <details className="sp-letop">
+          <summary>
+            <span className="chev2" />
+            <span className="sp-letop-lbl">Contactlog</span>
+            <span className="sp-letop-leeg">
+              {logGesorteerd.length === 0 ? "nog niets" : `${logGesorteerd.length} regels`}
+            </span>
+          </summary>
+          <div className="sp-log">
+            {logGesorteerd.map((l, i) => (
               <div className="sp-logrij" key={i}>
                 <span className="sp-datum">{l.datum}</span>
                 <span className="sp-wie">{l.wie}</span>
                 <span className="sp-tekst">{l.tekst}</span>
               </div>
-            ))
-          )}
-        </div>
-        <form
-          ref={logFormRef}
-          className="sp-logform"
-          action={(formData: FormData) => {
-            const datum = String(formData.get("datum") || "").trim() || new Date().toISOString().slice(0, 10);
-            const wie = String(formData.get("wie") || "Maarten").trim() || "Maarten";
-            const tekst = String(formData.get("tekst") || "").trim();
-            if (!tekst) return;
-            setLogFout(null);
-            setLog((huidig) => [...huidig, { datum, wie, tekst }]);
-            startTransition(async () => {
-              try {
-                await servicepuntLogToevoegenAction(klantSlug, vestiging.id, formData);
-                logFormRef.current?.reset();
-              } catch (err) {
-                setLog((huidig) => huidig.slice(0, -1));
-                setLogFout(err instanceof Error ? err.message : "Kon dit contactmoment niet opslaan.");
-              }
-            });
-          }}
-        >
-          <input type="date" name="datum" defaultValue={new Date().toISOString().slice(0, 10)} />
-          <select name="wie" defaultValue="Maarten">
-            <option>Maarten</option>
-            <option>Tonny</option>
-            <option>Anders</option>
-          </select>
-          <input type="text" name="tekst" placeholder="Wat is er besproken of gebeurd?" />
-          <button className="pillbtn licht" type="submit">
-            Toevoegen
-          </button>
-        </form>
-        {logFout && <p className="foutregel">{logFout}</p>}
+            ))}
+          </div>
+          <form
+            ref={logFormRef}
+            className="sp-logform"
+            action={(formData: FormData) => {
+              const datum = String(formData.get("datum") || "").trim() || new Date().toISOString().slice(0, 10);
+              const wie = String(formData.get("wie") || "Maarten").trim() || "Maarten";
+              const tekst = String(formData.get("tekst") || "").trim();
+              if (!tekst) return;
+              setLogFout(null);
+              setLog((huidig) => [...huidig, { datum, wie, tekst }]);
+              startTransition(async () => {
+                try {
+                  await servicepuntLogToevoegenAction(klantSlug, vestiging.id, formData);
+                  logFormRef.current?.reset();
+                } catch (err) {
+                  setLog((huidig) => huidig.slice(0, -1));
+                  setLogFout(err instanceof Error ? err.message : "Kon dit contactmoment niet opslaan.");
+                }
+              });
+            }}
+          >
+            <input type="date" name="datum" defaultValue={new Date().toISOString().slice(0, 10)} />
+            <select name="wie" defaultValue="Maarten">
+              <option>Maarten</option>
+              <option>Tonny</option>
+              <option>Anders</option>
+            </select>
+            <input type="text" name="tekst" placeholder="Wat is er besproken of gebeurd?" />
+            <button className="pillbtn licht" type="submit">
+              Toevoegen
+            </button>
+          </form>
+          {logFout && <p className="foutregel">{logFout}</p>}
+        </details>
       </div>
     </details>
   );
+}
+
+/** De eerste regel van een stuk tekst, voor het samenvattingsregeltje. */
+function eersteRegel(tekst: string): string {
+  const regel = tekst
+    .split("\n")
+    .map((r) => r.replace(/^[-*]\s+/, "").replace(/[*_`#]/g, "").trim())
+    .find((r) => r !== "");
+  if (!regel) return "";
+  return regel.length > 80 ? `${regel.slice(0, 80)}…` : regel;
 }

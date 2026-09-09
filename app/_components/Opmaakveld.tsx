@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { mergeAttributes } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -86,52 +86,14 @@ interface Props {
   onChange?: (markdown: string) => void;
 }
 
-const STRIP_VOORKEUR = "pingwin-opmaakstrip-open";
-
-/**
- * De stand van de opmaakstrip is één voorkeur voor het hele scherm, niet per
- * veld. Dit ging op 09-09-2026 mis in de browsertest: elk veld hield zijn
- * eigen stand bij maar schreef naar dezelfde voorkeur, dus zodra er meer dan
- * één veld op een pagina stond klapte alleen het aangeklikte veld in en
- * bleven de andere staan waar ze stonden. Daarna kon je bij een ingeklapt veld
- * ook niet meer bij de knop rechts.
- *
- * Vandaar één waarde met een abonnementenlijst eromheen: wie hem verandert,
- * verandert hem voor elk veld tegelijk, en useSyncExternalStore zorgt dat de
- * eerste render op de server en die in de browser hetzelfde zijn.
+/*
+ * De opmaakknoppen stonden hier eerst in een inklapbare strip, met de stand in
+ * localStorage. Dat is er 09-09-2026 uit gehaald: één klik op het pijltje
+ * verstopte de knoppen op ELK veld in de hele cockpit, en die stand bleef ook
+ * na herladen staan. Wie dat per ongeluk deed, zag de opmaakstrip nergens meer
+ * en had geen idee waarom. Een strip die je kwijt kunt raken is erger dan een
+ * strip die altijd een regel hoog is, dus hij staat er nu gewoon altijd.
  */
-const stripStand = {
-  open: true,
-  geladen: false,
-  luisteraars: new Set<() => void>(),
-  lees(): boolean {
-    if (!this.geladen) {
-      this.geladen = true;
-      try {
-        this.open = window.localStorage.getItem(STRIP_VOORKEUR) !== "0";
-      } catch {
-        // Een browser die opslag blokkeert houdt gewoon de standaardstand.
-      }
-    }
-    return this.open;
-  },
-  zet(open: boolean) {
-    this.open = open;
-    this.geladen = true;
-    try {
-      window.localStorage.setItem(STRIP_VOORKEUR, open ? "1" : "0");
-    } catch {
-      // zie hierboven
-    }
-    for (const luisteraar of this.luisteraars) luisteraar();
-  },
-  abonneer(luisteraar: () => void): () => void {
-    this.luisteraars.add(luisteraar);
-    return () => {
-      this.luisteraars.delete(luisteraar);
-    };
-  },
-};
 
 export default function Opmaakveld({
   naam,
@@ -168,12 +130,6 @@ export default function Opmaakveld({
   // elke render verandert.
   const opentLink = useRef<() => void>(() => {});
 
-  const stripOpen = useSyncExternalStore(
-    (l) => stripStand.abonneer(l),
-    () => stripStand.lees(),
-    () => true,
-  );
-  const zetStrip = useCallback((open: boolean) => stripStand.zet(open), []);
 
   const editor = useEditor(
     {
@@ -264,18 +220,7 @@ export default function Opmaakveld({
       {label && <label className="opmaakveld-label">{label}</label>}
 
       <div className="opmaakstrip" role="toolbar" aria-label="Opmaak">
-        <button
-          type="button"
-          className={`opmaakknop opmaakstrip-pijl${stripOpen ? " open" : ""}`}
-          onClick={() => zetStrip(!stripOpen)}
-          aria-expanded={stripOpen}
-          aria-controls={`opmaakknoppen-${naam}`}
-          title={stripOpen ? "Opmaakknoppen verbergen" : "Opmaakknoppen tonen"}
-        >
-          ▸
-        </button>
-
-        <div className="opmaakknoppen" id={`opmaakknoppen-${naam}`} hidden={!stripOpen}>
+        <div className="opmaakknoppen" id={`opmaakknoppen-${naam}`}>
           {modus === "opgemaakt" && editor ? (
             <Knoppen editor={editor} opLink={zetLink} />
           ) : (
@@ -288,11 +233,6 @@ export default function Opmaakveld({
 
         </div>
 
-        {/*
-          De knop om naar de markdown zelf te kijken staat BUITEN het
-          inklapbare deel. Anders is hij weg zodra je de strip inklapt, en dat
-          is precies de knop die je dan nog nodig hebt.
-        */}
         <span className="opmaakstrip-vuller" />
         <button
           type="button"

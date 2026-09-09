@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import {
   ALLE_STAPPEN,
@@ -12,9 +12,8 @@ import {
 } from "@/lib/servicepunten-model";
 import type { ServicepuntenDossier } from "@/lib/servicepunten";
 import VestigingKaart from "./VestigingKaart";
-import Opmaakveld from "@/app/_components/Opmaakveld";
+import NotitieVeld from "./NotitieVeld";
 import { servicepuntStapOpslaanAction, servicepuntEenmaligOpslaanAction } from "./actions";
-import { renderTekst } from "@/lib/scanbaar";
 
 /**
  * app/klant/[klantslug]/servicepunten/ServicepuntenView.tsx — de hele
@@ -70,7 +69,7 @@ export default function ServicepuntenView({
   }, [dossier]);
 
   function opStapChange(vestigingId: string, stapId: string, next: ServicepuntChecklistItem) {
-    const vorige = checklists[vestigingId]?.[stapId] ?? { afgevinkt: false, datum: "" };
+    const vorige = checklists[vestigingId]?.[stapId] ?? { afgevinkt: false, datum: "", notitie: "" };
     setChecklists((huidig) => ({
       ...huidig,
       [vestigingId]: { ...huidig[vestigingId], [stapId]: next },
@@ -117,7 +116,10 @@ export default function ServicepuntenView({
   })).filter((g) => g.vestigingen.length > 0);
 
   return (
-    <div>
+    // sp-compact: dezelfde strakke rijenlijst als de gedeelde pagina al had.
+    // Het overzicht hier stond veel ruimer, met een losse kaart per vestiging
+    // en een gat ertussen; met 21 vestigingen scrol je je dan suf (09-09-2026).
+    <div className="sp-compact">
       <div className="sp-pillen">
         <span className={`pill ${STATUS_PILKLASSE.draait}`}>{tellingen.draait} draaien</span>
         <span className={`pill ${STATUS_PILKLASSE.bevestigd}`}>{tellingen.bevestigd} bevestigd tot januari</span>
@@ -256,60 +258,20 @@ function VolgordeTab({
 }
 
 function EenmaligGeregeldTab({ klantSlug, tekst }: { klantSlug: string; tekst: string }) {
-  const [pending, startTransition] = useTransition();
-  const [fout, setFout] = useState<string | null>(null);
-  const [gelukt, setGelukt] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
-
   return (
-    <div>
-      {tekst.trim() ? (
-        <div className="blok kaart">
-          <div className="blokkop" style={{ cursor: "default" }}>
-            <h3>Eenmalig geregeld</h3>
-          </div>
-          <div className="blokbody">
-            <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(tekst) }} />
-          </div>
-        </div>
-      ) : (
-        <div className="paneel">
-          <p className="placeholder">Nog niets vastgelegd onder &quot;Eenmalig geregeld&quot;.</p>
-        </div>
-      )}
-
-      <details className="blok kaart">
-        <summary className="blokkop">
-          <h3>Bewerken</h3>
-        </summary>
-        <div className="blokbody">
-          <form
-            ref={formRef}
-            action={(formData: FormData) => {
-              setFout(null);
-              setGelukt(false);
-              startTransition(async () => {
-                try {
-                  await servicepuntEenmaligOpslaanAction(klantSlug, formData);
-                  setGelukt(true);
-                  setTimeout(() => setGelukt(false), 2500);
-                } catch (err) {
-                  setFout(err instanceof Error ? err.message : "Kon dit niet opslaan.");
-                }
-              });
-            }}
-          >
-            <Opmaakveld naam="tekst" waarde={tekst} label="Eenmalig geregeld" minHoogte={280} />
-            {fout && <p className="foutregel">{fout}</p>}
-            <div className="acties">
-              <button className="pillbtn sterk" type="submit" disabled={pending}>
-                {pending ? "Bezig…" : "Opslaan"}
-              </button>
-              {gelukt && <span className="pill p-klaar">Opgeslagen</span>}
-            </div>
-          </form>
-        </div>
-      </details>
+    <div className="blok kaart">
+      <div className="blokkop" style={{ cursor: "default" }}>
+        <h3>Eenmalig geregeld</h3>
+      </div>
+      <div className="blokbody">
+        <NotitieVeld
+          naam="tekst"
+          waarde={tekst}
+          plaatshouder="Wat er maar één keer geregeld hoeft te worden: domeinoverstap, telefonie, vergoeding"
+          minHoogte={320}
+          opslaan={(nieuw) => servicepuntEenmaligOpslaanAction(klantSlug, nieuw)}
+        />
+      </div>
     </div>
   );
 }
