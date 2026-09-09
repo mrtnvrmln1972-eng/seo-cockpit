@@ -1,0 +1,344 @@
+import { marked } from "marked";
+import TurndownService from "turndown";
+import { gfm } from "turndown-plugin-gfm";
+
+/**
+ * lib/opmaak.ts — de brug tussen de markdown in de dossierbestanden en de
+ * opgemaakte tekst in de editor (app/_components/Opmaakveld.tsx).
+ *
+ * Waarom dit bestand het gevoeligste stuk van de opmaakstrip is: Drive is de
+ * enige bron van waarheid (CLAUDE.md) en die bestanden worden ook BUITEN dit
+ * dashboard gelezen en geschreven, door Cowork-sessies en door de skills. Een
+ * editor die opgemaakte tekst toont, moet bij het opslaan exact dezelfde
+ * markdown terugleggen. Doet hij dat niet, dan sloopt hij stilletjes een
+ * dossier: een tabel die scheeftrekt, een vinklijst die verdwijnt, een
+ * "**Onderdelen**"-blok dat een kop wordt.
+ *
+ * Daarom staat hier naast de heen- en terugvertaling ook rondlopen(): die
+ * vertaalt heen én terug en vergelijkt het resultaat met het origineel. Komt
+ * daar niet hetzelfde uit, dan bevat het bestand iets wat wij niet exact
+ * kunnen teruggeven en schakelt het veld zichtbaar over naar broncode-modus,
+ * in plaats van de gok te wagen. Dat is het vangnet dat op 09-09-2026 met
+ * Maarten is afgesproken.
+ *
+ * Dit bestand is bewust NIET server-only: dezelfde vertaling draait in de
+ * browser (de editor) en in test-fixtures/verify-opmaak.ts.
+ */
+
+/** Onderstrepen bestaat niet in markdown; afgesproken 09-09-2026 dat het als <u> in het bestand komt. */
+const ONDERSTREEP_TAG = "u";
+
+let turndownInstantie: TurndownService | null = null;
+
+function turndown(): TurndownService {
+  if (turndownInstantie) return turndownInstantie;
+
+  const td = new TurndownService({
+    headingStyle: "atx",
+    bulletListMarker: "-",
+    codeBlockStyle: "fenced",
+    fence: "```",
+    emDelimiter: "*",
+    strongDelimiter: "**",
+    linkStyle: "inlined",
+    hr: "---",
+    // Blanke regels binnen een blok laten staan zoals ze zijn; turndown
+    // normaliseert anders witruimte die in een dossierbestand betekenis heeft.
+    blankReplacement: (_content, node) =>
+      (node as HTMLElement).nodeName === "BR" ? "\n" : "",
+  });
+
+  // Tabellen, doorhalen en vinklijsten. Onze dossierbestanden staan er vol
+  // mee (werklijst.md is één grote tabel, toelichting.md heeft vinkregels),
+  // dus zonder deze uitbreiding is rondlopen() bij vrijwel elk bestand vals.
+  td.use(gfm);
+
+  // Onderstrepen: als <u> bewaren in plaats van weggooien.
+  td.addRule("onderstrepen", {
+    filter: [ONDERSTREEP_TAG],
+    replacement: (content) => (content ? `<${ONDERSTREEP_TAG}>${content}</${ONDERSTREEP_TAG}>` : ""),
+  });
+
+  // Doorhalen met twee tildes. De gfm-uitbreiding schrijft er één, en dat is
+  // in onze bestanden geen doorhaling maar gewoon een tilde.
+  td.addRule("doorgehaald", {
+    filter: ["del", "s"],
+    replacement: (content) => (content ? `~~${content}~~` : ""),
+  });
+
+  // Een kale url in lopende tekst blijft kaal. Markdown herkent hem zelf al
+  // als link, en onze dossierbestanden staan er vol mee; zonder deze regel
+  // maakt turndown er [https://...](https://...) van en verandert dus tekst
+  // die niemand heeft aangeraakt.
+  td.addRule("kaleUrl", {
+    filter: (node) => {
+      if (node.nodeName !== "A") return false;
+      const href = node.getAttribute("href");
+      return !!href && href === (node.textContent ?? "").trim();
+    },
+    replacement: (_content, node) => (node.textContent ?? "").trim(),
+  });
+
+  // De vinklijst uit de editor zet de tekst van een punt in een <div>. Zonder
+  // deze regel maakt turndown daar een eigen blok van, met een lege regel
+  // eromheen, en staat een vinklijst opeens los uit elkaar in het bestand.
+  td.addRule("vinkpuntInhoud", {
+    filter: (node) =>
+      node.nodeName === "DIV" && (node.parentNode as Element | null)?.nodeName === "LI",
+    replacement: (content) => content,
+  });
+
+  turndownInstantie = td;
+  return td;
+}
+
+/**
+ * Markdown uit een dossierbestand naar HTML voor de editor.
+ *
+ * breaks: true is hier geen smaakkwestie maar noodzaak. Onze dossierbestanden
+ * breken lopende tekst af rond de tachtig tekens, en met breaks: false plakt
+ * marked die regels aan elkaar tot één lange regel. Bij het opslaan zou dan
+ * de hele alinea opnieuw afgebroken worden, en dus zou rondlopen() bij vrijwel
+ * elk bestand met gewone tekst afgaan; de editor zou nooit meer dan
+ * broncode-modus laten zien. Met breaks: true blijft elke regelovergang
+ * bestaan zoals de schrijver hem zette, en komt hij er ook weer zo uit.
+ */
+export function markdownNaarHtml(md: string): string {
+  const tekst = String(md ?? "").replace(/\r\n?/g, "\n");
+  const html = marked.parse(tekst, { gfm: true, breaks: true, async: false });
+  return typeof html === "string" ? vinklijstenHerkenbaar(html) : "";
+}
+
+/**
+ * marked schrijft een vinklijst als een gewone <ul> met een <input type=
+ * checkbox> in het lijstpunt. De editor kent die vorm niet en maakt er dan
+ * doodgewone bulletjes van: de vinkvakjes zijn weg op het scherm, en zodra
+ * iemand iets in dat veld typt worden ze ook uit het dossierbestand
+ * weggeschreven. Dat is precies het stille dossierverlies dat dit bestand
+ * hoort te voorkomen (gevonden op 09-09-2026 door zelf naar het scherm te
+ * kijken; het vangnet zag het niet, want dat kijkt langs de editor heen).
+ *
+ * We zetten er daarom de twee kenmerken bij die de editor wél herkent
+ * (data-type op de lijst en op het punt, plus data-checked). Het <input>
+ * blijft gewoon staan: de editor negeert hem bij het inlezen, en bij het
+ * terugvertalen is hij juist het teken waaraan turndown de vinkregel herkent.
+ */
+function vinklijstenHerkenbaar(html: string): string {
+  if (!/type="checkbox"/.test(html)) return html;
+  return html
+    .replace(/<ul>(\s*<li>\s*<input\b)/g, '<ul data-type="taskList">$1')
+    .replace(/<li>(\s*<input\b([^>]*)>)/g, (heel, punt: string, attrs: string) => {
+      if (!/type="checkbox"/.test(attrs)) return heel;
+      const aan = /\bchecked\b/.test(attrs);
+      return `<li data-type="taskItem" data-checked="${aan}">${punt}`;
+    });
+}
+
+/**
+ * Een scheidingsregel van een tabel, dus een regel die alleen uit |, spaties,
+ * streepjes en dubbele punten bestaat en minstens één streepje heeft.
+ */
+const SCHEIDINGSREGEL = /^\s*\|[\s|:-]*-[\s|:-]*\|\s*$/;
+
+/**
+ * Onze dossierbestanden schrijven de scheidingsregel van een tabel compact,
+ * dus |---|---|, terwijl turndown er | --- | --- | van maakt. Inhoudelijk
+ * hetzelfde (de parsers in lib/markdown.ts trimmen elke cel), maar het zijn
+ * andere tekens, en dan zou rondlopen() bij ELK bestand met een tabel afgaan
+ * en zou de editor daar nooit opgemaakte tekst kunnen tonen. Daarom schrijven
+ * we de scheidingsregel terug in de huisvorm, in plaats van de controle
+ * losser te maken: liever de uitvoer laten passen bij wat er al staat dan een
+ * verschil door de vingers zien.
+ */
+function scheidingsregelsCompact(md: string): string {
+  return md
+    .split("\n")
+    .map((regel) => {
+      if (!SCHEIDINGSREGEL.test(regel)) return regel;
+      const cellen = regel
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((c) => c.trim());
+      return "|" + cellen.join("|") + "|";
+    })
+    .join("\n");
+}
+
+/**
+ * Turndown zet achter een opsommingsteken drie spaties ("-   tekst") en
+ * springt een genest niveau met vier spaties in. Onze bestanden gebruiken één
+ * spatie en twee spaties. Weer hetzelfde afweging als bij de scheidingsregel
+ * hierboven: de uitvoer laten passen bij wat er al staat, in plaats van de
+ * controle losser te maken.
+ */
+function lijstenInHuisvorm(md: string): string {
+  return md
+    .split("\n")
+    .map((regel) => {
+      const m = /^(\s*)([-*+]|\d+\.)([ \t]+)(.*)$/.exec(regel);
+      if (!m) return regel;
+      const [, inspringing, teken, , rest] = m;
+      // Turndown springt per niveau vier spaties in, wij twee.
+      const niveau = Math.floor(inspringing.replace(/\t/g, "    ").length / 4);
+      const nieuweInspringing = "  ".repeat(niveau);
+      // Een vinkregel houdt precies één spatie tussen [ ] en de tekst.
+      const restNet = rest.replace(/^\[( |x|X)\][ \t]+/, (_a, teken2) => `[${teken2}] `);
+      return `${nieuweInspringing}${teken} ${restNet}`;
+    })
+    .join("\n");
+}
+
+/**
+ * Turndown zet voor de zekerheid een backslash voor elk teken dat opmaak zou
+ * kunnen zijn. Bij twee gevallen is dat overdreven, en dan verandert er tekst
+ * die de gebruiker niet heeft aangeraakt:
+ *
+ *   "2 * 3 * 4"  ->  "2 \* 3 \* 4"
+ *   "a_b_c"      ->  "a\_b\_c"
+ *
+ * Een sterretje met spaties eromheen begint geen vet of cursief, en een
+ * liggend streepje midden in een woord ook niet (dat is expliciet zo in de
+ * markdown-variant die wij gebruiken). Alleen die twee halen we terug, geen
+ * teken meer: elders is de backslash wél nodig.
+ */
+function onnodigeBackslashesWeg(md: string): string {
+  return md
+    .replace(/(^|[\s(])\\\*(?=[\s).,;:]|$)/gm, "$1*")
+    .replace(/(\w)\\_(?=\w)/g, "$1_")
+    .replace(/(\w)\\_(?=\w)/g, "$1_");
+}
+
+/**
+ * De editor zet de inhoud van een lijstpunt in een eigen alinea
+ * (<li><p>tekst</p></li>). Turndown maakt van elke alinea een blok, en dan
+ * komt er een lege regel tussen elk lijstpunt te staan. Onze dossierbestanden
+ * schrijven lijsten strak onder elkaar, dus halen we die alinea weg zolang een
+ * lijstpunt uit niets anders bestaat dan die ene alinea. Een lijstpunt met
+ * meerdere alinea's of een genest lijstje laten we met rust: daar hoort de
+ * lege regel juist wel.
+ */
+function lijstpuntenStrak(html: string): string {
+  return html.replace(
+    /<li([^>]*)>\s*(<input\b[^>]*>)?\s*(?:<div[^>]*>\s*)?<p>([\s\S]*?)<\/p>\s*(?:<\/div>\s*)?(<\/li>)/g,
+    (heel, attrs: string, vinkje: string | undefined, inhoud: string, sluit: string) =>
+      /<p>|<ul|<ol|<div/i.test(inhoud) ? heel : `<li${attrs}>${vinkje ?? ""}${inhoud}${sluit}`,
+  );
+}
+
+/**
+ * Nog twee dingen die de editor anders opschrijft dan marked, en die alleen
+ * langs de editor te zien zijn (het vangnet kijkt er langs, want dat vertaalt
+ * rechtstreeks heen en terug):
+ *
+ *   1. Een lijstpunt met een lijstje eronder houdt zijn <p>. Zonder ingrijpen
+ *      komt er een lege regel tussen elk punt te staan, en trekt een genest
+ *      lijstje in het bestand uit elkaar.
+ *   2. Een tabel krijgt een <colgroup> mee (van het kolombreedte-mechanisme).
+ *      De markdown-vertaling ziet daardoor de koprij niet meer als koprij en
+ *      laat de HELE tabel als ruwe HTML in het bestand staan. Dat is precies
+ *      het soort stille verminking waar dit bestand voor bedoeld is.
+ */
+function eersteAlineaLos(html: string): string {
+  // De <p> van een lijstpunt of een tabelcel weghalen, maar alleen als er niets
+  // in staat wat zelf een blok is. Alleen het paar <p></p> verdwijnt, de rest
+  // van de opbouw blijft staan zoals hij stond.
+  const zonderBlok = "([^<]*(?:<(?!\\/?(?:p|ul|ol|div|table)\\b)[^>]*>[^<]*)*)";
+  return html
+    .replace(
+      new RegExp(`<li([^>]*)>\\s*(?:<div[^>]*>\\s*)?<p>${zonderBlok}</p>\\s*(?=<ul|<ol)`, "g"),
+      (_heel, attrs: string, inhoud: string) => `<li${attrs}>${inhoud}`,
+    )
+    .replace(
+      new RegExp(`<(th|td)([^>]*)>\\s*<p>${zonderBlok}</p>\\s*</\\1>`, "g"),
+      (_heel, tag: string, attrs: string, inhoud: string) => `<${tag}${attrs}>${inhoud}</${tag}>`,
+    );
+}
+
+/** De kolombreedtes van de editor horen niet in een dossierbestand thuis. */
+function kolomgroepenWeg(html: string): string {
+  return html.replace(/<colgroup[\s\S]*?<\/colgroup>/gi, "");
+}
+
+/** HTML uit de editor terug naar markdown voor het dossierbestand. */
+export function htmlNaarMarkdown(html: string): string {
+  const md = turndown().turndown(
+    lijstpuntenStrak(eersteAlineaLos(kolomgroepenWeg(String(html ?? "")))),
+  );
+  return normaliseerUitvoer(onnodigeBackslashesWeg(lijstenInHuisvorm(scheidingsregelsCompact(md))));
+}
+
+/**
+ * Kleine, bewust minimale opschoning van wat turndown teruggeeft: nooit meer
+ * dan één lege regel achter elkaar, geen spaties aan het regeleinde, en één
+ * afsluitende regelovergang. Meer dan dit normaliseren we niet, want dan zou
+ * rondlopen() echte verschillen kunnen wegpoetsen.
+ */
+function normaliseerUitvoer(md: string): string {
+  return String(md ?? "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((r) => r.replace(/[ \t]+$/, ""))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^\n+/, "")
+    .replace(/\n*$/, "\n");
+}
+
+/**
+ * Dezelfde opschoning op het origineel, zodat rondlopen() niet struikelt over
+ * verschillen die niemand ziet en die bij opslaan toch al zouden verdwijnen
+ * (een dubbele lege regel, een spatie aan het eind van een regel).
+ */
+export function normaliseerVoorVergelijking(md: string): string {
+  return normaliseerUitvoer(md);
+}
+
+export interface RondloopUitkomst {
+  /** Kwam er na heen- en terugvertalen exact hetzelfde uit? */
+  gelijk: boolean;
+  /** De markdown zoals hij eruit zou komen; alleen bedoeld om te vergelijken. */
+  terug: string;
+  /** Het origineel, op dezelfde manier opgeschoond. */
+  origineel: string;
+  /** De eerste regel die verschilt, 1-geïndexeerd; null als alles gelijk is. */
+  eersteVerschilRegel: number | null;
+}
+
+/**
+ * Het vangnet. Vertaalt markdown naar HTML en weer terug, en zegt of daar
+ * exact hetzelfde uitkomt. Zo niet, dan mag de editor dit veld niet opgemaakt
+ * tonen: er zou bij opslaan iets veranderen wat de gebruiker niet heeft
+ * aangeraakt.
+ */
+export function rondlopen(md: string): RondloopUitkomst {
+  const origineel = normaliseerVoorVergelijking(md);
+  let terug = "";
+  try {
+    terug = htmlNaarMarkdown(markdownNaarHtml(origineel));
+  } catch {
+    return { gelijk: false, terug: "", origineel, eersteVerschilRegel: 1 };
+  }
+
+  if (terug === origineel) {
+    return { gelijk: true, terug, origineel, eersteVerschilRegel: null };
+  }
+
+  const a = origineel.split("\n");
+  const b = terug.split("\n");
+  let regel: number | null = null;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if (a[i] !== b[i]) {
+      regel = i + 1;
+      break;
+    }
+  }
+  return { gelijk: false, terug, origineel, eersteVerschilRegel: regel };
+}
+
+/** Korte versie van rondlopen() voor waar alleen het ja/nee telt. */
+export function kanOpgemaaktGetoondWorden(md: string): boolean {
+  if (!String(md ?? "").trim()) return true;
+  return rondlopen(md).gelijk;
+}

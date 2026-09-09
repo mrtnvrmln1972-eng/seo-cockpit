@@ -2,14 +2,21 @@
 
 import { useRef, useState, useTransition } from "react";
 import { taakBewerkenAction } from "./actions";
+import Opmaakveld from "@/app/_components/Opmaakveld";
 
 /**
  * app/klant/[klantslug]/werkbord/BewerkTaak.tsx — de titel en de toelichting
  * van één taak aanpassen, vanuit de taak zelf (09-09-2026, op verzoek).
  *
- * Het veld toont de RUWE tekst uit toelichting.md, niet de gerenderde versie
- * die eromheen staat. Dat is bewust: dat bestand wordt ook buiten deze app
- * gelezen en geschreven (zie CLAUDE.md), dus wat je hier typt is precies wat
+ * Sinds 09-09-2026 is dit een Opmaakveld: je ziet vet als vet in plaats van
+ * sterretjes, met een opmaakstrip en de gewone sneltoetsen. Wat er wordt
+ * opgeslagen blijft exact dezelfde markdown, en bevat het bestand iets wat
+ * niet ongewijzigd terug te schrijven is, dan valt het veld zichtbaar terug op
+ * broncode-modus. Zie app/_components/Opmaakveld.tsx en lib/opmaak.ts.
+ *
+ * De oude uitleg hieronder blijft gelden voor WAT er opgeslagen wordt: dat
+ * bestand wordt ook buiten deze app gelezen en geschreven (zie CLAUDE.md),
+ * dus wat je hier typt is precies wat
  * er in het dossier komt te staan. Een tekstvak dat de opmaak zelf
  * "verbetert" zou dat stilletjes uit elkaar laten lopen.
  *
@@ -63,16 +70,7 @@ export default function BewerkTaak({
         <label htmlFor={`titel-${n}`}>Titel</label>
         <input id={`titel-${n}`} name="titel" type="text" defaultValue={titel} required />
       </div>
-      <div className="metaveld">
-        <label htmlFor={`toelichting-${n}`}>Toelichting</label>
-        <textarea
-          id={`toelichting-${n}`}
-          name="toelichting"
-          rows={12}
-          defaultValue={toelichting}
-          style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}
-        />
-      </div>
+      <Opmaakveld naam="toelichting" waarde={toelichting} label="Toelichting" minHoogte={220} />
       {fout && <p className="foutregel">{fout}</p>}
       <div className="acties">
         <button className="pillbtn sterk" type="submit" disabled={bezig}>

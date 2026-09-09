@@ -3,6 +3,7 @@ import { getKlantBySlug } from "@/lib/klanten";
 import { leesNotities } from "@/lib/notities";
 import { renderAlineas } from "@/lib/markdown";
 import { notitiesOpslaanAction } from "./actions";
+import Opmaakveld from "@/app/_components/Opmaakveld";
 
 export const dynamic = "force-dynamic";
 
@@ -84,9 +85,7 @@ export default async function NotitiesPagina({
         </summary>
         <div className="blokbody">
           <form action={opslaanMetKlant}>
-            <div className="metaveld">
-              <textarea name="tekst" defaultValue={md} rows={18} style={{ fontFamily: "monospace" }} />
-            </div>
+            <Opmaakveld naam="tekst" waarde={md} label="Notities" minHoogte={340} />
             <button className="pillbtn sterk" type="submit">
               Opslaan
             </button>

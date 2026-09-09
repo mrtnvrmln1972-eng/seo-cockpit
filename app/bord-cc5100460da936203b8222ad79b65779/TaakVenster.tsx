@@ -6,6 +6,7 @@ import { useTaakVenster } from "./TaakVensterContext";
 import { bewerkTaakAction, zetStatusAction, verwijderTaakAction } from "./actions";
 import KlaarMeldenForm from "./KlaarMeldenForm";
 import RijkTekstVeld from "@/app/_ui/RijkTekstVeld";
+import Opmaakveld from "@/app/_components/Opmaakveld";
 
 /** Zelfde vaste developer-adres als page.tsx (DEVELOPER_EMAIL) — bewust hier
  * los gehouden in plaats van geëxporteerd, dit is de enige andere plek die
@@ -233,10 +234,20 @@ export default function TaakVenster() {
             )}
           </div>
 
-          <div className="metaveld">
-            <label>Volledige context</label>
-            <RijkTekstVeld waarde={detail} onChange={setDetail} rows={7} disabled={bezig} />
-          </div>
+          {/*
+            De volledige context is een echt markdown-blok in developer.md
+            ("## Titel" met de tekst eronder), dus daar past het Opmaakveld met
+            zijn opmaakstrip (09-09-2026). De Opmerking hierboven blijft
+            bewust het eenvoudige RijkTekstVeld: die waarde gaat in één cel van
+            de tabel, en een cel kan geen lijst of kop bevatten.
+          */}
+          <Opmaakveld
+            naam="detail"
+            waarde={detail}
+            label="Volledige context"
+            minHoogte={200}
+            onChange={setDetail}
+          />
 
           {(isKlaar || isAfgerond) && (taak.tijdsduur || taak.terugkoppeling) && (
             <div className="terugkoppelblok">

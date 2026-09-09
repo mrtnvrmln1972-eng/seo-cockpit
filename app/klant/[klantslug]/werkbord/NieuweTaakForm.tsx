@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { maakTaakAction } from "./actions";
+import Opmaakveld from "@/app/_components/Opmaakveld";
 
 /**
  * app/klant/[klantslug]/werkbord/NieuweTaakForm.tsx — het "Nieuwe taak"-
@@ -51,10 +52,13 @@ export default function NieuweTaakForm({ klantSlug }: { klantSlug: string }) {
           disabled={pending}
         />
       </div>
-      <div className="metaveld">
-        <label>Notities (optioneel)</label>
-        <textarea name="notities" placeholder="Korte context, mag leeg blijven" disabled={pending} />
-      </div>
+      <Opmaakveld
+        naam="notities"
+        waarde=""
+        label="Notities (optioneel)"
+        plaatshouder="Korte context, mag leeg blijven"
+        minHoogte={120}
+      />
 
       {fout && <p className="foutregel">{fout}</p>}
 

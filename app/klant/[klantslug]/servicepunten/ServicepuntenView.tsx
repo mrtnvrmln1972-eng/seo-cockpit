@@ -12,6 +12,7 @@ import {
 } from "@/lib/servicepunten-model";
 import type { ServicepuntenDossier } from "@/lib/servicepunten";
 import VestigingKaart from "./VestigingKaart";
+import Opmaakveld from "@/app/_components/Opmaakveld";
 import { servicepuntStapOpslaanAction, servicepuntEenmaligOpslaanAction } from "./actions";
 
 /**
@@ -297,9 +298,7 @@ function EenmaligGeregeldTab({ klantSlug, tekst }: { klantSlug: string; tekst: s
               });
             }}
           >
-            <div className="metaveld">
-              <textarea name="tekst" defaultValue={tekst} rows={14} style={{ fontFamily: "monospace" }} />
-            </div>
+            <Opmaakveld naam="tekst" waarde={tekst} label="Eenmalig geregeld" minHoogte={280} />
             {fout && <p className="foutregel">{fout}</p>}
             <div className="acties">
               <button className="pillbtn sterk" type="submit" disabled={pending}>
