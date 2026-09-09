@@ -27,9 +27,14 @@ import { usePathname } from "next/navigation";
  * 'notities','dev','meta',...]): na de signalen-achtige tabs (hier
  * samengevoegd tot "Signalen"), voor Meta-tool. Zie lib/notities.ts voor
  * hoe die inhoud gelezen wordt.
+ *
+ * Onboarding toegevoegd op 09-09-2026, op dezelfde plek als in de artifact
+ * se eigen tabrij hierboven: direct na Takenlijst, voor Roadmap. Zie
+ * lib/onboarding.ts voor hoe die inhoud gelezen/geschreven wordt.
  */
 const TABS = [
   { segment: "werkbord", label: "Takenlijst" },
+  { segment: "onboarding", label: "Onboarding" },
   { segment: "roadmap", label: "Roadmap" },
   { segment: "signalen", label: "Signalen" },
   { segment: "notities", label: "Notities" },
