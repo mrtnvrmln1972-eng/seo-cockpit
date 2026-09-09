@@ -3092,3 +3092,217 @@ strong {
   color: var(--ink);
   background: var(--ground);
 }
+
+/* ---- Scanbare weergave van lange dossierteksten (09-09-2026) -------------
+   Hoort bij lib/scanbaar.ts. Een lange notitie of roadmap werd getoond als
+   één kolom kopjes en regels: correct, maar je moest hem lezen om hem te
+   kunnen overzien. Deze stijlen geven de herkende patronen een vorm: een
+   sectie wordt een kaart met een icoontje, een reeks kopjes met een kort
+   lijstje wordt een rij kaarten, en een losse mededeling wordt een blok dat
+   opvalt.
+
+   Alle kleuren komen uit de tokens die de cockpit al heeft (:root bovenaan);
+   er komt hier geen nieuw palet bij. Een blok kiest zijn kleur via de klasse
+   k-oranje/k-blauw/... en gebruikt daarna alleen nog var(--kl). */
+.k-oranje {
+  --kl: var(--accent);
+  --kl-wash: var(--accent-wash);
+}
+.k-blauw {
+  --kl: var(--info);
+  --kl-wash: var(--info-wash);
+}
+.k-groen {
+  --kl: var(--ok);
+  --kl-wash: var(--ok-wash);
+}
+.k-roze {
+  --kl: var(--roze);
+  --kl-wash: var(--roze-wash);
+}
+.k-geel {
+  --kl: var(--warn);
+  --kl-wash: var(--warn-wash);
+}
+.k-rood {
+  --kl: var(--crit);
+  --kl-wash: var(--crit-wash);
+}
+
+.scanicoon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
+  background: var(--kl-wash);
+}
+
+.scansectie {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--ground);
+  margin: 14px 0;
+  overflow: hidden;
+}
+.scansectie:first-child {
+  margin-top: 0;
+}
+.scansectiekop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.scansectietitel {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--head);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.scansectiebody {
+  padding: 12px 14px;
+}
+.scansectiebody > *:first-child {
+  margin-top: 0;
+}
+.scansectiebody > *:last-child {
+  margin-bottom: 0;
+}
+
+/* De kaartenrij: kopjes met elk een kort lijstje eronder, naast elkaar in
+   plaats van onder elkaar. Groeit mee met de breedte; op een smal scherm
+   komen ze vanzelf weer onder elkaar te staan. */
+.scankaarten {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 12px;
+  align-items: start;
+  margin: 10px 0 14px;
+}
+.scankaart {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  overflow: hidden;
+  background: var(--ground);
+}
+.scankaartkop {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  background: var(--kl-wash);
+}
+.scankaartkop .scanicoon {
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+  background: var(--ground);
+}
+.scankaarttitel {
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--kl);
+}
+.scankaartbody {
+  padding: 10px 12px;
+}
+/* Opsommingstekens: de cockpit zet lijsten van zichzelf op list-style: none.
+   Binnen een kaart of een sectie hoort een lijstje juist herkenbaar te zijn,
+   dus daar zetten we de bolletjes en nummers terug, in de kleur van het blok. */
+.scankaartbody ul,
+.scankaartbody ol,
+.scansectiebody ul,
+.scansectiebody ol {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.scankaartbody ul,
+.scansectiebody ul {
+  list-style: disc;
+}
+.scankaartbody ol,
+.scansectiebody ol {
+  list-style: decimal;
+}
+.scansectiebody li::marker {
+  color: var(--kl);
+}
+.scansectiebody li {
+  margin-bottom: 4px;
+}
+.scankaartbody li {
+  margin: 0 0 5px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.scankaartbody li:last-child {
+  margin-bottom: 0;
+}
+.scankaartbody li::marker {
+  color: var(--kl);
+}
+.scankaartbody > *:first-child {
+  margin-top: 0;
+}
+.scankaartbody > *:last-child {
+  margin-bottom: 0;
+}
+
+/* De losse mededeling: één kopje met één zin, die geen deel is van een reeks.
+   Bewust het enige blok met een gekleurde rand, want het is de uitzondering
+   in de tekst. */
+.scanmelding {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--kl);
+  border-radius: 11px;
+  background: var(--kl-wash);
+  padding: 11px 13px;
+  margin: 12px 0;
+}
+.scanmelding .scanicoon {
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+  background: var(--ground);
+}
+.scanmeldingtekst {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.scanmeldingtekst strong {
+  color: var(--head);
+  display: block;
+}
+
+/* Codeblok binnen lopende tekst (```). Leesbaar, met behoud van
+   regelovergangen en inspringing, en het schuift horizontaal als een regel
+   te lang is in plaats van de pagina breed te trekken. */
+pre.codeblok {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 13px;
+  margin: 10px 0;
+  overflow-x: auto;
+}
+pre.codeblok code {
+  background: none;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: pre;
+}

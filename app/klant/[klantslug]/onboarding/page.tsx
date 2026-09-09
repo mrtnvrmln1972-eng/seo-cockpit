@@ -7,8 +7,9 @@ import {
   propositieInfo,
   leesVoortgang,
 } from "@/lib/onboarding";
-import { renderCel, renderAlineas } from "@/lib/markdown";
+import { renderCel } from "@/lib/markdown";
 import { onderdeelWisselenAction } from "./actions";
+import { renderTekst } from "@/lib/scanbaar";
 
 export const dynamic = "force-dynamic";
 
@@ -162,7 +163,7 @@ export default async function OnboardingPagina({
           {ladder.inHetKort && (
             <>
               <h6 style={{ marginTop: 14 }}>In het kort</h6>
-              <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(ladder.inHetKort) }} />
+              <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(ladder.inHetKort) }} />
             </>
           )}
         </div>
@@ -223,7 +224,7 @@ export default async function OnboardingPagina({
                     </div>
                   ))
                 ) : (
-                  <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(sec.inhoud) }} />
+                  <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(sec.inhoud) }} />
                 )}
               </div>
             ))
@@ -242,7 +243,7 @@ export default async function OnboardingPagina({
           <h6>Propositie</h6>
           {propositie.tekst ? (
             <>
-              <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(propositie.tekst) }} />
+              <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(propositie.tekst) }} />
               <p>
                 <span className={`chip ${propositie.bevestigd ? "" : "info"}`}>
                   {propositie.bevestigd ? `Bevestigd op ${propositie.bevestigdOp}` : "Nog niet bevestigd"}
@@ -255,14 +256,14 @@ export default async function OnboardingPagina({
 
           <h6 style={{ marginTop: 14 }}>Tone of voice</h6>
           {dossier.toneOfVoiceMd.trim() ? (
-            <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(dossier.toneOfVoiceMd) }} />
+            <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(dossier.toneOfVoiceMd) }} />
           ) : (
             <p className="placeholder">Geen tone-of-voice.md gevonden.</p>
           )}
 
           <h6 style={{ marginTop: 14 }}>Klantstem</h6>
           {dossier.klantstemMd.trim() ? (
-            <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(dossier.klantstemMd) }} />
+            <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(dossier.klantstemMd) }} />
           ) : (
             <p className="placeholder">Geen klantstem.md gevonden.</p>
           )}
@@ -276,7 +277,7 @@ export default async function OnboardingPagina({
         </div>
         <div className="blokbody">
           {ladder.watOntbreekt ? (
-            <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(ladder.watOntbreekt) }} />
+            <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(ladder.watOntbreekt) }} />
           ) : (
             <p className="placeholder">
               Geen &quot;Wat er nu ontbreekt&quot;-blok gevonden in toelichting.md.

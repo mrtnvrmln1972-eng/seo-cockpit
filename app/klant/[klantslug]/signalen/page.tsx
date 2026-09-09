@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getKlantBySlug } from "@/lib/klanten";
 import { leesDossierBestand } from "@/lib/dossier";
 import { alleTabelRijen, alleSecties, parseTables, renderCel } from "@/lib/markdown";
+import { renderTekst } from "@/lib/scanbaar";
 
 export const dynamic = "force-dynamic";
 
@@ -152,17 +153,10 @@ export default async function SignalenPagina({
                   </div>
                 ))
               ) : (
-                <div className="doc">
-                  {sec.inhoud
-                    .split(/\n\s*\n/)
-                    .filter((alinea) => alinea.trim().length > 0)
-                    .map((alinea, ai) => (
-                      <p
-                        key={ai}
-                        dangerouslySetInnerHTML={{ __html: renderCel(alinea.trim()) }}
-                      />
-                    ))}
-                </div>
+                <div
+                  className="doc"
+                  dangerouslySetInnerHTML={{ __html: renderTekst(sec.inhoud) }}
+                />
               )}
             </div>
           </div>

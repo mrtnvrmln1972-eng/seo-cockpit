@@ -3,9 +3,10 @@ import { getKlantBySlug } from "@/lib/klanten";
 import { leesWerklijstDossier, parseWerklijst, toelichtingVoor } from "@/lib/werklijst";
 import { leesNotities } from "@/lib/notities";
 import { leesMailLog, parseMailLog, type MailStatus } from "@/lib/mail";
-import { renderAlineas, statusClass } from "@/lib/markdown";
+import { statusClass } from "@/lib/markdown";
 import NieuweTaakForm from "./NieuweTaakForm";
 import TakenlijstItems, { type TaakItem } from "./TakenlijstItems";
+import { renderTekst } from "@/lib/scanbaar";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +59,7 @@ interface ToelichtingBlok {
  * een vinkjeslijst: "- [ ] 1a ...") op de vetgedrukte labelregels. Een regel
  * telt alleen als label als hij, getrimd, EXACT "**Label**" (met evt. ":"
  * erachter) is — geen ##-koppen, geen inline-vet middenin tekst. De inhoud
- * per blok wordt met renderAlineas() gerenderd (lijsten/vinkjes + alinea's).
+ * per blok wordt met renderTekst() gerenderd (lijsten/vinkjes + alinea's).
  */
 function toelichtingBlokken(tekst: string): ToelichtingBlok[] {
   const regels = String(tekst || "").replace(/\r/g, "").split("\n");
@@ -149,7 +150,7 @@ export default async function WerkbordPagina({
     const toelichting = toelichtingVoor(dossier!.toelichtingMd, taak.n);
     const blokken = toelichtingBlokken(toelichting).map((b) => ({
       label: b.label,
-      html: b.inhoud ? renderAlineas(b.inhoud) : "",
+      html: b.inhoud ? renderTekst(b.inhoud) : "",
       kleur: kleurVoorLabel(b.label),
     }));
     const mailBody = toelichting.trim() || `Zie taak ${taak.n} in de klantcockpit.`;
@@ -229,7 +230,7 @@ export default async function WerkbordPagina({
                 Er is nog geen mailoverzicht aangelegd voor {klant.naam}.
               </p>
             ) : mailInleiding ? (
-              <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(mailInleiding) }} />
+              <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(mailInleiding) }} />
             ) : (
               <p className="mailLeeg">Het mailoverzicht van {klant.naam} is nog leeg.</p>
             )
@@ -289,7 +290,7 @@ export default async function WerkbordPagina({
         </summary>
         <div className="blokbody">
           {notitiesMd.trim() ? (
-            <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(notitiesMd) }} />
+            <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(notitiesMd) }} />
           ) : (
             <p className="note">Nog geen notities voor {klant.naam}.</p>
           )}

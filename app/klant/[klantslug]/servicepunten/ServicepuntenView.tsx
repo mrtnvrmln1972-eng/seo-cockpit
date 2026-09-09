@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { renderAlineas } from "@/lib/markdown";
+
 import {
   ALLE_STAPPEN,
   STATUS_LABEL,
@@ -14,6 +14,7 @@ import type { ServicepuntenDossier } from "@/lib/servicepunten";
 import VestigingKaart from "./VestigingKaart";
 import Opmaakveld from "@/app/_components/Opmaakveld";
 import { servicepuntStapOpslaanAction, servicepuntEenmaligOpslaanAction } from "./actions";
+import { renderTekst } from "@/lib/scanbaar";
 
 /**
  * app/klant/[klantslug]/servicepunten/ServicepuntenView.tsx — de hele
@@ -268,7 +269,7 @@ function EenmaligGeregeldTab({ klantSlug, tekst }: { klantSlug: string; tekst: s
             <h3>Eenmalig geregeld</h3>
           </div>
           <div className="blokbody">
-            <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(tekst) }} />
+            <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(tekst) }} />
           </div>
         </div>
       ) : (

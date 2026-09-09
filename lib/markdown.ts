@@ -317,6 +317,11 @@ function voorbewerkGeplakteLabels(tekst: string): string {
     .replace(/(\*\*[^*\n]{1,80}:\*\*)(?=[^\s\n])/g, "$1 ");
 }
 
+/** Alleen de drie tekens die HTML gevaarlijk maken; verder niets aanraken. */
+function escapeTekst(tekst: string): string {
+  return tekst.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export function renderAlineas(tekst: string): string {
   const regels = voorbewerkGeplakteLabels(
     voorbewerkGeplakteMarkers(String(tekst || "").replace(/\r/g, "")),
@@ -369,8 +374,34 @@ export function renderAlineas(tekst: string): string {
     tabelRijen = null;
   };
 
+  // Een codeblok tussen ``` werd hier niet herkend: de hekjes zelf en de hele
+  // inhoud belandden als gewone alinea in beeld, inclusief de backticks
+  // (gezien in de notities van Paul Hoevenaars, waar drie startprompts in een
+  // codeblok staan, 09-09-2026). Nu wordt de inhoud letterlijk getoond, met
+  // regelovergangen en inspringing intact, zoals je van een codeblok verwacht.
+  let inCodeblok = false;
+  let codeRegels: string[] = [];
+
   for (const regelRuw of regels) {
     const regel = regelRuw.trim();
+    if (/^```/.test(regel)) {
+      if (inCodeblok) {
+        out.push(`<pre class="codeblok"><code>${escapeTekst(codeRegels.join("\n"))}</code></pre>`);
+        codeRegels = [];
+        inCodeblok = false;
+      } else {
+        flushParagraaf();
+        flushLijst();
+        flushGenLijst();
+        if (tabelRijen) flushTabel();
+        inCodeblok = true;
+      }
+      continue;
+    }
+    if (inCodeblok) {
+      codeRegels.push(regelRuw);
+      continue;
+    }
     // Uitklapper (08-09-2026, rijke-tekst-editor Developerbord): drie vaste,
     // letterlijke structuurregels — "<details>", "<summary>titel</summary>"
     // en "</details>" — worden herkend en doorgezet naar echte HTML, in
@@ -406,14 +437,17 @@ export function renderAlineas(tekst: string): string {
     }
     // "## " zonder tekst erachter (leeg gebleven kopje, gezien in een echte
     // notities.md) levert niets op — geen lege <h5>, geen letterlijke "##".
-    if (/^#{2,4}$/.test(regel)) {
+    if (/^#{1,4}$/.test(regel)) {
       flushParagraaf();
       flushLijst();
       flushGenLijst();
       if (tabelRijen) flushTabel();
       continue;
     }
-    const kopMatch = /^#{2,4}\s+(.*)$/.exec(regel);
+    // Ook één hekje telt als kop. Dat deed het hier niet, en dan stond er in
+    // een dossier met een "# Titel" bovenaan letterlijk "# Titel" op het
+    // scherm (gezien in de notities van Paul Hoevenaars, 09-09-2026).
+    const kopMatch = /^#{1,4}\s+(.*)$/.exec(regel);
     const vinkMatch = /^[-*]\s+\[([ xX])\]\s+(.*)$/.exec(regel);
     const bulletMatch = /^[-*]\s+(.*)$/.exec(regel);
     // Genummerde lijst ("1. item", "2. item", ...) — het volgnummer zelf
@@ -488,6 +522,11 @@ export function renderAlineas(tekst: string): string {
     flushLijst();
     flushGenLijst();
     paragraaf.push(regel);
+  }
+  // Een codeblok dat de schrijver niet heeft afgesloten tonen we alsnog, in
+  // plaats van het stilletjes weg te laten.
+  if (inCodeblok && codeRegels.length) {
+    out.push(`<pre class="codeblok"><code>${escapeTekst(codeRegels.join("\n"))}</code></pre>`);
   }
   flushParagraaf();
   flushLijst();

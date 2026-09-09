@@ -1,5 +1,6 @@
 import { getKlantBySlug } from "@/lib/klanten";
-import { renderAlineas } from "@/lib/markdown";
+import { renderTekst } from "@/lib/scanbaar";
+
 import {
   NOC_SLUG,
   STAP_GROEPEN,
@@ -138,7 +139,7 @@ export default async function GedeeldeServicepuntenPagina() {
             <div className="blokbody">
               <div
                 className="doc"
-                dangerouslySetInnerHTML={{ __html: renderAlineas(dossier.eenmaligGeregeld) }}
+                dangerouslySetInnerHTML={{ __html: renderTekst(dossier.eenmaligGeregeld) }}
               />
             </div>
           </div>

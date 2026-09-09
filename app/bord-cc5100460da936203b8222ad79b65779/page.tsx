@@ -1,11 +1,12 @@
 import { headers } from "next/headers";
 import { aggregeerDeveloperbord, type DevTaakMetKlant } from "@/lib/developerboard";
-import { statusClass, renderCel, renderAlineas } from "@/lib/markdown";
+import { statusClass, renderCel } from "@/lib/markdown";
 import { zetStatusAction } from "./actions";
 import KlaarMeldenForm from "./KlaarMeldenForm";
 import DeveloperbordView from "./DeveloperbordView";
 import BekijkKnop from "./BekijkKnop";
 import VerwijderKnop from "./VerwijderKnop";
+import { renderTekst } from "@/lib/scanbaar";
 
 /**
  * app/bord-cc5100460da936203b8222ad79b65779/page.tsx — het Developerbord.
@@ -135,7 +136,7 @@ function TaakRij({ taak, basisUrl }: { taak: DevTaakMetKlant; basisUrl: string }
           </p>
         )}
         {taak.detail && (
-          <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(taak.detail) }} />
+          <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(taak.detail) }} />
         )}
 
         {(isKlaar(taak) || isAfgerond(taak)) && (taak.tijdsduur || taak.terugkoppeling) && (

@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { getKlantBySlug } from "@/lib/klanten";
 import { leesNotities } from "@/lib/notities";
-import { renderAlineas } from "@/lib/markdown";
+
 import { notitiesOpslaanAction } from "./actions";
 import Opmaakveld from "@/app/_components/Opmaakveld";
+import { renderTekst } from "@/lib/scanbaar";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
  * Takenlijst-tab t.o.v. de artifact se taakBlok() (zie lib/werklijst.ts):
  * een gewoon tekstveld met een Opslaan-knop, geen opmaakbalk of
  * bestand-slepen. De INHOUD is wel exact hetzelfde bestand, op dezelfde
- * plek: lezen via dezelfde renderAlineas() als de rest van de app, bewerken
+ * plek: lezen via dezelfde renderTekst() als de rest van de app, bewerken
  * door de hele tekst te overschrijven (net als bij een gewoon document).
  *
  * Geen vaste structuur verondersteld (zie lib/notities.ts): notities.md is
@@ -70,7 +71,7 @@ export default async function NotitiesPagina({
             <h3>Notities</h3>
           </div>
           <div className="blokbody">
-            <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(md) }} />
+            <div className="doc" dangerouslySetInnerHTML={{ __html: renderTekst(md) }} />
           </div>
         </div>
       ) : (
