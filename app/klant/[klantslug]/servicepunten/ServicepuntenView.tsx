@@ -12,7 +12,7 @@ import {
 } from "@/lib/servicepunten-model";
 import type { ServicepuntenDossier } from "@/lib/servicepunten";
 import VestigingKaart from "./VestigingKaart";
-import NotitieVeld from "./NotitieVeld";
+import NotitieVeld from "@/app/_components/NotitieVeld";
 import { servicepuntStapOpslaanAction, servicepuntEenmaligOpslaanAction } from "./actions";
 
 /**

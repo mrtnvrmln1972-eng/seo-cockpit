@@ -89,6 +89,23 @@ loopt(
   "## Taak 3\n\n**Klaar als**\n\n- Punt een\n- Punt twee\n\n| Kop | Waarde |\n|---|---|\n| a | b |\n",
 );
 
+// Drie vormen die in onze echte bestanden overal staan en waar het vangnet
+// eerst op aansloeg, waardoor juist die bestanden alleen als broncode in beeld
+// kwamen (gemeld door Maarten, 09-09-2026).
+loopt(
+  "vetgedrukt kopje met de lijst er direct onder, zonder witregel",
+  "**Locatiepagina's, de lokale kern**\n- [/hovenier-oss/](https://voorbeeld.nl/oss/)\n- [/hovenier-uden/](https://voorbeeld.nl/uden/)\n",
+);
+loopt(
+  "tabel met een lege cel",
+  "| Pagina | Term | Positie |\n|---|---|---|\n| /a/ | geen dominante term | |\n",
+);
+loopt("blokhaken als tekst, geen link", "Vervang alleen [stad] en [dienst].\n");
+loopt(
+  "het echte notitiebestand van een klant",
+  readFileSync(join(__dirname, "scanbaar-fixture.md"), "utf8"),
+);
+
 console.log("\n--- 2. Het vangnet slaat aan bij wat we niet exact teruggeven ---");
 
 vangnetSlaatAan("kop in setext-vorm", "Een kop\n=======\n");

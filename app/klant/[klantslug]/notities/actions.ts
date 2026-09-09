@@ -15,14 +15,13 @@ import { resolveDriveLinksInText } from "@/lib/links";
  * overschrijven, net als bij een gewoon tekstdocument.
  */
 
-export async function notitiesOpslaanAction(klantSlug: string, formData: FormData) {
+export async function notitiesOpslaanAction(klantSlug: string, tekstRuw: string) {
   const klant = await getKlantBySlug(klantSlug);
   if (!klant?.mapId) throw new Error("Deze klant heeft nog geen dossier in Drive.");
 
-  const tekstRuw = String(formData.get("tekst") ?? "");
   // Kale Drive-links worden vóór het schrijven omgezet naar `[Titel](url)`
   // — zie de doc-comment in lib/links.ts.
-  const tekst = await resolveDriveLinksInText(tekstRuw);
+  const tekst = await resolveDriveLinksInText(String(tekstRuw ?? ""));
 
   try {
     const huidig = await leesNotities(klant.mapId);

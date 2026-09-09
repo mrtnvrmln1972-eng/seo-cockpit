@@ -204,10 +204,31 @@ function lijstenInHuisvorm(md: string): string {
  * teken meer: elders is de backslash wél nodig.
  */
 function onnodigeBackslashesWeg(md: string): string {
+  return (
+    md
+      .replace(/(^|[\s(])\\\*(?=[\s).,;:]|$)/gm, "$1*")
+      .replace(/(\w)\\_(?=\w)/g, "$1_")
+      .replace(/(\w)\\_(?=\w)/g, "$1_")
+      // Blokhaken om een woord ("Vervang alleen [stad]") zijn in onze
+      // bestanden gewoon tekst, geen link. Turndown zet er voor de zekerheid
+      // een backslash voor, en dan verandert er tekst die niemand heeft
+      // aangeraakt. Alleen terugdraaien als er geen "(" achteraan komt: dan
+      // zou het wél een link worden.
+      .replace(/\\\[([^\]\n]*)\\\](?!\()/g, "[$1]")
+  );
+}
+
+/**
+ * Een lege tabelcel schrijft turndown als twee spaties ("|  |"), onze
+ * bestanden als één ("| |"). Zelfde afweging als bij de scheidingsregel: de
+ * uitvoer laten passen bij wat er al staat, in plaats van het verschil door de
+ * vingers te zien.
+ */
+function legeTabelcellenCompact(md: string): string {
   return md
-    .replace(/(^|[\s(])\\\*(?=[\s).,;:]|$)/gm, "$1*")
-    .replace(/(\w)\\_(?=\w)/g, "$1_")
-    .replace(/(\w)\\_(?=\w)/g, "$1_");
+    .split("\n")
+    .map((regel) => (regel.trim().startsWith("|") ? regel.replace(/\|[ \t]+(?=\|)/g, "| ") : regel))
+    .join("\n");
 }
 
 /**
@@ -266,7 +287,51 @@ export function htmlNaarMarkdown(html: string): string {
   const md = turndown().turndown(
     lijstpuntenStrak(eersteAlineaLos(kolomgroepenWeg(String(html ?? "")))),
   );
-  return normaliseerUitvoer(onnodigeBackslashesWeg(lijstenInHuisvorm(scheidingsregelsCompact(md))));
+  return normaliseerUitvoer(
+    legeTabelcellenCompact(onnodigeBackslashesWeg(lijstenInHuisvorm(scheidingsregelsCompact(md)))),
+  );
+}
+
+/**
+ * Een opsomming mag in markdown direct onder een alinea beginnen, zonder lege
+ * regel ertussen. Onze dossierbestanden doen dat volop:
+ *
+ *   **Locatiepagina's, de lokale kern**
+ *   - [/hovenier-oss/](...)
+ *
+ * De editor geeft dat terug mét een lege regel ertussen, want dat is de vorm
+ * die elke markdown-schrijver hanteert. Inhoudelijk is het exact hetzelfde
+ * (marked leest beide als een alinea met een lijst eronder), maar het zijn
+ * andere tekens, en dus sloeg het vangnet aan bij vrijwel élk bestand met een
+ * vetgedrukt kopje boven een lijstje. Gevolg: precies de bestanden waar je het
+ * meest in schrijft (notities.md) kwamen alleen als broncode in beeld, zonder
+ * opmaakknoppen (gemeld door Maarten, 09-09-2026).
+ *
+ * Daarom zetten we die lege regel er aan BEIDE kanten van de vergelijking bij,
+ * in plaats van het verschil door de vingers te zien. Dat betekent dat een
+ * bestand bij het opslaan één lege regel per lijstje erbij kan krijgen. Dat is
+ * de enige wijziging die we toestaan, hij is zichtbaar, hij verandert niets
+ * aan de betekenis, en hij is precies de vorm die de rest van onze bestanden
+ * al gebruikt. Binnen een codeblok gebeurt er niets.
+ */
+function witregelVoorLijsten(md: string): string {
+  const regels = String(md ?? "").split("\n");
+  const uit: string[] = [];
+  let inHek = false;
+  const isLijstregel = (r: string) => /^\s*(?:[-*+]\s|\d+\.\s)/.test(r);
+  const isBlokregel = (r: string) =>
+    r.trim() === "" || isLijstregel(r) || /^\s*(?:#|>|\||```|<)/.test(r);
+  for (let i = 0; i < regels.length; i++) {
+    const regel = regels[i];
+    if (/^\s*```/.test(regel)) inHek = !inHek;
+    uit.push(regel);
+    if (inHek) continue;
+    const volgende = regels[i + 1];
+    if (volgende !== undefined && !isBlokregel(regel) && isLijstregel(volgende)) {
+      uit.push("");
+    }
+  }
+  return uit.join("\n");
 }
 
 /**
@@ -276,7 +341,7 @@ export function htmlNaarMarkdown(html: string): string {
  * rondlopen() echte verschillen kunnen wegpoetsen.
  */
 function normaliseerUitvoer(md: string): string {
-  return String(md ?? "")
+  return witregelVoorLijsten(String(md ?? ""))
     .replace(/\r\n?/g, "\n")
     .split("\n")
     .map((r) => r.replace(/[ \t]+$/, ""))

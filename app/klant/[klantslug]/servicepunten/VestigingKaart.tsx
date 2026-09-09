@@ -10,7 +10,7 @@ import {
   type ServicepuntChecklistItem,
   type Vestiging,
 } from "@/lib/servicepunten-model";
-import NotitieVeld from "./NotitieVeld";
+import NotitieVeld from "@/app/_components/NotitieVeld";
 import { renderTekst } from "@/lib/scanbaar";
 import {
   servicepuntVeldOpslaanAction,

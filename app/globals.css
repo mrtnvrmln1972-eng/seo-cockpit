@@ -3524,3 +3524,8 @@ pre.codeblok code {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Duwt de knop rechts in een kaartkop (Notities: lezen/bewerken). */
+.kopvuller {
+  flex: 1 1 auto;
+}
