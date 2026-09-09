@@ -2180,3 +2180,370 @@ strong {
   color: var(--muted-2);
   margin: 0;
 }
+
+/* ---- Servicepunten-tab (Nationaal Oogcentrum), 09-09-2026 --------------
+   Eigen "sp-"-voorvoegsel zodat dit nooit per ongeluk met een bestaande of
+   toekomstige generieke klasse botst — deze tab bestaat maar voor één
+   klant (zie NOC_SLUG in lib/servicepunten.ts). Kleuren/opbouw hergebruiken
+   bewust dezelfde tokens en dezelfde componenten (.blok.kaart, .metaveld,
+   .pill, .pillbtn) als de rest van deze app, in plaats van de eigen look
+   van de oude Claude Artifact terug te bouwen. */
+
+.sp-pillen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+.sp-pillen .pill {
+  font-size: 11px;
+  padding: 5px 12px;
+}
+
+.sp-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.sp-tab {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 4px 10px;
+  cursor: pointer;
+}
+.sp-tab:hover {
+  color: var(--head);
+}
+.sp-tab.sp-tab-actief {
+  color: var(--head);
+  border-bottom-color: var(--accent);
+}
+
+.sp-groepskop {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 24px 0 10px;
+}
+.sp-groepskop:first-child {
+  margin-top: 0;
+}
+.sp-groepskop h4 {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.sp-groepskop .sp-lijn {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--line);
+}
+
+.sp-kaarten {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sp-kaart > .blokkop {
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sp-kaart > .blokkop h3 {
+  flex: 0 1 auto;
+}
+.sp-sum-sub {
+  font-size: 12px;
+  color: var(--muted-2);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-p-draait {
+  background: var(--ok-wash);
+  color: var(--ok);
+}
+.sp-p-bevestigd {
+  background: var(--info-wash);
+  color: var(--info);
+}
+.sp-p-kandidaat {
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+.sp-p-uitzoeken {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+/* Los van de vier statuspillen hierboven: de "#N in volgorde"-badge bij een
+   al vastgelegde prioriteit (zie Vestiging.prioriteit in lib/servicepunten.ts)
+   — zelfde warn-kleur als de artifact se eigen "#N"-tag, maar een eigen
+   klasse zodat dit niet per ongeluk met de "kandidaat"-status verward
+   wordt. */
+.sp-p-prioriteit {
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+
+.sp-voortgang {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 110px;
+  flex: none;
+}
+.sp-balk {
+  flex: 1 1 auto;
+  width: 64px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.sp-vul {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+}
+.sp-cijfer {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-voorstel {
+  background: var(--accent-wash);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  margin: 0 0 14px;
+}
+.sp-voorstel .sp-lbl {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin-bottom: 4px;
+}
+.sp-voorstel p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.sp-opmerking {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+.sp-opmerking b {
+  color: var(--ink);
+}
+
+.sp-subkop {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--accent-2);
+  margin: 18px 0 10px;
+}
+.sp-subkop:first-child {
+  margin-top: 0;
+}
+
+.sp-gegevens {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 2px 16px;
+}
+.sp-gegevens .metaveld {
+  margin-bottom: 10px;
+}
+.sp-gegevens input[readonly] {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.sp-checkgroep {
+  margin-bottom: 6px;
+}
+.sp-checkgroep-lbl {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted-2);
+  margin: 14px 0 4px;
+}
+.sp-checkgroep-lbl:first-child {
+  margin-top: 0;
+}
+.sp-stap {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sp-stap:last-child {
+  border-bottom: none;
+}
+.sp-stap input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.sp-stap-tekst {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sp-stap-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.sp-stap.sp-stap-af .sp-stap-label {
+  color: var(--ok);
+}
+.sp-stap-crit {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-2);
+  margin-top: 2px;
+}
+.sp-stap-datum {
+  flex: none;
+  font-family: var(--sans);
+  font-size: 11.5px;
+  color: var(--muted);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: var(--surface);
+  width: 128px;
+}
+
+.sp-log {
+  margin-bottom: 4px;
+}
+.sp-logrij {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+.sp-logrij:last-child {
+  border-bottom: none;
+}
+.sp-logrij .sp-datum {
+  flex: none;
+  width: 78px;
+  color: var(--muted-2);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sp-logrij .sp-wie {
+  flex: none;
+  width: 66px;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+.sp-logrij .sp-tekst {
+  flex: 1 1 auto;
+  color: var(--muted);
+}
+.sp-log-leeg {
+  font-size: 12.5px;
+  color: var(--muted-2);
+  font-style: italic;
+  padding: 4px 0;
+}
+.sp-logform {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.sp-logform select,
+.sp-logform input[type="date"] {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: var(--ground);
+  color: var(--ink);
+}
+.sp-logform input[type="text"] {
+  flex: 1 1 220px;
+  font-family: var(--sans);
+  font-size: 13px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: var(--ground);
+  color: var(--ink);
+}
+
+.sp-rm-rij {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.sp-rm-rij:last-child {
+  border-bottom: none;
+}
+.sp-rm-plaats {
+  flex: 1 1 160px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.sp-rm-meta {
+  flex: 2 1 220px;
+  font-size: 12px;
+  color: var(--muted-2);
+}
+.sp-rm-link {
+  flex: none;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+}
+.sp-rm-link:hover {
+  color: var(--accent);
+}

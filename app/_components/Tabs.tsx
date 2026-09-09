@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NOC_SLUG } from "@/lib/servicepunten-model";
 
 /**
  * De vaste tabbalk per klant: Roadmap, Signalen, Meta-tool. Elke tab is een
@@ -31,6 +32,12 @@ import { usePathname } from "next/navigation";
  * Onboarding toegevoegd op 09-09-2026, op dezelfde plek als in de artifact
  * se eigen tabrij hierboven: direct na Takenlijst, voor Roadmap. Zie
  * lib/onboarding.ts voor hoe die inhoud gelezen/geschreven wordt.
+ *
+ * Servicepunten toegevoegd op 09-09-2026: dit tabblad bestaat NIET voor elke
+ * klant, alleen voor Nationaal Oogcentrum (op Maartens uitdrukkelijke
+ * verzoek, zie lib/servicepunten.ts). Vandaar de conditionele toevoeging
+ * hieronder in plaats van een vaste plek in TABS: elke andere klant houdt
+ * exact dezelfde zes tabs als voorheen.
  */
 const TABS = [
   { segment: "werkbord", label: "Takenlijst" },
@@ -43,10 +50,12 @@ const TABS = [
 
 export default function Tabs({ klantSlug }: { klantSlug: string }) {
   const pathname = usePathname();
+  const tabs: readonly { segment: string; label: string }[] =
+    klantSlug === NOC_SLUG ? [...TABS, { segment: "servicepunten", label: "Servicepunten" }] : TABS;
 
   return (
     <div className="tabs" role="tablist">
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const href = `/klant/${klantSlug}/${tab.segment}`;
         const actief = pathname === href;
         return (
