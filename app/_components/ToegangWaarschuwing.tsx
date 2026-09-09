@@ -11,10 +11,8 @@ export default function ToegangWaarschuwing() {
 
   return (
     <div className="toegangwaarschuwing">
-      <strong>Deze cockpit staat open voor iedereen met de link.</strong> Zet op Vercel de
-      omgevingsvariabele <code>COCKPIT_WACHTWOORD</code> (Settings, Environment Variables) en deploy
-      opnieuw; daarna vraagt de cockpit om dat wachtwoord en verdwijnt deze balk. De deelbare links
-      blijven wel gewoon werken.
+      <strong>Deze cockpit staat open voor iedereen met de link.</strong> Het wachtwoordslot is nog
+      niet aangezet. Vraag Claude om de stappen; zodra het slot aan staat, verdwijnt deze balk.
     </div>
   );
 }
