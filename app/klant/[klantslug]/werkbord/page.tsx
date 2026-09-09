@@ -149,11 +149,27 @@ export default async function WerkbordPagina({
   }
 
   // Mailoverzicht (mail-log.md) — zelfde aanpak als notities.md hierboven:
-  // los bestand, een leesfout blokkeert de rest van de Takenlijst niet. Nog
-  // geen bestand voor een klant betekent gewoon een lege lijst, geen fout.
+  // los bestand, een leesfout blokkeert de rest van de Takenlijst niet.
+  //
+  // Drie gevallen die op het scherm uit elkaar gehouden worden (09-09-2026):
+  // er is nog helemaal geen bestand, er is wel een bestand maar er staan geen
+  // threads in (bijvoorbeeld omdat er in deze periode geen mailcontact was, en
+  // dan staat de reden in de vrije tekst bovenaan het bestand), of er zijn
+  // threads. Eerder liepen die eerste twee samen in één regel, en dan lijkt een
+  // bewust leeg dossier op een kapot scherm.
   let mailThreads: Awaited<ReturnType<typeof parseMailLog>> = [];
+  let mailBestandBestaat = false;
+  let mailInleiding = "";
   try {
-    mailThreads = parseMailLog((await leesMailLog(klant.mapId)).md);
+    const mailLog = await leesMailLog(klant.mapId);
+    mailBestandBestaat = mailLog.bestand !== null;
+    mailThreads = parseMailLog(mailLog.md);
+    // De vrije tekst boven de eerste "## "-kop: bedoeld voor een uitleg waarom
+    // er (nog) niets in staat. De "# Mailoverzicht"-kop zelf laten we weg.
+    mailInleiding = mailLog.md
+      .split(/^##\s/m)[0]
+      .replace(/^#\s*Mailoverzicht\s*$/m, "")
+      .trim();
   } catch {
     // stil: zie hierboven
   }
@@ -184,7 +200,15 @@ export default async function WerkbordPagina({
         </summary>
         <div className="blokbody">
           {mailThreads.length === 0 ? (
-            <p className="mailLeeg">Nog geen mail-log.md voor {klant.naam}.</p>
+            !mailBestandBestaat ? (
+              <p className="mailLeeg">
+                Er is nog geen mailoverzicht aangelegd voor {klant.naam}.
+              </p>
+            ) : mailInleiding ? (
+              <div className="doc" dangerouslySetInnerHTML={{ __html: renderAlineas(mailInleiding) }} />
+            ) : (
+              <p className="mailLeeg">Het mailoverzicht van {klant.naam} is nog leeg.</p>
+            )
           ) : (
             <div className="binnenlijst">
               {mailThreads.map((thread, ti) => (
