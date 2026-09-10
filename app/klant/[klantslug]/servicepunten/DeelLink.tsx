@@ -1,20 +1,40 @@
+"use client";
+
+import { useState } from "react";
+
 /**
- * Het deelregeltje bovenaan het Servicepunten-tabblad: alleen het label en de
- * link zelf, klikbaar en te selecteren.
+ * De deelbare link bovenaan het Servicepunten-tabblad: één knop die hem naar
+ * het klembord kopieert.
  *
- * VERKLEIND 09-09-2026, op verzoek: hier stond een blok met een uitleggende
- * zin, een breed kader om de link heen en twee knoppen (kopiëren, mailtje
- * openen). Maarten kopieert de link zelf; wat er stond kostte alleen ruimte
- * boven het overzicht waar het op de pagina om gaat. Wat de link doet
- * (alleen lezen, alleen deze pagina) staat op de gedeelde pagina zelf.
+ * VERKLEIND 10-09-2026, op verzoek: eerst stond de volledige link uitgeschreven
+ * in beeld ("ik hoef niet de hele link te zien"). Nu alleen de knop; het adres
+ * zit erin. Lukt kopiëren niet (een browser die het klembord blokkeert), dan
+ * komt de link alsnog in beeld zodat je hem met de hand kunt pakken.
  */
 export default function DeelLink({ url }: { url: string }) {
+  const [gekopieerd, setGekopieerd] = useState(false);
+  const [toon, setToon] = useState(false);
+
+  async function kopieer() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setGekopieerd(true);
+      setTimeout(() => setGekopieerd(false), 2500);
+    } catch {
+      setToon(true);
+    }
+  }
+
   return (
-    <p className="deelregel">
-      <span className="deelregel-lbl">Deelbare link</span>
-      <a href={url} target="_blank" rel="noreferrer">
-        {url}
-      </a>
-    </p>
+    <span className="deelknopvak">
+      <button type="button" className="pillbtn licht klein" onClick={kopieer} title={url}>
+        {gekopieerd ? "Link gekopieerd" : "Deelbare link kopiëren"}
+      </button>
+      {toon && (
+        <a className="deelregel-terugval" href={url} target="_blank" rel="noreferrer">
+          {url}
+        </a>
+      )}
+    </span>
   );
 }

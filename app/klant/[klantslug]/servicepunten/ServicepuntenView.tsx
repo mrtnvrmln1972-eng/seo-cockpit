@@ -55,9 +55,12 @@ function checklistUitVestigingen(vestigingen: Vestiging[]): Record<string, Recor
 export default function ServicepuntenView({
   klantSlug,
   dossier,
+  deelLink,
 }: {
   klantSlug: string;
   dossier: ServicepuntenDossier;
+  /** De knop met de deelbare link; staat links van de statuspillen. */
+  deelLink?: React.ReactNode;
 }) {
   const [tab, setTab] = useState<SubTab>("vestigingen");
   const [checklists, setChecklists] = useState(() => checklistUitVestigingen(dossier.vestigingen));
@@ -124,13 +127,16 @@ export default function ServicepuntenView({
     // Het overzicht hier stond veel ruimer, met een losse kaart per vestiging
     // en een gat ertussen; met 21 vestigingen scrol je je dan suf (09-09-2026).
     <div className="sp-compact">
-      <div className="sp-pillen">
+      <div className="sp-topbalk">
+        {deelLink}
+        <div className="sp-pillen">
         <span className={`pill ${STATUS_PILKLASSE.draait}`}>{tellingen.draait} draaien</span>
         <span className={`pill ${STATUS_PILKLASSE.bevestigd}`}>{tellingen.bevestigd} bevestigd tot januari</span>
         <span className={`pill ${STATUS_PILKLASSE.kandidaat}`}>
           {tellingen.kandidaat + tellingen.uitzoeken} nog uit te zoeken
         </span>
-        <span className="pill p-open">{pctTotaal}% van alle stappen gezet</span>
+          <span className="pill p-open">{pctTotaal}% van alle stappen gezet</span>
+        </div>
       </div>
 
       <div className="sp-tabs">

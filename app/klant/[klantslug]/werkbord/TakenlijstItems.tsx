@@ -258,6 +258,10 @@ export default function TakenlijstItems({
                 />
 
                 <div className="acties">
+                  <DoorzettenKnop klantSlug={klantSlug} n={taak.n} />
+                  <a className="pillbtn licht" href={taak.mailHref}>
+                    Mailen
+                  </a>
                   <button
                     type="button"
                     className={
@@ -267,10 +271,6 @@ export default function TakenlijstItems({
                   >
                     {/klaar|vervallen/i.test(taak.status) ? "Afgevinkt" : "Afvinken"}
                   </button>
-                  <DoorzettenKnop klantSlug={klantSlug} n={taak.n} />
-                  <a className="pillbtn licht" href={taak.mailHref}>
-                    Mailen naar Tonny
-                  </a>
                 </div>
               </div>
             </details>
@@ -280,8 +280,7 @@ export default function TakenlijstItems({
   return (
     <div className="blok kaart">
       <div className="blokkop" style={{ cursor: "default" }}>
-        <h3>Taken</h3>
-        <span className="c">{open.length}</span>
+        <h3>Taken ({open.length})</h3>
         <span className="kopvuller" />
         <button
           type="button"

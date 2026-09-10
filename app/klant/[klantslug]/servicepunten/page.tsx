@@ -79,8 +79,11 @@ export default async function ServicepuntenPagina({
 
   return (
     <>
-      <DeelLink url={await deelUrl()} />
-      <ServicepuntenView klantSlug={klant.slug} dossier={dossier} />
+      <ServicepuntenView
+        klantSlug={klant.slug}
+        dossier={dossier}
+        deelLink={<DeelLink url={await deelUrl()} />}
+      />
     </>
   );
 }
