@@ -42,6 +42,11 @@ export const config = {
    * Alles behalve de dingen die Next.js zelf serveert (de opmaak- en
    * script-bestanden, het icoontje). Zonder deze uitzondering zou het
    * inlogscherm zijn eigen opmaak niet kunnen laden.
+   *
+   * icon.png hoort daar ook bij (10-09-2026, toen het Pingwin-logo als
+   * favicon werd toegevoegd): dat wordt door de browser los opgehaald, ook
+   * op het inlogscherm en op een gedeelde pagina, en kwam anders op een
+   * omleiding naar /inloggen uit in plaats van op het plaatje.
    */
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png).*)"],
 };
