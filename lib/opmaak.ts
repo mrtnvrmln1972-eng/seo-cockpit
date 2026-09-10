@@ -1,4 +1,4 @@
-import { marked } from "marked";
+import { Marked } from "marked";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 
@@ -24,6 +24,33 @@ import { gfm } from "turndown-plugin-gfm";
  * Dit bestand is bewust NIET server-only: dezelfde vertaling draait in de
  * browser (de editor) en in test-fixtures/verify-opmaak.ts.
  */
+
+/**
+ * Een link die in het bestand als `[tekst](url)` staat en een kale url die
+ * markdown zelf al klikbaar maakt, leveren exact dezelfde HTML op. Bij het
+ * terugschrijven moet je ze tóch uit elkaar houden, anders verandert er tekst
+ * die niemand heeft aangeraakt: van een kale url zou `[url](url)` gemaakt
+ * worden, of andersom. Bij vijf links die in het bestand aan elkaar geplakt
+ * staan (dat komt voor) liep het helemaal mis: die werden dan één lange,
+ * onbruikbare url (gezien in het dossier van Nationaal Oogcentrum, 10-09-2026).
+ *
+ * Vandaar dit merkteken: marked weet aan de ruwe tekst van het stukje of er
+ * blokhaken omheen stonden, en zet dat als data-mdlink op de link. Turndown
+ * leest het weer terug. Voor de lezer verandert er niets; het staat alleen in
+ * de tussenvorm, nooit in het dossierbestand.
+ */
+const MDLINK_ATTRIBUUT = "data-mdlink";
+
+const markdownLezer = new Marked({
+  renderer: {
+    link(this: unknown, token: { href: string; title?: string | null; text: string; raw: string }) {
+      const expliciet = token.raw.trimStart().startsWith("[");
+      const titel = token.title ? ` title="${token.title.replace(/"/g, "&quot;")}"` : "";
+      const merk = expliciet ? ` ${MDLINK_ATTRIBUUT}="1"` : "";
+      return `<a href="${token.href.replace(/"/g, "&quot;")}"${titel}${merk}>${token.text}</a>`;
+    },
+  },
+});
 
 /** Onderstrepen bestaat niet in markdown; afgesproken 09-09-2026 dat het als <u> in het bestand komt. */
 const ONDERSTREEP_TAG = "u";
@@ -73,6 +100,8 @@ function turndown(): TurndownService {
   td.addRule("kaleUrl", {
     filter: (node) => {
       if (node.nodeName !== "A") return false;
+      // Stond hij in het bestand als [tekst](url), dan blijft hij dat.
+      if (node.getAttribute(MDLINK_ATTRIBUUT)) return false;
       const href = node.getAttribute("href");
       return !!href && href === (node.textContent ?? "").trim();
     },
@@ -105,7 +134,7 @@ function turndown(): TurndownService {
  */
 export function markdownNaarHtml(md: string): string {
   const tekst = String(md ?? "").replace(/\r\n?/g, "\n");
-  const html = marked.parse(tekst, { gfm: true, breaks: true, async: false });
+  const html = markdownLezer.parse(tekst, { gfm: true, breaks: true, async: false });
   return typeof html === "string" ? vinklijstenHerkenbaar(html) : "";
 }
 

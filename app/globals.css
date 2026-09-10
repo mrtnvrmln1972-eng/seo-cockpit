@@ -669,6 +669,12 @@ details[open] > .blokkop .chev {
 .blok.kaart > .blokkop {
   padding: 14px 18px;
   border-radius: 14px 14px 0 0;
+  /* Zelfde reden als bij de taakregels hierboven: de kop van een kaart is een
+     kop, en dat mag je zien. */
+  background: var(--surface);
+}
+.blok.kaart > .blokkop:hover {
+  background: var(--surface-2);
 }
 .blok.kaart > .blokkop h3 {
   font-size: 14px;
@@ -1423,8 +1429,13 @@ table.matrix td.num {
   background: var(--surface-2);
   cursor: pointer;
 }
-.binnenrij[open] .binnenregel {
-  background: #fafaf9;
+/* Een open taak: de titelbalk krijgt een eigen vlak en een lijn eronder, zodat
+   je ziet waar de kop stopt en de taak zelf begint (10-09-2026, op verzoek:
+   "gewoon een beetje contrast in het dashboard"). Dit was #fafaf9, en dat is op
+   wit niet te zien. */
+.binnenrij[open] > .binnenregel {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
   cursor: pointer;
 }
 .binnenkop {

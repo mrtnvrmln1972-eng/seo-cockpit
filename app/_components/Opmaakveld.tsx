@@ -27,6 +27,26 @@ import { titelVanLinkAction } from "./link-acties";
  * Dit raakt alleen hoe de tekst wordt weggeschreven; het aanvinken op het
  * scherm loopt via de eigen weergave van de uitbreiding en blijft ongemoeid.
  */
+/**
+ * De link houdt het merkteken data-mdlink vast dat lib/opmaak.ts erop zet
+ * (zie de uitleg daar). Zonder dit raakt de editor het kwijt en zou een link
+ * die in het bestand als [tekst](url) staat na een bewerking als kale url
+ * worden weggeschreven: dezelfde link, andere tekst in het dossier.
+ */
+const LinkMetMerk = Link.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      "data-mdlink": {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute("data-mdlink"),
+        renderHTML: (attributes: Record<string, unknown>) =>
+          attributes["data-mdlink"] ? { "data-mdlink": attributes["data-mdlink"] } : {},
+      },
+    };
+  },
+});
+
 const VinkPunt = TaskItem.extend({
   renderHTML({ node, HTMLAttributes }) {
     return [
@@ -147,7 +167,7 @@ export default function Opmaakveld({
         // nu op een link klikt, dan ga je niet naar de pagina"). Altijd in een
         // nieuw tabblad: in ditzelfde tabblad zou je de cockpit verlaten, en
         // een tekst die net is gewijzigd wordt pas een seconde later opgeslagen.
-        Link.configure({
+        LinkMetMerk.configure({
           openOnClick: true,
           autolink: true,
           linkOnPaste: true,

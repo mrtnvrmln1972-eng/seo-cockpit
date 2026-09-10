@@ -120,6 +120,20 @@ loopt(
   "[Document](https://docs.google.com/document/d/1Qx4Bmbr\\\\_ZLd/edit)\n",
 );
 
+// Een link die als [tekst](url) in het bestand staat en een kale url leveren
+// dezelfde opgemaakte tekst op; bij het terugschrijven moeten ze toch allebei
+// hun eigen vorm houden (10-09-2026, gevonden in het dossier van NOC).
+loopt("een kale url blijft kaal", "Zie https://pingwin.nl/ voor meer.\n");
+loopt("[url](url) blijft [url](url)", "[https://pingwin.nl/](https://pingwin.nl/)\n");
+loopt(
+  "drie links die in het bestand aan elkaar geplakt staan",
+  "[https://a.nl/x/](https://a.nl/x/)[https://a.nl/y/](https://a.nl/y/)[https://a.nl/z/](https://a.nl/z/)\n",
+);
+loopt(
+  "een link waarvan de tekst een afgekapte url is",
+  "[claude.ai/code/artifact/7c389a05…](https://claude.ai/code/artifact/7c389a05-dcbd)\n",
+);
+
 console.log("\n--- 2. Het vangnet slaat aan bij wat we niet exact teruggeven ---");
 
 vangnetSlaatAan("kop in setext-vorm", "Een kop\n=======\n");
