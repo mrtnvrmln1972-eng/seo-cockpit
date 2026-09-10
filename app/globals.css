@@ -670,11 +670,13 @@ details[open] > .blokkop .chev {
   padding: 14px 18px;
   border-radius: 14px 14px 0 0;
   /* Zelfde reden als bij de taakregels hierboven: de kop van een kaart is een
-     kop, en dat mag je zien. */
-  background: var(--surface);
+     kop, en dat mag je zien. Dit stond eerst op var(--surface) (#f7f7f7) en
+     dat is op wit niet te zien; nu #eeeeee met een echte lijn eronder. */
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-2);
 }
 .blok.kaart > .blokkop:hover {
-  background: var(--surface-2);
+  background: #e7e7e5;
 }
 .blok.kaart > .blokkop h3 {
   font-size: 14px;
@@ -1434,8 +1436,8 @@ table.matrix td.num {
    "gewoon een beetje contrast in het dashboard"). Dit was #fafaf9, en dat is op
    wit niet te zien. */
 .binnenrij[open] > .binnenregel {
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-2);
   cursor: pointer;
 }
 .binnenkop {

@@ -134,6 +134,15 @@ loopt(
   "[claude.ai/code/artifact/7c389a05…](https://claude.ai/code/artifact/7c389a05-dcbd)\n",
 );
 
+loopt(
+  "een halve link die ooit is blijven hangen",
+  "naam.docx](https://docs.google.com/document/d/1Qx4/edit\n",
+);
+loopt(
+  "blokhaken als tekst op een regel die ook een echte link heeft",
+  "Voor [de pagina](https://pingwin.nl/) geldt: vervang alleen [stad].\n",
+);
+
 console.log("\n--- 2. Het vangnet slaat aan bij wat we niet exact teruggeven ---");
 
 vangnetSlaatAan("kop in setext-vorm", "Een kop\n=======\n");

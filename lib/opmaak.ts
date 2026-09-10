@@ -238,12 +238,25 @@ function onnodigeBackslashesWeg(md: string): string {
       .replace(/(^|[\s(])\\\*(?=[\s).,;:]|$)/gm, "$1*")
       .replace(/(\w)\\_(?=\w)/g, "$1_")
       .replace(/(\w)\\_(?=\w)/g, "$1_")
-      // Blokhaken om een woord ("Vervang alleen [stad]") zijn in onze
-      // bestanden gewoon tekst, geen link. Turndown zet er voor de zekerheid
-      // een backslash voor, en dan verandert er tekst die niemand heeft
-      // aangeraakt. Alleen terugdraaien als er geen "(" achteraan komt: dan
-      // zou het wél een link worden.
+      // Blokhaken zijn in onze bestanden meestal gewoon tekst: "Vervang alleen
+      // [stad]", of een halve link die ooit is blijven hangen ("...docx](url").
+      // Turndown zet er voor de zekerheid een backslash voor, en dan verandert
+      // er tekst die niemand heeft aangeraakt. We halen die backslash weg,
+      // maar alleen op regels die daarna GEEN markdown-link kunnen worden:
+      // anders zou van losse tekst alsnog een link gemaakt worden.
+      // Een paar blokhaken om een woord, zolang er geen "(" achteraan komt:
+      // dan zou het alsnog een link worden.
       .replace(/\\\[([^\]\n]*)\\\](?!\()/g, "[$1]")
+      // Een losse sluithaak zonder openingshaak ervoor op dezelfde regel. Die
+      // kan nooit een link vormen (daar hoort een "[" bij) en staat in onze
+      // bestanden als restje van een half geplakte link: "...docx](url".
+      .split("\n")
+      .map((regel) =>
+        regel.includes("\\]") && !regel.slice(0, regel.indexOf("\\]")).includes("[")
+          ? regel.replace(/\\\]/g, "]")
+          : regel,
+      )
+      .join("\n")
   );
 }
 
