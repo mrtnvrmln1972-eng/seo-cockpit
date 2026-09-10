@@ -71,7 +71,11 @@ check("eenmaligGeregeld bevat Vergoeding-alinea", model.eenmaligGeregeld.include
 // ---- Rondje: parse -> serialiseer -> parse moet hetzelfde model geven ----
 const opnieuw = parseServicepunten(serialiseerServicepunten(model));
 check("rondje: zelfde aantal vestigingen", opnieuw.vestigingen.length, model.vestigingen.length);
-check("rondje: eindhoven identiek", opnieuw.vestigingen.find((v) => v.id === "eindhoven-oosterhof"), eindhoven);
+check(
+  "rondje: eindhoven identiek, op het contactlog na (dat schrijven we niet meer weg)",
+  { ...opnieuw.vestigingen.find((v) => v.id === "eindhoven-oosterhof")!, contactlog: eindhoven?.contactlog },
+  eindhoven,
+);
 check("rondje: annadal identiek", opnieuw.vestigingen.find((v) => v.id === "annadal"), annadal);
 check("rondje: eenmaligGeregeld identiek", opnieuw.eenmaligGeregeld, model.eenmaligGeregeld);
 
@@ -82,12 +86,7 @@ if (eindhoven) {
   const bijgewerkt = parseServicepunten(serialiseerServicepunten(model));
   const eindhoven2 = bijgewerkt.vestigingen.find((v) => v.id === "eindhoven-oosterhof");
   check("mutatie: login nu afgevinkt", eindhoven2?.checklist["login"], { afgevinkt: true, datum: "2026-09-09", notitie: "" });
-  check("mutatie: contactlog nu 2 regels", eindhoven2?.contactlog.length, 2);
-  check(
-    "mutatie: nieuwe logregel met pipe-teken correct teruggelezen",
-    eindhoven2?.contactlog.find((l) => l.wie === "Tonny")?.tekst,
-    "Testregel met een | teken erin.",
-  );
+  check("mutatie: het contactlog wordt niet meer weggeschreven", eindhoven2?.contactlog.length, 0);
 }
 
 // ---- Opmerking per stap en "Let op" als eigen blok (09-09-2026) ----------
@@ -110,7 +109,7 @@ if (eindhoven) {
   check('"Let op" komt ongewijzigd terug, met witregel en opsomming', na?.opmerking, letOp);
   check("een stap zonder opmerking blijft leeg", na?.checklist["telefoon"]?.notitie, "");
   check("de andere stappen blijven kloppen", na?.checklist["contact"]?.afgevinkt, true);
-  check("het contactlog blijft staan", na?.contactlog.length, 2);
+  check("het contactlog is er niet meer", na?.contactlog.length, 0);
 }
 
 // Een bestand van vóór deze wijziging (Opmerking in de gegevenstabel) moet
@@ -144,6 +143,50 @@ check(
   "oude bestandsvorm: opmerking uit de tabelcel wordt nog gelezen",
   parseServicepunten(oudeVorm).vestigingen[0]?.opmerking,
   "Oude vorm, uit de tabelcel.",
+);
+
+// ---- Optometristen, notities en de hernoemde Ads-stap (10-09-2026) --------
+if (eindhoven) {
+  eindhoven.optometristen = "Stijn van de Ven, Femke Jansen";
+  model.notities = "**Losse notities**\n\n- Iets wat nergens anders past";
+  const tekst = serialiseerServicepunten(model);
+  const na = parseServicepunten(tekst);
+  check(
+    "optometristen worden bewaard",
+    na.vestigingen.find((v) => v.id === "eindhoven-oosterhof")?.optometristen,
+    "Stijn van de Ven, Femke Jansen",
+  );
+  check("de notities krijgen een eigen sectie", tekst.includes("## Notities"), true);
+  check("en komen ongewijzigd terug", na.notities, "**Losse notities**\n\n- Iets wat nergens anders past");
+  check("er staat geen contactlogtabel meer in het bestand", /\| Datum \| Wie \| Wat \|/.test(tekst), false);
+}
+
+// Een bestand waarin de stap nog "Ads-campagne aan" heet, moet zijn vinkje
+// houden nu die stap "Ads-campagne loopt" is gaan heten.
+const oudeStapnaam = `# Servicepunten
+
+Laatst bijgewerkt: 2026-09-01
+
+## Ergens
+
+| Veld | Waarde |
+|---|---|
+| Status | draait |
+
+### Aansluitproces
+
+| Stap | Afgevinkt | Datum |
+|---|---|---|
+| Ads-campagne aan | x | 2026-08-01 |
+
+## Eenmalig geregeld
+
+Niets.
+`;
+check(
+  "een oude staplabel houdt zijn vinkje",
+  parseServicepunten(oudeStapnaam).vestigingen[0]?.checklist["campagne"],
+  { afgevinkt: true, datum: "2026-08-01", notitie: "" },
 );
 
 console.log(fails === 0 ? `\nAlle checks geslaagd.` : `\n${fails} check(s) mislukt.`);

@@ -77,6 +77,7 @@ async function schrijfServicepunten(klantFolderId: string, dossier: Servicepunte
     laatstBijgewerkt: new Date().toISOString().slice(0, 10),
     vestigingen: dossier.vestigingen,
     eenmaligGeregeld: dossier.eenmaligGeregeld,
+    notities: dossier.notities,
   });
   await writeDocument({
     folderId: klantFolderId,

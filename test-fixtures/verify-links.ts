@@ -7,7 +7,7 @@
  *
  * Draai met: npx tsx test-fixtures/verify-links.ts
  */
-import { magOpgehaaldWorden, titelUitHtml } from "../lib/links";
+import { magOpgehaaldWorden, titelUitHtml, titelVanLink } from "../lib/links";
 
 let fails = 0;
 function ok(naam: string, waar: boolean, uitleg?: string) {
@@ -60,5 +60,20 @@ ok("de metadata-service van een cloudmachine niet", !magOpgehaaldWorden("http://
 ok("file:// niet", !magOpgehaaldWorden("file:///etc/passwd"));
 ok("onzin levert false op", !magOpgehaaldWorden("zomaar wat tekst"));
 
-console.log(fails === 0 ? "\nAlle checks geslaagd." : `\n${fails} mislukt.`);
-process.exit(fails ? 1 : 0);
+async function bekendeBronnen() {
+  console.log("\n--- 3. Bekende bronnen ---");
+  const mailtjes = [
+    "https://mail.superhuman.com/Maarten@pingwin.nl/thread/AAQkAGI4",
+    "https://mail.google.com/mail/u/0/#inbox/FMfcgz",
+    "https://outlook.office.com/mail/id/AAQk",
+  ];
+  for (const url of mailtjes) {
+    const naam = await titelVanLink(url);
+    ok(`een maillink heet "Mail" (${new URL(url).hostname})`, naam === "Mail", String(naam));
+  }
+}
+
+void bekendeBronnen().then(() => {
+  console.log(fails === 0 ? "\nAlle checks geslaagd." : `\n${fails} mislukt.`);
+  process.exit(fails ? 1 : 0);
+});

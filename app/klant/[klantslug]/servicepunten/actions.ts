@@ -145,6 +145,25 @@ export async function servicepuntLogToevoegenAction(
   revalidatePath(`/klant/${klantSlug}/servicepunten`);
 }
 
+/** De vrije notities bij deze klant (de vierde tab), als eigen sectie in servicepunten.md. */
+export async function servicepuntNotitiesOpslaanAction(
+  klantSlug: string,
+  tekstRuw: string,
+): Promise<void> {
+  const klant = await klantMetServicepuntenDossier(klantSlug);
+  const tekst = await resolveDriveLinksInText(String(tekstRuw ?? ""));
+
+  try {
+    await muteerEnSchrijf(klant.mapId!, (dossier) => {
+      dossier.notities = tekst;
+    });
+  } catch (err) {
+    throw foutmelding(err, "Kon de notities niet opslaan.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+}
+
 export async function servicepuntEenmaligOpslaanAction(
   klantSlug: string,
   tekstRuw: string,

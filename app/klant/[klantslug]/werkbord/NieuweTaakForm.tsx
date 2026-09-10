@@ -18,7 +18,14 @@ import Opmaakveld from "@/app/_components/Opmaakveld";
  * dubbel indienen), en na een gelukte opslag komt er twee seconden een
  * duidelijke "Toegevoegd"-melding in beeld.
  */
-export default function NieuweTaakForm({ klantSlug }: { klantSlug: string }) {
+export default function NieuweTaakForm({
+  klantSlug,
+  onKlaar,
+}: {
+  klantSlug: string;
+  /** Wordt aangeroepen zodra de taak is toegevoegd, zodat het vak zich sluit. */
+  onKlaar?: () => void;
+}) {
   const [pending, startTransition] = useTransition();
   const [fout, setFout] = useState<string | null>(null);
   const [gelukt, setGelukt] = useState(false);
@@ -44,10 +51,11 @@ export default function NieuweTaakForm({ klantSlug }: { klantSlug: string }) {
             await maakTaakAction(klantSlug, formData);
             formRef.current?.reset();
             setVeldSleutel((n) => n + 1);
-            // Het "Nieuwe taak"-venster klapt zichzelf weer dicht (09-09-2026,
-            // op verzoek): de taak staat in de lijst eronder, dus het formulier
-            // hoeft niet open te blijven staan.
+            // Het vak sluit zichzelf weer (09-09-2026, op verzoek): de taak
+            // staat in de lijst eronder, dus het formulier hoeft niet open te
+            // blijven staan.
             formRef.current?.closest("details")?.removeAttribute("open");
+            onKlaar?.();
             setGelukt(true);
             setTimeout(() => setGelukt(false), 2500);
           } catch (err) {

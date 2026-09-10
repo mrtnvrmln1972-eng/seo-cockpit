@@ -4,7 +4,6 @@ import { leesWerklijstDossier, parseWerklijst, toelichtingVoor } from "@/lib/wer
 import { leesNotities } from "@/lib/notities";
 import { leesMailLog, parseMailLog, type MailStatus } from "@/lib/mail";
 import { statusClass } from "@/lib/markdown";
-import NieuweTaakForm from "./NieuweTaakForm";
 import TakenlijstItems, { type TaakItem } from "./TakenlijstItems";
 import { renderTekst } from "@/lib/scanbaar";
 
@@ -201,15 +200,6 @@ export default async function WerkbordPagina({
 
   return (
     <div>
-      <details className="blok kaart">
-        <summary className="blokkop">
-          <h3>Nieuwe taak</h3>
-        </summary>
-        <div className="blokbody">
-          <NieuweTaakForm klantSlug={klant.slug} />
-        </div>
-      </details>
-
       {taken.length === 0 ? (
         <div className="paneel">
           <p className="placeholder">Nog geen taken in werklijst.md.</p>

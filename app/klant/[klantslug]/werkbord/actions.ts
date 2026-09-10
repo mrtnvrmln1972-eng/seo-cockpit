@@ -124,6 +124,29 @@ export async function herschikTakenAction(
 }
 
 /**
+ * Een taak afvinken, of het vinkje er weer af halen. Zet alleen de status in
+ * werklijst.md ("klaar" of "open"); de taak blijft gewoon staan, hij zakt op
+ * het scherm naar de dichtgeklapte lijst met afgevinkte taken.
+ */
+export async function taakAfvinkenAction(
+  klantSlug: string,
+  n: number,
+  afgevinkt: boolean,
+): Promise<void> {
+  const klant = await getKlantBySlug(klantSlug);
+  if (!klant?.mapId) throw new Error("Deze klant heeft nog geen dossier in Drive.");
+
+  try {
+    const dossier = await leesWerklijstDossier(klant.mapId);
+    await taakStatusOpslaan(klant.mapId, dossier, n, afgevinkt ? "klaar" : "open");
+  } catch (err) {
+    throw foutmelding(err, "Kon deze taak niet afvinken.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/werkbord`);
+}
+
+/**
  * Gooit een taak weg: de regel uit werklijst.md en de bijbehorende
  * "## Taak N"-sectie uit toelichting.md.
  *

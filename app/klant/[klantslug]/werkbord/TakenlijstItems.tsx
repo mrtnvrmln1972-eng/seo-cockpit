@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { statusClass } from "@/lib/markdown";
-import { herschikTakenAction, taakVerwijderenAction } from "./actions";
+import { herschikTakenAction, taakVerwijderenAction, taakAfvinkenAction } from "./actions";
+import NieuweTaakForm from "./NieuweTaakForm";
 import BewerkTaak from "./BewerkTaak";
 import DoorzettenKnop from "./DoorzettenKnop";
 
@@ -62,6 +63,10 @@ export default function TakenlijstItems({
    * ook in sleept, en wat hier weg is, is weg uit het dossierbestand in Drive.
    */
   const [weggooienN, setWeggooienN] = useState<number | null>(null);
+  /** Staat het formulier voor een nieuwe taak open? Knop zit in de kopbalk. */
+  const [nieuweTaak, setNieuweTaak] = useState(false);
+  /** Staat de lijst met afgevinkte taken open? Standaard dicht. */
+  const [afgevinktOpen, setAfgevinktOpen] = useState(false);
   /**
    * Welke rij op dit moment gesleept MAG worden. Stond eerst vast op elke
    * rij (draggable op de hele <details>), en dat maakte de tekst in een taak
@@ -112,6 +117,21 @@ export default function TakenlijstItems({
     });
   }
 
+  function vinkAf(n: number, afgevinkt: boolean) {
+    setFout(null);
+    setLijst((oud) =>
+      oud.map((t) => (t.n === n ? { ...t, status: afgevinkt ? "klaar" : "open" } : t)),
+    );
+    startTransition(async () => {
+      try {
+        await taakAfvinkenAction(klantSlug, n, afgevinkt);
+      } catch {
+        setLijst(items);
+        setFout("Afvinken lukte niet. Probeer het zo nog eens.");
+      }
+    });
+  }
+
   function gooiWeg(n: number) {
     setWeggooienN(null);
     setFout(null);
@@ -128,16 +148,11 @@ export default function TakenlijstItems({
     });
   }
 
-  return (
-    <div className="blok kaart">
-      <div className="blokkop" style={{ cursor: "default" }}>
-        <h3>Taken</h3>
-        <span className="c">{lijst.length}</span>
-      </div>
-      <div className="blokbody">
-        {fout && <p className="foutregel">{fout}</p>}
-        <div className="binnenlijst">
-          {lijst.map((taak) => (
+  const open = lijst.filter((t) => !/klaar|vervallen/i.test(t.status));
+  const afgevinkt = lijst.filter((t) => /klaar|vervallen/i.test(t.status));
+
+  function rij(taak: TaakItem) {
+    return (
             <details
               className={"binnenrij" + (dragN === taak.n ? " binnenrijSlepend" : "")}
               key={taak.n}
@@ -243,6 +258,15 @@ export default function TakenlijstItems({
                 />
 
                 <div className="acties">
+                  <button
+                    type="button"
+                    className={
+                      "pillbtn " + (/klaar|vervallen/i.test(taak.status) ? "klaarknop" : "licht")
+                    }
+                    onClick={() => vinkAf(taak.n, !/klaar|vervallen/i.test(taak.status))}
+                  >
+                    {/klaar|vervallen/i.test(taak.status) ? "Afgevinkt" : "Afvinken"}
+                  </button>
                   <DoorzettenKnop klantSlug={klantSlug} n={taak.n} />
                   <a className="pillbtn licht" href={taak.mailHref}>
                     Mailen naar Tonny
@@ -250,8 +274,47 @@ export default function TakenlijstItems({
                 </div>
               </div>
             </details>
-          ))}
-        </div>
+    );
+  }
+
+  return (
+    <div className="blok kaart">
+      <div className="blokkop" style={{ cursor: "default" }}>
+        <h3>Taken</h3>
+        <span className="c">{open.length}</span>
+        <span className="kopvuller" />
+        <button
+          type="button"
+          className="pillbtn sterk klein"
+          onClick={() => setNieuweTaak((b) => !b)}
+        >
+          {nieuweTaak ? "Sluiten" : "Nieuwe taak"}
+        </button>
+      </div>
+      <div className="blokbody">
+        {nieuweTaak && (
+          <div className="nieuwetaakvak">
+            <NieuweTaakForm klantSlug={klantSlug} onKlaar={() => setNieuweTaak(false)} />
+          </div>
+        )}
+        {fout && <p className="foutregel">{fout}</p>}
+        <div className="binnenlijst">{open.map((taak) => rij(taak))}</div>
+
+        {afgevinkt.length > 0 && (
+          <div className="afgevinktblok">
+            <div className="afgevinktregel">
+              <button
+                type="button"
+                className="afgevinktlink"
+                onClick={() => setAfgevinktOpen((b) => !b)}
+                aria-expanded={afgevinktOpen}
+              >
+                {afgevinktOpen ? "Verberg" : "Toon"} afgevinkte taken ({afgevinkt.length})
+              </button>
+            </div>
+            {afgevinktOpen && <div className="binnenlijst">{afgevinkt.map((taak) => rij(taak))}</div>}
+          </div>
+        )}
       </div>
     </div>
   );

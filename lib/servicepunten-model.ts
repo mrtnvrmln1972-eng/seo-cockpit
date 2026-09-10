@@ -46,6 +46,12 @@ export interface ServicepuntStap {
   id: string;
   label: string;
   crit: string;
+  /**
+   * Labels waaronder deze stap eerder in servicepunten.md stond. De regels in
+   * dat bestand worden op hun label herkend, dus zonder deze lijst zou een
+   * hernoemde stap alle vinkjes van bestaande vestigingen kwijtraken.
+   */
+  oudeLabels?: string[];
 }
 
 export interface ServicepuntStapGroep {
@@ -129,8 +135,9 @@ export const STAP_GROEPEN: ServicepuntStapGroep[] = [
       },
       {
         id: "campagne",
-        label: "Ads-campagne aan",
-        crit: "Start op de dag dat er ook echt afspraken ingepland kunnen worden, niet eerder.",
+        label: "Ads-campagne loopt",
+        crit: "Draait de campagne ook echt? Start op de dag dat er afspraken ingepland kunnen worden, niet eerder.",
+        oudeLabels: ["Ads-campagne aan"],
       },
       {
         id: "zichtbaar",
@@ -199,6 +206,7 @@ export const BEWERKBARE_VELDEN = [
   "partner",
   "adres",
   "contact",
+  "optometristen",
   "telefoon",
   "email",
   "beschikbaarheid",
@@ -213,6 +221,8 @@ export interface Vestiging {
   partner: string;
   adres: string;
   contact: string;
+  /** Welke optometrist(en) aan dit servicepunt gekoppeld zijn. */
+  optometristen: string;
   telefoon: string;
   email: string;
   beschikbaarheid: string;
@@ -227,6 +237,8 @@ export interface ServicepuntenModel {
   laatstBijgewerkt: string;
   vestigingen: Vestiging[];
   eenmaligGeregeld: string;
+  /** Vrije notities bij deze klant, los van een vestiging (10-09-2026). */
+  notities: string;
 }
 
 /** Voortgang van één vestiging (aantal afgevinkte stappen / totaal) — pure telling, geen eigen weging. */
@@ -238,6 +250,7 @@ export function voortgang(v: Vestiging): { klaar: number; totaal: number } {
 // ---- Parsen --------------------------------------------------------------
 
 const EENMALIG_KOP = "Eenmalig geregeld";
+const NOTITIES_KOP = "Notities";
 
 function veldenUitGegevensTabel(tabel: MarkdownTable | null): Record<string, string> {
   const out: Record<string, string> = {};
@@ -308,7 +321,9 @@ function parseVestigingSectie(naam: string, inhoud: string): Vestiging {
     if (idxStap !== -1) {
       for (const rij of stapTabel.rows) {
         const label = (rij[idxStap] ?? "").trim();
-        const stap = ALLE_STAPPEN.find((s) => s.label === label);
+        const stap = ALLE_STAPPEN.find(
+          (s) => s.label === label || (s.oudeLabels ?? []).includes(label),
+        );
         if (!stap) continue; // onbekende/verouderde regel: negeren, niet crashen
         checklist[stap.id] = {
           afgevinkt: (rij[idxAf] ?? "").trim().toLowerCase() === "x",
@@ -352,6 +367,7 @@ function parseVestigingSectie(naam: string, inhoud: string): Vestiging {
     partner: gegevens["partner"] || "",
     adres: gegevens["adres"] || "",
     contact: gegevens["contactpersoon en rol"] || "",
+    optometristen: gegevens["optometristen"] || "",
     telefoon: gegevens["telefoon"] || "",
     email: gegevens["e-mail"] || "",
     beschikbaarheid: gegevens["beschikbaarheid quick scans"] || "",
@@ -371,14 +387,17 @@ export function parseServicepunten(md: string): ServicepuntenModel {
   const laatstBijgewerkt = laatstBijgewerktMatch?.[1].trim() ?? "";
 
   const secties = alleSecties(md);
-  const eenmaligSectie = secties.find((s) => s.kop.trim().toLowerCase() === EENMALIG_KOP.toLowerCase());
-  const eenmaligGeregeld = eenmaligSectie?.inhoud ?? "";
+  const vast = [EENMALIG_KOP.toLowerCase(), NOTITIES_KOP.toLowerCase()];
+  const sectieMet = (kop: string) =>
+    secties.find((s) => s.kop.trim().toLowerCase() === kop.toLowerCase())?.inhoud ?? "";
+  const eenmaligGeregeld = sectieMet(EENMALIG_KOP);
+  const notities = sectieMet(NOTITIES_KOP);
 
   const vestigingen = secties
-    .filter((s) => s.kop.trim().toLowerCase() !== EENMALIG_KOP.toLowerCase())
+    .filter((s) => !vast.includes(s.kop.trim().toLowerCase()))
     .map((s) => parseVestigingSectie(s.kop.trim(), s.inhoud));
 
-  return { laatstBijgewerkt, vestigingen, eenmaligGeregeld };
+  return { laatstBijgewerkt, vestigingen, eenmaligGeregeld, notities };
 }
 
 // ---- Serialiseren ---------------------------------------------------------
@@ -394,6 +413,7 @@ function serialiseerVestiging(v: Vestiging): string {
     ["Partner", v.partner],
     ["Adres", v.adres],
     ["Contactpersoon en rol", v.contact],
+    ["Optometristen", v.optometristen],
     ["Telefoon", v.telefoon],
     ["E-mail", v.email],
     ["Beschikbaarheid quick scans", v.beschikbaarheid],
@@ -411,13 +431,6 @@ function serialiseerVestiging(v: Vestiging): string {
     return `| ${escCel(s.label)} | ${item.afgevinkt ? "x" : ""} | ${escCel(item.datum)} |`;
   });
   const stapTabel = ["| Stap | Afgevinkt | Datum |", "|---|---|---|", ...stapRijen].join("\n");
-
-  const logGesorteerd = v.contactlog.slice().sort((a, b) => a.datum.localeCompare(b.datum));
-  const logTabel = [
-    "| Datum | Wie | Wat |",
-    "|---|---|---|",
-    ...logGesorteerd.map((l) => `| ${escCel(l.datum)} | ${escCel(l.wie)} | ${escCel(l.tekst)} |`),
-  ].join("\n");
 
   // De notitie bij een stap krijgt een eigen blok onder de tabel: daar past
   // wel een opsomming, een link of een stuk uitleg in, en een Cowork-gesprek
@@ -440,10 +453,6 @@ function serialiseerVestiging(v: Vestiging): string {
     stapTabel,
     "",
     ...stapNotities,
-    "### Contactlog",
-    "",
-    logTabel,
-    "",
   ].join("\n");
 }
 
@@ -458,5 +467,6 @@ export function serialiseerServicepunten(model: ServicepuntenModel): string {
     delen.push(serialiseerVestiging(v));
   }
   delen.push(`## ${EENMALIG_KOP}`, "", model.eenmaligGeregeld.trim(), "");
+  delen.push(`## ${NOTITIES_KOP}`, "", (model.notities || "").trim(), "");
   return delen.join("\n");
 }

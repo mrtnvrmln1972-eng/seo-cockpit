@@ -6,17 +6,12 @@ import {
   STATUS_LABEL,
   STATUS_PILKLASSE,
   type BewerkbaarVeld,
-  type ContactlogRegel,
   type ServicepuntChecklistItem,
   type Vestiging,
 } from "@/lib/servicepunten-model";
 import NotitieVeld from "@/app/_components/NotitieVeld";
 import { renderTekst } from "@/lib/scanbaar";
-import {
-  servicepuntVeldOpslaanAction,
-  servicepuntLogToevoegenAction,
-  servicepuntStapNotitieOpslaanAction,
-} from "./actions";
+import { servicepuntVeldOpslaanAction, servicepuntStapNotitieOpslaanAction } from "./actions";
 
 /**
  * app/klant/[klantslug]/servicepunten/VestigingKaart.tsx — één vestiging,
@@ -48,6 +43,7 @@ import {
 const VELDEN: { key: BewerkbaarVeld; label: string }[] = [
   { key: "adres", label: "Adres" },
   { key: "contact", label: "Contactpersoon" },
+  { key: "optometristen", label: "Optometrist(en)" },
   { key: "telefoon", label: "Telefoon" },
   { key: "email", label: "E-mail" },
   { key: "beschikbaarheid", label: "Quick scans" },
@@ -72,15 +68,12 @@ export default function VestigingKaart({
     partner: vestiging.partner,
     adres: vestiging.adres,
     contact: vestiging.contact,
+    optometristen: vestiging.optometristen,
     telefoon: vestiging.telefoon,
     email: vestiging.email,
     beschikbaarheid: vestiging.beschikbaarheid,
     opmerking: vestiging.opmerking,
   });
-
-  const [log, setLog] = useState<ContactlogRegel[]>(vestiging.contactlog);
-  const [logFout, setLogFout] = useState<string | null>(null);
-  const logFormRef = useRef<HTMLFormElement>(null);
 
   const klaar = STAP_GROEPEN.reduce(
     (n, g) => n + g.stappen.filter((s) => checklist[s.id]?.afgevinkt).length,
@@ -101,8 +94,6 @@ export default function VestigingKaart({
       }
     });
   }
-
-  const logGesorteerd = log.slice().sort((a, b) => b.datum.localeCompare(a.datum));
 
   return (
     <details className="blok kaart sp-kaart" id={`vest-${vestiging.id}`}>
@@ -223,57 +214,6 @@ export default function VestigingKaart({
           </div>
         ))}
 
-        <details className="sp-letop">
-          <summary>
-            <span className="chev2" />
-            <span className="sp-letop-lbl">Contactlog</span>
-            <span className="sp-letop-leeg">
-              {logGesorteerd.length === 0 ? "nog niets" : `${logGesorteerd.length} regels`}
-            </span>
-          </summary>
-          <div className="sp-log">
-            {logGesorteerd.map((l, i) => (
-              <div className="sp-logrij" key={i}>
-                <span className="sp-datum">{l.datum}</span>
-                <span className="sp-wie">{l.wie}</span>
-                <span className="sp-tekst">{l.tekst}</span>
-              </div>
-            ))}
-          </div>
-          <form
-            ref={logFormRef}
-            className="sp-logform"
-            action={(formData: FormData) => {
-              const datum = String(formData.get("datum") || "").trim() || new Date().toISOString().slice(0, 10);
-              const wie = String(formData.get("wie") || "Maarten").trim() || "Maarten";
-              const tekst = String(formData.get("tekst") || "").trim();
-              if (!tekst) return;
-              setLogFout(null);
-              setLog((huidig) => [...huidig, { datum, wie, tekst }]);
-              startTransition(async () => {
-                try {
-                  await servicepuntLogToevoegenAction(klantSlug, vestiging.id, formData);
-                  logFormRef.current?.reset();
-                } catch (err) {
-                  setLog((huidig) => huidig.slice(0, -1));
-                  setLogFout(err instanceof Error ? err.message : "Kon dit contactmoment niet opslaan.");
-                }
-              });
-            }}
-          >
-            <input type="date" name="datum" defaultValue={new Date().toISOString().slice(0, 10)} />
-            <select name="wie" defaultValue="Maarten">
-              <option>Maarten</option>
-              <option>Tonny</option>
-              <option>Anders</option>
-            </select>
-            <input type="text" name="tekst" placeholder="Wat is er besproken of gebeurd?" />
-            <button className="pillbtn licht" type="submit">
-              Toevoegen
-            </button>
-          </form>
-          {logFout && <p className="foutregel">{logFout}</p>}
-        </details>
       </div>
     </details>
   );

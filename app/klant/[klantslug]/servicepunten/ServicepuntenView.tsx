@@ -13,7 +13,11 @@ import {
 import type { ServicepuntenDossier } from "@/lib/servicepunten";
 import VestigingKaart from "./VestigingKaart";
 import NotitieVeld from "@/app/_components/NotitieVeld";
-import { servicepuntStapOpslaanAction, servicepuntEenmaligOpslaanAction } from "./actions";
+import {
+  servicepuntStapOpslaanAction,
+  servicepuntEenmaligOpslaanAction,
+  servicepuntNotitiesOpslaanAction,
+} from "./actions";
 
 /**
  * app/klant/[klantslug]/servicepunten/ServicepuntenView.tsx — de hele
@@ -40,7 +44,7 @@ import { servicepuntStapOpslaanAction, servicepuntEenmaligOpslaanAction } from "
  * pagina te verversen.
  */
 
-type SubTab = "vestigingen" | "volgorde" | "basis";
+type SubTab = "vestigingen" | "volgorde" | "basis" | "notities";
 
 function checklistUitVestigingen(vestigingen: Vestiging[]): Record<string, Record<string, ServicepuntChecklistItem>> {
   const out: Record<string, Record<string, ServicepuntChecklistItem>> = {};
@@ -151,6 +155,13 @@ export default function ServicepuntenView({
         >
           Eenmalig geregeld
         </button>
+        <button
+          type="button"
+          className={`sp-tab${tab === "notities" ? " sp-tab-actief" : ""}`}
+          onClick={() => setTab("notities")}
+        >
+          Notities
+        </button>
       </div>
 
       {stapFout && <p className="foutregel">{stapFout}</p>}
@@ -185,6 +196,23 @@ export default function ServicepuntenView({
 
       {tab === "basis" && (
         <EenmaligGeregeldTab klantSlug={klantSlug} tekst={dossier.eenmaligGeregeld} />
+      )}
+
+      {tab === "notities" && (
+        <div className="blok kaart">
+          <div className="blokkop" style={{ cursor: "default" }}>
+            <h3>Notities</h3>
+          </div>
+          <div className="blokbody">
+            <NotitieVeld
+              naam="sp-notities"
+              waarde={dossier.notities}
+              plaatshouder="Alles wat je kwijt wilt over de servicepunten"
+              minHoogte={320}
+              opslaan={(tekst) => servicepuntNotitiesOpslaanAction(klantSlug, tekst)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -105,10 +105,35 @@ export async function titelVanWebpagina(url: string): Promise<string | null> {
 }
 
 /**
+ * Adressen waarvan we de titel niet kunnen ophalen omdat er een inlog voor
+ * nodig is, maar waarvan we wél weten wat het is. Een mailtje in Superhuman,
+ * Gmail of Outlook krijgt zo "Mail" als linktekst in plaats van een regel van
+ * tweehonderd tekens.
+ *
+ * Wat er NIET bij kan: de datum en de afzender van dat mailtje. Die staan niet
+ * in het adres en de mailbox zelf is vanuit het dashboard niet te lezen (dat
+ * draait op een Google-serviceaccount dat alleen bij de Drive-map kan). Een
+ * Cowork-gesprek kan dat wél: dat heeft toegang tot de mail en kan de regel in
+ * het dossier aanvullen.
+ */
+const BEKENDE_BRONNEN: Array<[RegExp, string]> = [
+  [/^mail\.superhuman\.com$/i, "Mail"],
+  [/^mail\.google\.com$/i, "Mail"],
+  [/^outlook\.(office|live|office365)\.com$/i, "Mail"],
+];
+
+/**
  * De titel bij een geplakte link: eerst Drive (dan hebben we de echte
- * bestandsnaam), anders de <title> van de pagina zelf.
+ * bestandsnaam), anders een bekende bron, anders de <title> van de pagina zelf.
  */
 export async function titelVanLink(url: string): Promise<string | null> {
+  try {
+    const host = new URL(url).hostname;
+    for (const [patroon, naam] of BEKENDE_BRONNEN) if (patroon.test(host)) return naam;
+  } catch {
+    return null;
+  }
+
   const fileId = driveFileIdVan(url);
   if (fileId) {
     try {
