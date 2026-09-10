@@ -52,6 +52,11 @@ export interface ServicepuntStap {
    * hernoemde stap alle vinkjes van bestaande vestigingen kwijtraken.
    */
   oudeLabels?: string[];
+  /**
+   * Toont deze stap een veld waarin je de bijbehorende pagina kunt plakken?
+   * Alleen voor stappen waar één duidelijk adres bij hoort.
+   */
+  linkveld?: { plaatshouder: string };
 }
 
 export interface ServicepuntStapGroep {
@@ -122,16 +127,19 @@ export const STAP_GROEPEN: ServicepuntStapGroep[] = [
         id: "gmb",
         label: "Google Mijn Bedrijf aangemaakt",
         crit: "Vaste naamvorm en categorieën, link naar de SEO-landingpagina, afsprakenlink, verificatie gestart. Kan pas nadat de foto binnen is.",
+        linkveld: { plaatshouder: "Link naar het bedrijfsprofiel" },
       },
       {
         id: "seo",
         label: "SEO-landingpagina live",
         crit: "/klinieken/ooglaseren-{stad}/, of bij een vestiging binnen ongeveer vijftien minuten van een bestaande pagina alleen het vestigingsblok daarop.",
+        linkveld: { plaatshouder: "Link naar de landingspagina" },
       },
       {
         id: "ads",
         label: "Ads-pagina (no-index) klaar",
         crit: "Aparte advertentiepagina voor de campagne, buiten de Google-index.",
+        linkveld: { plaatshouder: "Link naar de Ads-pagina" },
       },
       {
         id: "campagne",
@@ -201,6 +209,14 @@ export interface ServicepuntChecklistItem {
    * daar past geen regelovergang in.
    */
   notitie: string;
+  /**
+   * Het adres van de pagina die bij deze stap hoort, te plakken op de regel
+   * zelf (10-09-2026, op Maartens verzoek voor het bedrijfsprofiel, de
+   * SEO-landingspagina en de Ads-pagina). Eén adres, dus wél een tabelcel:
+   * het staat als kolom "Link" in de Aansluitproces-tabel. Welke stappen zo'n
+   * veld tonen zegt `linkveld` bij de stap hieronder.
+   */
+  link: string;
 }
 
 export interface ContactlogRegel {
@@ -247,6 +263,28 @@ export interface ServicepuntenModel {
   eenmaligGeregeld: string;
   /** Vrije notities bij deze klant, los van een vestiging (10-09-2026). */
   notities: string;
+}
+
+/**
+ * Zet de prioriteitsnummers opnieuw, in de volgorde waarin Maarten de
+ * vestigingen heeft gesleept (10-09-2026, op zijn verzoek).
+ *
+ * Dit is GEEN eigen weging (CLAUDE.md: "een dashboard mag tonen, nooit
+ * oordelen"): de volgorde komt letterlijk uit een menselijke handeling, dit
+ * nummert alleen door. De vestigingen die niet in `idsOpVolgorde` staan
+ * (de punten die al draaien) blijven onaangeroerd, mét of zonder nummer.
+ */
+export function herschikPrioriteiten(vestigingen: Vestiging[], idsOpVolgorde: string[]): void {
+  const gezien = new Set<string>();
+  let nr = 0;
+  for (const id of idsOpVolgorde) {
+    if (gezien.has(id)) continue;
+    const vestiging = vestigingen.find((v) => v.id === id);
+    if (!vestiging) continue;
+    gezien.add(id);
+    nr += 1;
+    vestiging.prioriteit = nr;
+  }
 }
 
 /** Voortgang van één vestiging (aantal afgevinkte stappen / totaal) — pure telling, geen eigen weging. */
@@ -326,6 +364,7 @@ function parseVestigingSectie(naam: string, inhoud: string): Vestiging {
     const idxStap = stapTabel.headers.findIndex((h) => h.trim().toLowerCase() === "stap");
     const idxAf = stapTabel.headers.findIndex((h) => h.trim().toLowerCase() === "afgevinkt");
     const idxDatum = stapTabel.headers.findIndex((h) => h.trim().toLowerCase() === "datum");
+    const idxLink = stapTabel.headers.findIndex((h) => h.trim().toLowerCase() === "link");
     if (idxStap !== -1) {
       for (const rij of stapTabel.rows) {
         const label = (rij[idxStap] ?? "").trim();
@@ -337,6 +376,7 @@ function parseVestigingSectie(naam: string, inhoud: string): Vestiging {
           afgevinkt: (rij[idxAf] ?? "").trim().toLowerCase() === "x",
           datum: idxDatum !== -1 ? (rij[idxDatum] ?? "").trim() : "",
           notitie: stapNotities.get(stap.label.toLowerCase()) ?? "",
+          link: idxLink !== -1 ? (rij[idxLink] ?? "").trim() : "",
         };
       }
     }
@@ -347,6 +387,7 @@ function parseVestigingSectie(naam: string, inhoud: string): Vestiging {
         afgevinkt: false,
         datum: "",
         notitie: stapNotities.get(s.label.toLowerCase()) ?? "",
+        link: "",
       };
     }
   }
@@ -435,10 +476,10 @@ function serialiseerVestiging(v: Vestiging): string {
   ].join("\n");
 
   const stapRijen = ALLE_STAPPEN.map((s) => {
-    const item = v.checklist[s.id] || { afgevinkt: false, datum: "" };
-    return `| ${escCel(s.label)} | ${item.afgevinkt ? "x" : ""} | ${escCel(item.datum)} |`;
+    const item = v.checklist[s.id] || { afgevinkt: false, datum: "", link: "" };
+    return `| ${escCel(s.label)} | ${item.afgevinkt ? "x" : ""} | ${escCel(item.datum)} | ${escCel(item.link || "")} |`;
   });
-  const stapTabel = ["| Stap | Afgevinkt | Datum |", "|---|---|---|", ...stapRijen].join("\n");
+  const stapTabel = ["| Stap | Afgevinkt | Datum | Link |", "|---|---|---|---|", ...stapRijen].join("\n");
 
   // De notitie bij een stap krijgt een eigen blok onder de tabel: daar past
   // wel een opsomming, een link of een stuk uitleg in, en een Cowork-gesprek

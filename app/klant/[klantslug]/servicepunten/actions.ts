@@ -8,6 +8,7 @@ import {
   ALLE_STAPPEN,
   BEWERKBARE_VELDEN,
   NOC_SLUG,
+  herschikPrioriteiten,
   muteerEnSchrijf,
   type BewerkbaarVeld,
 } from "@/lib/servicepunten";
@@ -75,13 +76,13 @@ export async function servicepuntStapOpslaanAction(
     await muteerEnSchrijf(klant.mapId!, (dossier) => {
       const vestiging = dossier.vestigingen.find((v) => v.id === vestigingId);
       if (!vestiging) throw new Error("Deze vestiging is niet gevonden in servicepunten.md.");
-      const bestaand = vestiging.checklist[stapId] || { afgevinkt: false, datum: "", notitie: "" };
+      const bestaand = vestiging.checklist[stapId] || { afgevinkt: false, datum: "", notitie: "", link: "" };
       // Vinkt iemand een stap voor het eerst aan zonder zelf een datum te
       // kiezen, dan valt de datum terug op vandaag — zelfde gedrag als de
       // artifact (change-handler op de checkbox zette ook automatisch de
       // datum van vandaag als die nog leeg was).
       const nieuweDatum = datum || (afgevinkt && !bestaand.datum ? new Date().toISOString().slice(0, 10) : bestaand.datum);
-      vestiging.checklist[stapId] = { afgevinkt, datum: nieuweDatum, notitie: bestaand.notitie };
+      vestiging.checklist[stapId] = { ...bestaand, afgevinkt, datum: nieuweDatum };
     });
   } catch (err) {
     throw foutmelding(err, "Kon deze stap niet opslaan.");
@@ -110,11 +111,42 @@ export async function servicepuntStapNotitieOpslaanAction(
     await muteerEnSchrijf(klant.mapId!, (dossier) => {
       const vestiging = dossier.vestigingen.find((v) => v.id === vestigingId);
       if (!vestiging) throw new Error("Deze vestiging is niet gevonden in servicepunten.md.");
-      const bestaand = vestiging.checklist[stapId] || { afgevinkt: false, datum: "", notitie: "" };
+      const bestaand = vestiging.checklist[stapId] || { afgevinkt: false, datum: "", notitie: "", link: "" };
       vestiging.checklist[stapId] = { ...bestaand, notitie: tekst };
     });
   } catch (err) {
     throw foutmelding(err, "Kon deze opmerking niet opslaan.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+}
+
+/**
+ * Het adres van de pagina die bij een stap hoort, geplakt op de regel zelf
+ * (het bedrijfsprofiel, de SEO-landingspagina, de Ads-pagina). Komt als cel
+ * in de Aansluitproces-tabel te staan, niet als notitie: het is één adres.
+ */
+export async function servicepuntStapLinkOpslaanAction(
+  klantSlug: string,
+  vestigingId: string,
+  stapId: string,
+  linkRuw: string,
+): Promise<void> {
+  const stap = ALLE_STAPPEN.find((s) => s.id === stapId);
+  if (!stap) throw new Error("Onbekende stap.");
+  if (!stap.linkveld) throw new Error("Bij deze stap hoort geen link.");
+  const klant = await klantMetServicepuntenDossier(klantSlug);
+  const link = String(linkRuw ?? "").trim();
+
+  try {
+    await muteerEnSchrijf(klant.mapId!, (dossier) => {
+      const vestiging = dossier.vestigingen.find((v) => v.id === vestigingId);
+      if (!vestiging) throw new Error("Deze vestiging is niet gevonden in servicepunten.md.");
+      const bestaand = vestiging.checklist[stapId] || { afgevinkt: false, datum: "", notitie: "", link: "" };
+      vestiging.checklist[stapId] = { ...bestaand, link };
+    });
+  } catch (err) {
+    throw foutmelding(err, "Kon deze link niet opslaan.");
   }
 
   revalidatePath(`/klant/${klantSlug}/servicepunten`);
@@ -140,6 +172,33 @@ export async function servicepuntLogToevoegenAction(
     });
   } catch (err) {
     throw foutmelding(err, "Kon dit contactmoment niet opslaan.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+}
+
+/**
+ * De volgorde waarin de servicepunten worden aangesloten, zoals Maarten ze
+ * op het tabblad Volgorde heeft gesleept: `idsOpVolgorde` is de complete
+ * lijst van boven naar beneden, en wordt hier doorgenummerd vanaf 1. Wat
+ * niet in de lijst staat (de punten die al draaien) houdt wat het had.
+ */
+export async function servicepuntVolgordeOpslaanAction(
+  klantSlug: string,
+  idsOpVolgorde: string[],
+): Promise<void> {
+  const klant = await klantMetServicepuntenDossier(klantSlug);
+  const ids = (idsOpVolgorde ?? []).map((id) => String(id));
+  if (ids.length === 0) throw new Error("Geen volgorde ontvangen.");
+
+  try {
+    await muteerEnSchrijf(klant.mapId!, (dossier) => {
+      const onbekend = ids.find((id) => !dossier.vestigingen.some((v) => v.id === id));
+      if (onbekend) throw new Error("Deze vestiging is niet gevonden in servicepunten.md.");
+      herschikPrioriteiten(dossier.vestigingen, ids);
+    });
+  } catch (err) {
+    throw foutmelding(err, "Kon de volgorde niet opslaan.");
   }
 
   revalidatePath(`/klant/${klantSlug}/servicepunten`);

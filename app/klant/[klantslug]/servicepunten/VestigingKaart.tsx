@@ -9,7 +9,11 @@ import {
 } from "@/lib/servicepunten-model";
 import NotitieVeld from "@/app/_components/NotitieVeld";
 import { renderTekst } from "@/lib/scanbaar";
-import { servicepuntVeldOpslaanAction, servicepuntStapNotitieOpslaanAction } from "./actions";
+import {
+  servicepuntVeldOpslaanAction,
+  servicepuntStapNotitieOpslaanAction,
+  servicepuntStapLinkOpslaanAction,
+} from "./actions";
 
 /**
  * app/klant/[klantslug]/servicepunten/VestigingKaart.tsx — één vestiging,
@@ -66,6 +70,12 @@ export default function VestigingKaart({
   const [, startTransition] = useTransition();
   const [veldFout, setVeldFout] = useState<string | null>(null);
   const [openStap, setOpenStap] = useState<string | null>(null);
+  /**
+   * De link die je bij een stap hebt geplakt, zoals hij nu op het scherm
+   * staat. Los bijgehouden zodat het pijltje ernaast meteen meebeweegt,
+   * zonder op de server te wachten.
+   */
+  const [links, setLinks] = useState<Record<string, string>>({});
   const laatsteWaarden = useRef<Record<BewerkbaarVeld, string>>({
     partner: vestiging.partner,
     adres: vestiging.adres,
@@ -83,6 +93,20 @@ export default function VestigingKaart({
   );
   const totaal = STAP_GROEPEN.reduce((n, g) => n + g.stappen.length, 0);
   const pct = totaal ? Math.round((klaar / totaal) * 100) : 0;
+
+  function opBlurLink(stapId: string, waarde: string) {
+    const nu = waarde.trim();
+    if (nu === (links[stapId] ?? checklist[stapId]?.link ?? "")) return;
+    setLinks((oud) => ({ ...oud, [stapId]: nu }));
+    startTransition(async () => {
+      try {
+        await servicepuntStapLinkOpslaanAction(klantSlug, vestiging.id, stapId, nu);
+        setVeldFout(null);
+      } catch (err) {
+        setVeldFout(err instanceof Error ? err.message : "Kon deze link niet opslaan.");
+      }
+    });
+  }
 
   function opBlurVeld(veld: BewerkbaarVeld, waarde: string) {
     if (waarde === laatsteWaarden.current[veld]) return;
@@ -163,8 +187,9 @@ export default function VestigingKaart({
           <div className="sp-checkgroep" key={groep.naam}>
             <div className="sp-checkgroep-lbl">{groep.naam}</div>
             {groep.stappen.map((stap) => {
-              const item = checklist[stap.id] || { afgevinkt: false, datum: "", notitie: "" };
+              const item = checklist[stap.id] || { afgevinkt: false, datum: "", notitie: "", link: "" };
               const open = openStap === stap.id;
+              const link = links[stap.id] ?? item.link;
               return (
                 <div className={`sp-stap${item.afgevinkt ? " sp-stap-af" : ""}`} key={stap.id}>
                   <div className="sp-stap-regel">
@@ -182,6 +207,31 @@ export default function VestigingKaart({
                       <span className={`chev2${open ? " chev2-open" : ""}`} />
                       <span className="sp-stap-label">{stap.label}</span>
                     </button>
+                    {stap.linkveld && (
+                      <span className="sp-stap-linkveld">
+                        <input
+                          type="url"
+                          inputMode="url"
+                          defaultValue={item.link}
+                          placeholder={stap.linkveld.plaatshouder}
+                          onBlur={(e) => opBlurLink(stap.id, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") e.currentTarget.blur();
+                          }}
+                        />
+                        {link && (
+                          <a
+                            href={link}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="Deze pagina openen"
+                            aria-label="Deze pagina openen"
+                          >
+                            ↗
+                          </a>
+                        )}
+                      </span>
+                    )}
                     {item.datum && <span className="sp-stap-datumtekst">{kortDatum(item.datum)}</span>}
                   </div>
                   {!open && item.notitie.trim() && (

@@ -2562,7 +2562,7 @@ strong {
   border-bottom: none;
 }
 .sp-rm-plaats {
-  flex: 1 1 160px;
+  flex: 1 1 150px;
   font-size: 13.5px;
   font-weight: 700;
   color: var(--ink);
@@ -3903,4 +3903,129 @@ pre.codeblok code {
 }
 .sp-stap-knop:hover .chev2 {
   opacity: 1;
+}
+
+/* De wachtrij op het tabblad Volgorde: het nummer vooraan is de sleepgreep,
+   zelfde patroon als de klantenlijst in de zijbalk (10-09-2026). */
+.sp-rm-greep {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: grab;
+  user-select: none;
+  color: var(--muted-2);
+}
+.sp-rm-greep:active {
+  cursor: grabbing;
+}
+.sp-rm-greepstippen {
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.5;
+}
+.sp-rm-greep:hover .sp-rm-greepstippen {
+  opacity: 1;
+}
+.sp-rm-nr {
+  min-width: 22px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--head);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 2px 5px;
+  font-variant-numeric: tabular-nums;
+}
+.sp-rm-rij[draggable="true"] {
+  cursor: grab;
+}
+.sp-rm-rij-sleept {
+  opacity: 0.4;
+}
+.sp-rm-geengreep {
+  cursor: default;
+  justify-content: center;
+  width: 41px;
+}
+/* Vaste kolombreedtes, anders begint elke balk op een andere plek doordat
+   de ene status een langer woord is dan de andere. */
+.sp-rm-status {
+  flex: none;
+  width: 152px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.sp-rm-rij .sp-voortgang {
+  flex: none;
+}
+.sp-rm-hulp {
+  flex: none;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted-2);
+}
+
+/* Het adres van de pagina die bij een stap hoort, op de regel zelf: een
+   smal veld waarin je plakt, met een pijltje ernaast zodra er iets staat. */
+.sp-stap-linkveld {
+  flex: 1 1 240px;
+  /* Niet breder dan nodig, anders staat het pijltje aan de andere kant van
+     het scherm los van de link waar het bij hoort. */
+  max-width: 460px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sp-stap-linkveld input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--accent-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 7px;
+  text-overflow: ellipsis;
+}
+.sp-stap-linkveld input::placeholder {
+  color: var(--muted-2);
+  font-style: italic;
+}
+.sp-stap-linkveld input:hover {
+  border-color: var(--line-2);
+}
+.sp-stap-linkveld input:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.sp-stap-linkveld a {
+  flex: none;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--accent-2);
+  text-decoration: none;
+  padding: 2px 4px;
+  border-radius: 5px;
+}
+.sp-stap-linkveld a:hover {
+  background: var(--accent-wash);
+}
+.sp-stap-knop {
+  flex: 0 1 auto;
 }

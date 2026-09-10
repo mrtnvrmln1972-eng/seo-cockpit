@@ -12,9 +12,11 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import {
   ALLE_STAPPEN,
+  herschikPrioriteiten,
   parseServicepunten,
   serialiseerServicepunten,
   voortgang,
+  type Vestiging,
 } from "../lib/servicepunten-model";
 
 let fails = 0;
@@ -44,8 +46,8 @@ check(
   "Testregel met een kolom-teken | erin, om escaping te controleren.",
 );
 
-check("eindhoven checklist: contact afgevinkt", eindhoven?.checklist["contact"], { afgevinkt: true, datum: "2026-09-06", notitie: "" });
-check("eindhoven checklist: login niet afgevinkt", eindhoven?.checklist["login"], { afgevinkt: false, datum: "", notitie: "" });
+check("eindhoven checklist: contact afgevinkt", eindhoven?.checklist["contact"], { afgevinkt: true, datum: "2026-09-06", notitie: "", link: "" });
+check("eindhoven checklist: login niet afgevinkt", eindhoven?.checklist["login"], { afgevinkt: false, datum: "", notitie: "", link: "" });
 check("eindhoven checklist: alle 15 stappen aanwezig", Object.keys(eindhoven?.checklist ?? {}).length, ALLE_STAPPEN.length);
 check("eindhoven voortgang", eindhoven ? voortgang(eindhoven) : null, { klaar: 4, totaal: 15 });
 
@@ -81,11 +83,11 @@ check("rondje: eenmaligGeregeld identiek", opnieuw.eenmaligGeregeld, model.eenma
 
 // ---- Mutatie: een stap afvinken en opnieuw serialiseren/parsen ----
 if (eindhoven) {
-  eindhoven.checklist["login"] = { afgevinkt: true, datum: "2026-09-09", notitie: "" };
+  eindhoven.checklist["login"] = { afgevinkt: true, datum: "2026-09-09", notitie: "", link: "" };
   eindhoven.contactlog.push({ datum: "2026-09-09", wie: "Tonny", tekst: "Testregel met een | teken erin." });
   const bijgewerkt = parseServicepunten(serialiseerServicepunten(model));
   const eindhoven2 = bijgewerkt.vestigingen.find((v) => v.id === "eindhoven-oosterhof");
-  check("mutatie: login nu afgevinkt", eindhoven2?.checklist["login"], { afgevinkt: true, datum: "2026-09-09", notitie: "" });
+  check("mutatie: login nu afgevinkt", eindhoven2?.checklist["login"], { afgevinkt: true, datum: "2026-09-09", notitie: "", link: "" });
   check("mutatie: het contactlog wordt niet meer weggeschreven", eindhoven2?.contactlog.length, 0);
 }
 
@@ -96,7 +98,7 @@ if (eindhoven) {
 if (eindhoven) {
   const notitie = "- Profiel staat live: [Google-bedrijfsprofiel](https://maps.google.com/?cid=1)\n- **Nog doen**: foto's toevoegen";
   const letOp = "Draait sinds 27-08-2026.\n\n- Twee handleidingen liggen bij Stijn\n- Eigen SEO-pagina staat nog niet live";
-  eindhoven.checklist["gmb"] = { afgevinkt: true, datum: "2026-09-09", notitie };
+  eindhoven.checklist["gmb"] = { afgevinkt: true, datum: "2026-09-09", notitie, link: "" };
   eindhoven.opmerking = letOp;
   const tekst = serialiseerServicepunten(model);
   check("notitie krijgt een eigen #### blok", tekst.includes("#### " + ALLE_STAPPEN.find((s) => s.id === "gmb")!.label), true);
@@ -186,7 +188,86 @@ Niets.
 check(
   "een oude staplabel houdt zijn vinkje",
   parseServicepunten(oudeStapnaam).vestigingen[0]?.checklist["campagne"],
-  { afgevinkt: true, datum: "2026-08-01", notitie: "" },
+  { afgevinkt: true, datum: "2026-08-01", notitie: "", link: "" },
+);
+
+// Een link bij een stap: uit de tabelcel gelezen en er weer in geschreven.
+const metLink = `# Servicepunten
+
+Laatst bijgewerkt: 2026-09-10
+
+## Ergens
+
+| Veld | Waarde |
+|---|---|
+| Status | bevestigd |
+
+### Aansluitproces
+
+| Stap | Afgevinkt | Datum | Link |
+|---|---|---|---|
+| SEO-landingpagina live | x | 2026-09-10 | https://nationaaloogcentrum.nl/klinieken/ooglaseren-breda/ |
+
+## Eenmalig geregeld
+
+Niets.
+`;
+check(
+  "de link bij een stap wordt gelezen",
+  parseServicepunten(metLink).vestigingen[0]?.checklist["seo"]?.link,
+  "https://nationaaloogcentrum.nl/klinieken/ooglaseren-breda/",
+);
+check(
+  "en overleeft een rondje schrijven en lezen",
+  parseServicepunten(serialiseerServicepunten(parseServicepunten(metLink))).vestigingen[0]
+    ?.checklist["seo"]?.link,
+  "https://nationaaloogcentrum.nl/klinieken/ooglaseren-breda/",
+);
+
+// De volgorde slepen: de meegegeven lijst wordt doorgenummerd vanaf 1, en
+// wat er niet in staat blijft ongemoeid.
+function nep(id: string, prioriteit: number | null): Vestiging {
+  return {
+    id,
+    plaats: id,
+    status: "bevestigd",
+    partner: "",
+    adres: "",
+    contact: "",
+    optometristen: "",
+    telefoon: "",
+    email: "",
+    beschikbaarheid: "",
+    opmerking: "",
+    prioriteit,
+    volgordereden: "",
+    checklist: {},
+    contactlog: [],
+  };
+}
+
+const rij = [nep("a", 1), nep("b", 2), nep("c", 3), nep("draait", null)];
+herschikPrioriteiten(rij, ["c", "a", "b"]);
+check(
+  "slepen nummert door vanaf 1",
+  rij.map((v) => [v.id, v.prioriteit]),
+  [
+    ["a", 2],
+    ["b", 3],
+    ["c", 1],
+    ["draait", null],
+  ],
+);
+
+const rij2 = [nep("a", 4), nep("b", null)];
+herschikPrioriteiten(rij2, ["b", "a", "b", "bestaat-niet"]);
+check(
+  "een dubbel of onbekend id verstoort de nummering niet",
+  rij2.map((v) => [v.id, v.prioriteit]),
+  [
+    ["a", 2],
+    ["b", 1],
+  ],
 );
 
 console.log(fails === 0 ? `\nAlle checks geslaagd.` : `\n${fails} check(s) mislukt.`);

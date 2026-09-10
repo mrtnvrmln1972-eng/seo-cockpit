@@ -6,7 +6,6 @@ import {
   ALLE_STAPPEN,
   STATUS_GROEPLABEL,
   STATUS_LABEL,
-  STATUS_PILKLASSE,
   STATUS_VOLGORDE,
   type ServicepuntChecklistItem,
   type Vestiging,
@@ -18,6 +17,7 @@ import {
   servicepuntStapOpslaanAction,
   servicepuntEenmaligOpslaanAction,
   servicepuntNotitiesOpslaanAction,
+  servicepuntVolgordeOpslaanAction,
 } from "./actions";
 
 /**
@@ -28,10 +28,11 @@ import {
  *
  * - Vestigingen: per status gegroepeerd (Draait/Bevestigd tot januari/
  *   Kandidaat/Nog uitzoeken), elke vestiging een eigen VestigingKaart.
- * - Volgorde: dezelfde vestigingen, gesorteerd op de al vastgelegde
- *   prioriteit (bevestigde/kandidaat-punten) — puur een weergave van een
- *   waarde die al in het dossier staat, geen eigen berekening (CLAUDE.md:
- *   "een dashboard mag tonen, nooit oordelen"). Heette in de artifact zelf
+ * - Volgorde: de wachtrij van punten die nog aangesloten moeten worden, op
+ *   het nummer dat in het dossier staat, en te herschikken door te slepen
+ *   (10-09-2026). De volgorde komt dus uit een menselijke handeling, niet
+ *   uit een eigen berekening (CLAUDE.md: "een dashboard mag tonen, nooit
+ *   oordelen"). Heette in de artifact zelf
  *   "Roadmap"; hier omgedoopt tot "Volgorde" om verwarring met de al
  *   bestaande Roadmap-tab van deze klant (roadmap.md, over SEO-pagina's) te
  *   voorkomen — geen inhoudelijk verschil, alleen het label.
@@ -77,7 +78,7 @@ export default function ServicepuntenView({
   }, [dossier]);
 
   function opStapChange(vestigingId: string, stapId: string, next: ServicepuntChecklistItem) {
-    const vorige = checklists[vestigingId]?.[stapId] ?? { afgevinkt: false, datum: "", notitie: "" };
+    const vorige = checklists[vestigingId]?.[stapId] ?? { afgevinkt: false, datum: "", notitie: "", link: "" };
     setChecklists((huidig) => ({
       ...huidig,
       [vestigingId]: { ...huidig[vestigingId], [stapId]: next },
@@ -232,7 +233,12 @@ export default function ServicepuntenView({
       )}
 
       {tab === "volgorde" && (
-        <VolgordeTab dossier={dossier} checklists={checklists} onOpenVestiging={openVestiging} />
+        <VolgordeTab
+          klantSlug={klantSlug}
+          dossier={dossier}
+          checklists={checklists}
+          onOpenVestiging={openVestiging}
+        />
       )}
 
       {tab === "basis" && (
@@ -259,71 +265,191 @@ export default function ServicepuntenView({
   );
 }
 
+/**
+ * Het tabblad Volgorde: de wachtrij van punten die nog aangesloten moeten
+ * worden, van boven naar beneden, en die volgorde sleep je zelf
+ * (10-09-2026, op Maartens verzoek: "kun je het zo maken dat ik de
+ * vestigingen kan slepen in volgorde?").
+ *
+ * Bij loslaten worden de nummers doorgenummerd vanaf 1 en in één keer
+ * opgeslagen in servicepunten.md (het veld "Prioriteit" per vestiging).
+ * Lukt dat niet, dan springt de lijst terug naar de volgorde die op de
+ * server staat, met de melding erbij: beter zichtbaar terug dan een
+ * volgorde tonen die niet is opgeslagen. Zelfde aanpak als de klantenlijst
+ * in de zijbalk (NavKlanten.tsx) en de takenlijst op het werkbord.
+ *
+ * Slepen kan alleen als je de greep vasthebt (het nummer vooraan), zodat je
+ * de tekst op een regel gewoon kunt selecteren en kopiëren.
+ *
+ * De punten die al draaien staan eronder in een aparte, niet-sleepbare
+ * lijst: die hoeven niet meer in de rij te staan.
+ */
 function VolgordeTab({
+  klantSlug,
   dossier,
   checklists,
   onOpenVestiging,
 }: {
+  klantSlug: string;
   dossier: ServicepuntenDossier;
   checklists: Record<string, Record<string, ServicepuntChecklistItem>>;
   onOpenVestiging: (id: string) => void;
 }) {
-  const groepen = STATUS_VOLGORDE.map((status) => {
-    const lijst = dossier.vestigingen
-      .filter((v) => v.status === status)
-      .slice()
-      .sort((a, b) => (a.prioriteit ?? 999) - (b.prioriteit ?? 999));
-    return { status, lijst };
-  }).filter((g) => g.lijst.length > 0);
+  const wachtrijVanServer = wachtrij(dossier.vestigingen);
+  const draaien = dossier.vestigingen.filter((v) => v.status === "draait");
+
+  const [lijst, setLijst] = useState(wachtrijVanServer);
+  const [sleept, setSleept] = useState<string | null>(null);
+  const [greep, setGreep] = useState<string | null>(null);
+  const [fout, setFout] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  // De server is de baas: komt er verse data binnen (na opslaan, of na een
+  // wijziging elders), dan volgt de lokale lijst die. Dit is de "state
+  // bijstellen tijdens renderen"-vorm uit de React-documentatie, niet een
+  // effect: een effect zou de oude volgorde eerst nog een keer tekenen.
+  const [bron, setBron] = useState(dossier.vestigingen);
+  if (bron !== dossier.vestigingen) {
+    setBron(dossier.vestigingen);
+    setLijst(wachtrijVanServer);
+  }
+
+  function opDragOver(id: string) {
+    if (!sleept || sleept === id) return;
+    setLijst((oud) => {
+      const van = oud.findIndex((v) => v.id === sleept);
+      const naar = oud.findIndex((v) => v.id === id);
+      if (van === -1 || naar === -1 || van === naar) return oud;
+      const nieuw = oud.slice();
+      const [verplaatst] = nieuw.splice(van, 1);
+      nieuw.splice(naar, 0, verplaatst);
+      return nieuw;
+    });
+  }
+
+  function opDrop() {
+    if (!sleept) return;
+    setSleept(null);
+    setGreep(null);
+    setFout(null);
+    const ids = lijst.map((v) => v.id);
+    startTransition(async () => {
+      try {
+        await servicepuntVolgordeOpslaanAction(klantSlug, ids);
+      } catch (err) {
+        setLijst(wachtrij(dossier.vestigingen));
+        setFout(err instanceof Error ? err.message : "Kon de volgorde niet opslaan.");
+      }
+    });
+  }
+
+  function rij(v: Vestiging, nummer: number | null, sleepbaar: boolean) {
+    const cl = checklists[v.id] || {};
+    const klaar = ALLE_STAPPEN.filter((s) => cl[s.id]?.afgevinkt).length;
+    const totaal = ALLE_STAPPEN.length;
+    const pct = totaal ? Math.round((klaar / totaal) * 100) : 0;
+    const meta = v.volgordereden || v.opmerking || "";
+    const metaKort = meta.length > 90 ? `${meta.slice(0, 90)}…` : meta;
+    return (
+      <div
+        className={`sp-rm-rij${sleept === v.id ? " sp-rm-rij-sleept" : ""}`}
+        key={v.id}
+        draggable={sleepbaar && greep === v.id}
+        onDragStart={() => sleepbaar && setSleept(v.id)}
+        onDragOver={(e) => {
+          if (!sleepbaar) return;
+          e.preventDefault();
+          opDragOver(v.id);
+        }}
+        onDrop={(e) => {
+          if (!sleepbaar) return;
+          e.preventDefault();
+          opDrop();
+        }}
+        onDragEnd={() => {
+          setSleept(null);
+          setGreep(null);
+        }}
+      >
+        {sleepbaar ? (
+          <span
+            className="sp-rm-greep"
+            title="Sleep om de volgorde te veranderen"
+            onMouseDown={() => setGreep(v.id)}
+            onTouchStart={() => setGreep(v.id)}
+            onMouseUp={() => setGreep(null)}
+          >
+            <span className="sp-rm-greepstippen">⠿</span>
+            <span className="sp-rm-nr">{nummer}</span>
+          </span>
+        ) : (
+          <span className="sp-rm-greep sp-rm-geengreep">
+            <span className="sp-stip sp-stip-draait" />
+          </span>
+        )}
+        <span className="sp-rm-plaats">{v.plaats}</span>
+        <span className="sp-rm-status">
+          <span className={`sp-stip sp-stip-${v.status}`} />
+          {STATUS_LABEL[v.status]}
+        </span>
+        <span className="sp-voortgang">
+          <span className="sp-balk">
+            <span className="sp-vul" style={{ width: `${pct}%` }} />
+          </span>
+          <span className="sp-cijfer">
+            {klaar}/{totaal}
+          </span>
+        </span>
+        <span className="sp-rm-meta">{metaKort}</span>
+        <button type="button" className="sp-rm-link" onClick={() => onOpenVestiging(v.id)}>
+          Open kaart →
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="sp-voorstel">
-        <span className="sp-lbl">Volgorde bevestigde en kandidaat-punten</span>
-        <p>
-          Op zoekvolume van de bijbehorende stadsterm (Ahrefs NL) en op landelijke dekking: een nieuwe
-          provincie of regio weegt zwaarder dan een vierde punt in een gebied dat al gedekt is. Draaiende
-          punten en de nog uit te zoeken punten staan op volgorde van binnenkomst.
-        </p>
+      {fout && <p className="foutregel">{fout}</p>}
+
+      <div className="blok kaart" style={{ marginBottom: 14 }}>
+        <div className="sp-groepskop" style={{ margin: "16px 18px 0" }}>
+          <h4>Aansluiten, in deze volgorde ({lijst.length})</h4>
+          <span className="sp-lijn" />
+          <span className="sp-rm-hulp">Sleep aan het nummer om te wisselen</span>
+        </div>
+        {lijst.map((v, i) => rij(v, i + 1, true))}
       </div>
-      {groepen.map(({ status, lijst }) => (
-        <div className="blok kaart" key={status} style={{ marginBottom: 14 }}>
+
+      {draaien.length > 0 && (
+        <div className="blok kaart" style={{ marginBottom: 14 }}>
           <div className="sp-groepskop" style={{ margin: "16px 18px 0" }}>
-            <h4>
-              {STATUS_LABEL[status]} ({lijst.length})
-            </h4>
+            <h4>Draaien al ({draaien.length})</h4>
             <span className="sp-lijn" />
           </div>
-          {lijst.map((v) => {
-            const cl = checklists[v.id] || {};
-            const klaar = ALLE_STAPPEN.filter((s) => cl[s.id]?.afgevinkt).length;
-            const totaal = ALLE_STAPPEN.length;
-            const pct = totaal ? Math.round((klaar / totaal) * 100) : 0;
-            const meta = v.prioriteit != null ? v.volgordereden : v.opmerking || "";
-            const metaKort = meta.length > 90 ? `${meta.slice(0, 90)}…` : meta;
-            return (
-              <div className="sp-rm-rij" key={v.id}>
-                {v.prioriteit != null && <span className="pill sp-p-prioriteit">#{v.prioriteit}</span>}
-                <span className="sp-rm-plaats">{v.plaats}</span>
-                <span className="sp-voortgang">
-                  <span className="sp-balk">
-                    <span className="sp-vul" style={{ width: `${pct}%` }} />
-                  </span>
-                  <span className="sp-cijfer">
-                    {klaar}/{totaal}
-                  </span>
-                </span>
-                <span className="sp-rm-meta">{metaKort}</span>
-                <button type="button" className="sp-rm-link" onClick={() => onOpenVestiging(v.id)}>
-                  Open kaart →
-                </button>
-              </div>
-            );
-          })}
+          {draaien.map((v) => rij(v, null, false))}
         </div>
-      ))}
+      )}
     </div>
   );
+}
+
+/**
+ * De punten die nog aangesloten moeten worden, op het nummer dat in
+ * servicepunten.md staat. Zonder nummer sluit je achteraan aan, in de
+ * volgorde waarin ze in het bestand staan — puur een weergave van wat er
+ * staat, geen eigen weging.
+ */
+function wachtrij(vestigingen: Vestiging[]): Vestiging[] {
+  return vestigingen
+    .filter((v) => v.status !== "draait")
+    .map((v, i) => ({ v, i }))
+    .sort((a, b) => {
+      const pa = a.v.prioriteit ?? Number.MAX_SAFE_INTEGER;
+      const pb = b.v.prioriteit ?? Number.MAX_SAFE_INTEGER;
+      return pa === pb ? a.i - b.i : pa - pb;
+    })
+    .map(({ v }) => v);
 }
 
 function EenmaligGeregeldTab({ klantSlug, tekst }: { klantSlug: string; tekst: string }) {
