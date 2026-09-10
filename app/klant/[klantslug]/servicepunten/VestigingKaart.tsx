@@ -3,8 +3,6 @@
 import { useRef, useState, useTransition } from "react";
 import {
   STAP_GROEPEN,
-  STATUS_LABEL,
-  STATUS_PILKLASSE,
   type BewerkbaarVeld,
   type ServicepuntChecklistItem,
   type Vestiging,
@@ -31,6 +29,10 @@ import { servicepuntVeldOpslaanAction, servicepuntStapNotitieOpslaanAction } fro
  * - Die tekst is gewone markdown in servicepunten.md (een "#### <stap>"-blok),
  *   dus een Cowork-gesprek kan hem net zo goed vullen of aanvullen als dit
  *   scherm. Hetzelfde geldt voor "Let op" bij de vestiging.
+ *
+ * De status staat niet meer op de regel zelf: de kaart waar de vestiging in
+ * staat draagt die kop al ("Draaien", "Bevestigd tot januari"), en hem er per
+ * regel bij zetten maakte de lijst onrustig (10-09-2026).
  *
  * Tekstvelden zijn bewust ONGECONTROLEERD (defaultValue + onBlur), zelfde
  * aanpak als de Notities-tab: dat voorkomt dat de cursor midden in het typen
@@ -99,7 +101,6 @@ export default function VestigingKaart({
     <details className="blok kaart sp-kaart" id={`vest-${vestiging.id}`}>
       <summary className="blokkop">
         <h3>{vestiging.plaats}</h3>
-        <span className={`pill ${STATUS_PILKLASSE[vestiging.status]}`}>{STATUS_LABEL[vestiging.status]}</span>
         {vestiging.prioriteit != null && (
           <span className="pill sp-p-prioriteit">#{vestiging.prioriteit} in volgorde</span>
         )}
@@ -181,12 +182,7 @@ export default function VestigingKaart({
                       <span className={`chev2${open ? " chev2-open" : ""}`} />
                       <span className="sp-stap-label">{stap.label}</span>
                     </button>
-                    <input
-                      type="date"
-                      className="sp-stap-datum"
-                      value={item.datum}
-                      onChange={(e) => onStapChange(stap.id, { ...item, datum: e.target.value })}
-                    />
+                    {item.datum && <span className="sp-stap-datumtekst">{kortDatum(item.datum)}</span>}
                   </div>
                   {!open && item.notitie.trim() && (
                     <div
@@ -197,6 +193,14 @@ export default function VestigingKaart({
                   {open && (
                     <div className="sp-stap-open">
                       <p className="sp-stap-crit">{stap.crit}</p>
+                      <label className="sp-stap-datumveld">
+                        Datum
+                        <input
+                          type="date"
+                          value={item.datum}
+                          onChange={(e) => onStapChange(stap.id, { ...item, datum: e.target.value })}
+                        />
+                      </label>
                       <NotitieVeld
                         naam={`stap-${vestiging.id}-${stap.id}`}
                         waarde={item.notitie}
@@ -217,6 +221,14 @@ export default function VestigingKaart({
       </div>
     </details>
   );
+}
+
+/** "2026-09-06" wordt "6 sep": kort genoeg om achter een stap te passen. */
+function kortDatum(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return iso;
+  const maanden = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+  return `${Number(m[3])} ${maanden[Number(m[2]) - 1] ?? m[2]}`;
 }
 
 /** De eerste regel van een stuk tekst, voor het samenvattingsregeltje. */

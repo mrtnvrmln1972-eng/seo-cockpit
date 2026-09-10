@@ -166,6 +166,14 @@ export const STATUS_LABEL: Record<ServicepuntStatus, string> = {
   uitzoeken: "Nog uitzoeken",
 };
 
+/** Hoe een groep heet boven een lijst vestigingen ("Draaien" i.p.v. "Draait"). */
+export const STATUS_GROEPLABEL: Record<ServicepuntStatus, string> = {
+  draait: "Draaien",
+  bevestigd: "Bevestigd tot januari",
+  kandidaat: "Kandidaat",
+  uitzoeken: "Nog uit te zoeken",
+};
+
 /** CSS-modifierklasse per status — puur weergave, zie .sp-p-* in globals.css. */
 export const STATUS_PILKLASSE: Record<ServicepuntStatus, string> = {
   draait: "sp-p-draait",

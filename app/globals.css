@@ -2342,7 +2342,7 @@ strong {
   flex: none;
 }
 .sp-balk {
-  flex: 1 1 auto;
+  flex: none;
   width: 64px;
   height: 6px;
   border-radius: 999px;
@@ -2350,6 +2350,9 @@ strong {
   overflow: hidden;
 }
 .sp-vul {
+  /* Zonder display:block doet een breedte niets: een span is van zichzelf
+     inline, en dan bleef de balk altijd leeg. */
+  display: block;
   height: 100%;
   background: var(--accent);
   border-radius: 999px;
@@ -3655,4 +3658,249 @@ pre.codeblok code {
 }
 .sp-tab .pill {
   margin-left: 6px;
+}
+
+/* ---- Servicepunten: overzicht naar het voorbeeld van 10-09-2026 ---------
+   Een balk met de deelbare link, vier kerncijfers als kaarten, en per status
+   één kaart met de vestigingen als vlakke rijen erin. */
+.deelbalk {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--ground);
+  border: 1px solid #e6e6e4;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(24, 24, 24, 0.05);
+  margin: 0 0 12px;
+  overflow: hidden;
+}
+.deelbalk-lbl {
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted-2);
+}
+.deelbalk-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+.deelbalk-kopie {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+.deelbalk-kopie:hover {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+.deelbalk-hulp {
+  flex: none;
+  font-size: 11px;
+  color: var(--crit);
+}
+
+.sp-kerncijfers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin: 0 0 18px;
+}
+.sp-cijferkaart {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-family: var(--sans);
+  padding: 14px 16px;
+  border: 1px solid var(--kl-wash, var(--line));
+  border-radius: 12px;
+  background: var(--kl-wash, var(--surface));
+  cursor: pointer;
+}
+.sp-cijferkaart:hover {
+  border-color: var(--kl, var(--line-2));
+}
+.sp-cijferkaart-stil {
+  --kl: var(--muted);
+  --kl-wash: var(--surface-2);
+  cursor: default;
+}
+.sp-cijfergetal {
+  flex: none;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--kl, var(--head));
+}
+.sp-cijferlabel {
+  flex: 1 1 auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.sp-cijferkaart-stil .sp-cijferlabel {
+  color: var(--muted);
+}
+.sp-cijferkaart .chev2 {
+  flex: none;
+  border-color: var(--kl, var(--accent));
+}
+
+/* Eén kaart per status, met de vestigingen als vlakke rijen erin. */
+.sp-groepkaart {
+  background: var(--ground);
+  border: 1px solid #e6e6e4;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(24, 24, 24, 0.05), 0 3px 10px rgba(24, 24, 24, 0.03);
+  margin: 0 0 16px;
+  overflow: hidden;
+}
+.sp-groepkop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px 11px;
+}
+.sp-groepkop h4 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--head);
+}
+.sp-stip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.sp-stip-draait { background: var(--ok); }
+.sp-stip-bevestigd { background: var(--info); }
+.sp-stip-kandidaat { background: var(--warn); }
+.sp-stip-uitzoeken { background: var(--muted-2); }
+
+/* De rijen binnen zo'n groepskaart: geen kaartje in een kaartje. */
+.sp-groepkaart .sp-kaarten {
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+}
+.sp-groepkaart .sp-kaart {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+.sp-groepkaart .sp-kaarten > .sp-kaart:last-child {
+  border-bottom: 0;
+}
+.sp-groepkaart .sp-kaart > .blokkop {
+  background: none;
+  border-bottom: 0;
+  padding: 11px 18px;
+}
+.sp-groepkaart .sp-kaart > .blokkop:hover {
+  background: var(--surface);
+}
+.sp-groepkaart .sp-kaart[open] > .blokkop {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.sp-groepkaart .sp-kaart > .blokbody {
+  padding: 14px 18px 18px;
+  background: var(--ground);
+}
+
+/* De subnavigatie is een gewone regel met een streep eronder, geen kaartje. */
+.sp-tabs {
+  gap: 24px;
+  padding: 0 2px;
+  margin: 0 0 16px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+.sp-tab {
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 700;
+  padding: 8px 2px 10px;
+}
+.sp-tab.sp-tab-actief {
+  color: var(--accent);
+}
+
+/* De voortgang staat altijd rechts, ook als een vestiging geen contactpersoon
+   heeft (dan viel de vulling weg en sprong de balk naar links). */
+.sp-kaart > .blokkop .sp-voortgang {
+  margin-left: auto;
+}
+/* Een gezette stap is groen, niet oranje: oranje is voor wat je nog kunt doen. */
+.sp-stap input[type="checkbox"] {
+  accent-color: var(--ok);
+}
+.sp-stap {
+  padding: 3px 0;
+}
+.sp-stap-datumtekst {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--muted-2);
+  font-variant-numeric: tabular-nums;
+}
+.sp-stap-datumveld {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted-2);
+  margin: 0 0 8px;
+}
+.sp-stap-datumveld input {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  padding: 4px 7px;
+  background: var(--ground);
+}
+
+/* De stappen zijn een lijstje om te scannen, geen koppen: gewone tekst, en
+   een gezette stap wordt rustig grijs in plaats van dik groen. Het vinkje
+   vertelt al dat hij staat (10-09-2026). */
+.sp-stap-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+.sp-stap.sp-stap-af .sp-stap-label {
+  color: var(--muted);
+  font-weight: 400;
+}
+.sp-stap-knop .chev2 {
+  opacity: 0.45;
+}
+.sp-stap-knop:hover .chev2 {
+  opacity: 1;
 }

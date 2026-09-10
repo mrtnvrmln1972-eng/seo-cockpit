@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 
 import {
   ALLE_STAPPEN,
+  STATUS_GROEPLABEL,
   STATUS_LABEL,
   STATUS_PILKLASSE,
   STATUS_VOLGORDE,
@@ -95,6 +96,14 @@ export default function ServicepuntenView({
     });
   }
 
+  /** Springt naar de groep van een status, vanuit de kerncijfers bovenaan. */
+  function naarGroep(status: string) {
+    setTab("vestigingen");
+    requestAnimationFrame(() => {
+      document.getElementById(`sp-groep-${status}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+  }
+
   function openVestiging(id: string) {
     setTab("vestigingen");
     requestAnimationFrame(() => {
@@ -127,15 +136,40 @@ export default function ServicepuntenView({
     // Het overzicht hier stond veel ruimer, met een losse kaart per vestiging
     // en een gat ertussen; met 21 vestigingen scrol je je dan suf (09-09-2026).
     <div className="sp-compact">
-      <div className="sp-topbalk">
-        {deelLink}
-        <div className="sp-pillen">
-        <span className={`pill ${STATUS_PILKLASSE.draait}`}>{tellingen.draait} draaien</span>
-        <span className={`pill ${STATUS_PILKLASSE.bevestigd}`}>{tellingen.bevestigd} bevestigd tot januari</span>
-        <span className={`pill ${STATUS_PILKLASSE.kandidaat}`}>
-          {tellingen.kandidaat + tellingen.uitzoeken} nog uit te zoeken
-        </span>
-          <span className="pill p-open">{pctTotaal}% van alle stappen gezet</span>
+      <div className="sp-topbalk">{deelLink}</div>
+
+      {/*
+        De vier kerncijfers als kaarten (10-09-2026, naar Maartens voorbeeld).
+        De eerste drie brengen je naar de bijbehorende groep hieronder; het
+        percentage is een uitkomst, dus daar valt niets te openen.
+      */}
+      <div className="sp-kerncijfers">
+        <button type="button" className="sp-cijferkaart k-groen" onClick={() => naarGroep("draait")}>
+          <span className="sp-cijfergetal">{tellingen.draait}</span>
+          <span className="sp-cijferlabel">Draaien</span>
+          <span className="chev2" />
+        </button>
+        <button
+          type="button"
+          className="sp-cijferkaart k-blauw"
+          onClick={() => naarGroep("bevestigd")}
+        >
+          <span className="sp-cijfergetal">{tellingen.bevestigd}</span>
+          <span className="sp-cijferlabel">Bevestigd tot januari</span>
+          <span className="chev2" />
+        </button>
+        <button
+          type="button"
+          className="sp-cijferkaart k-geel"
+          onClick={() => naarGroep("kandidaat")}
+        >
+          <span className="sp-cijfergetal">{tellingen.kandidaat + tellingen.uitzoeken}</span>
+          <span className="sp-cijferlabel">Nog uit te zoeken</span>
+          <span className="chev2" />
+        </button>
+        <div className="sp-cijferkaart sp-cijferkaart-stil">
+          <span className="sp-cijfergetal">{pctTotaal}%</span>
+          <span className="sp-cijferlabel">Van alle stappen gezet</span>
         </div>
       </div>
 
@@ -175,10 +209,11 @@ export default function ServicepuntenView({
       {tab === "vestigingen" && (
         <div>
           {gegroepeerd.map(({ status, vestigingen }) => (
-            <div key={status}>
-              <div className="sp-groepskop">
-                <h4>{STATUS_LABEL[status]}</h4>
-                <span className="sp-lijn" />
+            <section className="sp-groepkaart" key={status} id={`sp-groep-${status}`}>
+              <div className="sp-groepkop">
+                <span className={`sp-stip sp-stip-${status}`} />
+                <h4>{STATUS_GROEPLABEL[status]}</h4>
+                <span className="pill p-open">{vestigingen.length}</span>
               </div>
               <div className="sp-kaarten">
                 {vestigingen.map((v) => (
@@ -191,7 +226,7 @@ export default function ServicepuntenView({
                   />
                 ))}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}

@@ -6,10 +6,10 @@ import { useState } from "react";
  * De deelbare link bovenaan het Servicepunten-tabblad: één knop die hem naar
  * het klembord kopieert.
  *
- * VERKLEIND 10-09-2026, op verzoek: eerst stond de volledige link uitgeschreven
- * in beeld ("ik hoef niet de hele link te zien"). Nu alleen de knop; het adres
- * zit erin. Lukt kopiëren niet (een browser die het klembord blokkeert), dan
- * komt de link alsnog in beeld zodat je hem met de hand kunt pakken.
+ * Vorm van 10-09-2026, naar Maartens eigen voorbeeld: het label, de link zelf
+ * op één regel, en een klein kopieerknopje ernaast. Lukt kopiëren niet (een
+ * browser die het klembord blokkeert), dan staat de link er nog gewoon om met
+ * de hand te pakken.
  */
 export default function DeelLink({ url }: { url: string }) {
   const [gekopieerd, setGekopieerd] = useState(false);
@@ -26,15 +26,21 @@ export default function DeelLink({ url }: { url: string }) {
   }
 
   return (
-    <span className="deelknopvak">
-      <button type="button" className="pillbtn licht klein" onClick={kopieer} title={url}>
-        {gekopieerd ? "Link gekopieerd" : "Deelbare link kopiëren"}
+    <div className="deelbalk">
+      <span className="deelbalk-lbl">Deelbare link</span>
+      <a className="deelbalk-url" href={url} target="_blank" rel="noreferrer">
+        {url}
+      </a>
+      <button
+        type="button"
+        className="deelbalk-kopie"
+        onClick={kopieer}
+        title="Link kopiëren"
+        aria-label="Link kopiëren"
+      >
+        {gekopieerd ? "✓" : "⧉"}
       </button>
-      {toon && (
-        <a className="deelregel-terugval" href={url} target="_blank" rel="noreferrer">
-          {url}
-        </a>
-      )}
-    </span>
+      {toon && <span className="deelbalk-hulp">Kopiëren lukte niet, selecteer de link hierboven.</span>}
+    </div>
   );
 }
