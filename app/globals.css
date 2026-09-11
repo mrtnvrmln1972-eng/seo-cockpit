@@ -4034,3 +4034,301 @@ pre.codeblok code {
   color: var(--accent-2);
   border-color: var(--line-2);
 }
+
+/* ---- De Onboarding-tab (11-09-2026) -------------------------------------
+   Herbouwd naar de vorm van de Claude Artifact "Pingwin Klantcockpit": de
+   stand van de ladder met een balk, de tien vinkjes met hun uitleg, de
+   koppelingentabel en onderaan wat er nu ontbreekt. De klantenstrook met de
+   andere klanten is eruit; dit tabblad gaat alleen over deze klant. */
+
+.ob-kader {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 18px 20px;
+  margin-bottom: 22px;
+}
+.ob-stand {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.ob-stand b {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--head);
+  font-variant-numeric: tabular-nums;
+}
+.ob-stand span {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+}
+.ob-balk {
+  height: 7px;
+  border-radius: 30px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin: 10px 0 16px;
+}
+.ob-balk i {
+  display: block;
+  height: 100%;
+  border-radius: 30px;
+  background: var(--accent);
+}
+.ob-balk.vol i {
+  background: var(--ok);
+}
+
+.ob-lijst {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ob-lijst li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+}
+.ob-lijst li:first-child {
+  border-top: 0;
+}
+.ob-lijst .tk {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ob-lijst .tk b {
+  font-weight: 700;
+  color: var(--head);
+  margin-right: 4px;
+}
+/* De uitleg bij een stap staat alleen onder een stap die nog openstaat: bij
+   een afgestreepte regel voegt hij niets meer toe en maakt hij de lijst
+   dubbel zo lang. */
+.ob-lijst .wa {
+  display: block;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 3px;
+  max-width: 88ch;
+}
+.ob-lijst li.af .tk {
+  color: var(--muted-2);
+}
+.ob-lijst li.af .tk b {
+  color: var(--muted-2);
+}
+
+/* Het vinkje. Eén vorm voor de ladder en voor de koppelingen, zodat een
+   vinkje overal hetzelfde ding is. */
+.ob-vink {
+  flex: none;
+  width: 21px;
+  height: 21px;
+  margin-top: 2px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--ground);
+  color: var(--on-accent, #fff);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.ob-vink:hover {
+  border-color: var(--accent);
+}
+.ob-vink[aria-pressed="true"] {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+.ob-vink[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+.ob-vinkfout {
+  display: block;
+  font-size: 11.5px;
+  color: var(--crit);
+  margin-top: 4px;
+  max-width: 30ch;
+}
+.ob-kopieerfout {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+.ob-kopieerfout textarea {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  font-family: var(--sans);
+  font-size: 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.ob-groepkop {
+  margin: 28px 0 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--muted);
+}
+.ob-groepkop:first-child {
+  margin-top: 0;
+}
+
+.ob-tabel td.nm .chip {
+  margin-left: 7px;
+}
+/* De tabel heeft zes kolommen en de details zijn hele alinea's. Zonder een
+   ruimere minimumbreedte werd die kolom een smalle koker van tien regels hoog
+   en vielen de knop en het vinkje buiten beeld (gezien op het scherm,
+   11-09-2026). De eerste zin staat er, de rest klapt open. */
+.ob-tabel {
+  min-width: 860px;
+}
+/* De stand is soms een halve zin ("gekoppeld, robots.txt weer bereikbaar").
+   Zonder deze grens duwt die ene kolom de details en het vinkje het scherm
+   af. */
+.ob-tabel td:nth-child(2),
+.ob-tabel th:nth-child(2) {
+  max-width: 17ch;
+}
+.ob-tabel .dot {
+  white-space: normal;
+  align-items: flex-start;
+}
+.ob-tabel .dot::before {
+  margin-top: 5px;
+}
+.ob-tabel td.det {
+  min-width: 28ch;
+  max-width: 40ch;
+}
+.ob-det > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.ob-det > summary::-webkit-details-marker {
+  display: none;
+}
+.ob-det > summary::after {
+  content: " meer";
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-2);
+  white-space: nowrap;
+}
+.ob-det[open] > summary::after {
+  content: " minder";
+}
+.ob-det[open] > summary::after {
+  content: "";
+}
+.ob-det[open] > summary {
+  display: list-item;
+}
+/* De knop mag afbreken als de kolom krap wordt; hij duwde de tabel anders
+   breder dan het scherm. */
+.ob-tabel td.knopcel .pillbtn {
+  white-space: normal;
+  line-height: 1.3;
+}
+/* Een koppeling die niet speelt blijft leesbaar maar valt naar achteren. */
+.ob-tabel tr.nvt td {
+  opacity: 0.5;
+}
+.ob-tabel tr.nvt td.vt {
+  opacity: 1;
+}
+.ob-tabel th.vt,
+.ob-tabel td.vt {
+  text-align: center;
+  width: 1%;
+  white-space: nowrap;
+}
+.ob-tabel td.vt .ob-vink {
+  margin: 0 auto;
+}
+.ob-nietinbestand {
+  color: var(--muted-2);
+}
+
+.ob-rest {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.ob-rest > summary {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 11px 16px;
+  cursor: pointer;
+}
+.ob-rest > summary:hover {
+  color: var(--head);
+}
+.ob-restsectie {
+  padding: 0 16px 14px;
+}
+.ob-restsectie h6 {
+  margin: 12px 0 4px;
+}
+
+.ob-kaart > .blokkop h3 {
+  flex: 0 1 auto;
+}
+.ob-kaart > .blokkop .pill {
+  margin-left: auto;
+}
+
+.ob-sub {
+  margin: 14px 0 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--crit);
+}
+.ob-sub:first-child {
+  margin-top: 0;
+}
+.ob-open {
+  margin: 0 0 6px;
+  padding-left: 20px;
+}
+.ob-open li {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.ob-open li b {
+  color: var(--head);
+}
+.ob-kop {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--head);
+}
+.ob-regel {
+  margin: 0 0 8px;
+  font-size: 14px;
+  max-width: 76ch;
+}

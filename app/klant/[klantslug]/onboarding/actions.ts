@@ -3,15 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { getKlantBySlug } from "@/lib/klanten";
 import { findFileByName, readFileContent, VersionConflictError } from "@/lib/drive";
-import { onderdeelOpslaan } from "@/lib/onboarding";
+import { koppelingOpslaan, onderdeelOpslaan } from "@/lib/onboarding";
 
 /**
- * app/klant/[klantslug]/onboarding/actions.ts — server action voor de
- * Onboarding-tab. Eén actie: een ladderstap (code, bijv. "1a") aan/uit
- * vinken in toelichting.md. Alle andere bestanden op dit tabblad
- * (toegang.md, klant.md, tone-of-voice.md, klantstem.md) zijn puur leesbaar
- * getoond — zie de doc-comment in lib/onboarding.ts voor waarom daar niet
- * naar teruggeschreven wordt.
+ * app/klant/[klantslug]/onboarding/actions.ts — server actions voor de
+ * Onboarding-tab. Twee acties: een ladderstap (code, bijv. "1a") aan/uit
+ * vinken in toelichting.md, en een koppeling op "niet van toepassing" zetten
+ * of terug in toegang.md (11-09-2026 erbij). klant.md, tone-of-voice.md en
+ * klantstem.md blijven puur leesbaar getoond.
  */
 export async function onderdeelWisselenAction(klantSlug: string, taakN: number, code: string) {
   const klant = await getKlantBySlug(klantSlug);
@@ -26,6 +25,33 @@ export async function onderdeelWisselenAction(klantSlug: string, taakN: number, 
       throw new Error("Dit bestand is intussen elders gewijzigd, laad de pagina opnieuw.");
     }
     throw err instanceof Error ? err : new Error("Kon dit vinkje niet opslaan.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/onboarding`);
+}
+
+/**
+ * Een koppeling op "niet van toepassing" zetten of weer terug. Verandert
+ * precies één cel in de tabel van toegang.md; zie de uitleg bij
+ * koppelingVanToepassingWisselen() in lib/onboarding.ts.
+ */
+export async function koppelingWisselenAction(
+  klantSlug: string,
+  naam: string,
+  vanToepassing: boolean,
+) {
+  const klant = await getKlantBySlug(klantSlug);
+  if (!klant?.mapId) throw new Error("Deze klant heeft nog geen dossier in Drive.");
+
+  try {
+    const toegangBestand = await findFileByName(klant.mapId, "toegang.md");
+    const toegangMd = toegangBestand ? await readFileContent(toegangBestand.id) : "";
+    await koppelingOpslaan(klant.mapId, toegangBestand, toegangMd, naam, vanToepassing);
+  } catch (err) {
+    if (err instanceof VersionConflictError) {
+      throw new Error("Dit bestand is intussen elders gewijzigd, laad de pagina opnieuw.");
+    }
+    throw err instanceof Error ? err : new Error("Kon deze koppeling niet opslaan.");
   }
 
   revalidatePath(`/klant/${klantSlug}/onboarding`);
