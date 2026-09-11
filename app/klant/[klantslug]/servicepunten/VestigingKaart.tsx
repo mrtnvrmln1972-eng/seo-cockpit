@@ -73,6 +73,11 @@ const VELDEN: { key: BewerkbaarVeld; label: string; plaatshouder?: string }[] = 
   { key: "telefoon", label: "Telefoon" },
   { key: "email", label: "E-mail" },
   { key: "partner", label: "Partner" },
+  {
+    key: "volgordereden",
+    label: "Waarom deze volgorde",
+    plaatshouder: "Zoekvolume, moeilijkheid, wat deze plek toevoegt",
+  },
 ];
 
 export default function VestigingKaart({
@@ -122,6 +127,7 @@ export default function VestigingKaart({
     telefoon: vestiging.telefoon,
     email: vestiging.email,
     beschikbaarheid: vestiging.beschikbaarheid,
+    volgordereden: vestiging.volgordereden,
     opmerking: vestiging.opmerking,
   });
 
@@ -240,6 +246,18 @@ export default function VestigingKaart({
           <span className="pill sp-p-prioriteit">#{toonNummer} in volgorde</span>
         )}
         {vestiging.contact && <span className="sp-sum-sub">{vestiging.contact}</span>}
+        {/*
+          Waarom deze plek in de rij (zoekvolume, moeilijkheid, welke regio hij
+          dekt). Stond op het losse tabblad Volgorde, dat op 11-09-2026 is
+          opgeheven; hier is de plek waar je die afweging nodig hebt, naast het
+          nummer waar hij over gaat. Volledig te lezen en aan te passen in de
+          gegevenslijst als je de kaart openklapt.
+        */}
+        {vestiging.volgordereden && (
+          <span className="sp-sum-reden" title={vestiging.volgordereden}>
+            {vestiging.volgordereden}
+          </span>
+        )}
         <span className="sp-voortgang">
           <span className="sp-balk">
             <span className="sp-vul" style={{ width: `${pct}%` }} />
@@ -252,13 +270,6 @@ export default function VestigingKaart({
       </summary>
 
       <div className="blokbody">
-        {vestiging.prioriteit != null && vestiging.volgordereden && (
-          <div className="sp-voorstel">
-            <span className="sp-lbl">Voorgestelde volgorde &middot; #{vestiging.prioriteit}</span>
-            <p>{vestiging.volgordereden}</p>
-          </div>
-        )}
-
         <ul className="sp-gegevenslijst">
           <li>
             <span className="sp-veldnaam">Naam</span>

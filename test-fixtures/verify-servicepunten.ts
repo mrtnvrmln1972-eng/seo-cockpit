@@ -12,6 +12,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import {
   ALLE_STAPPEN,
+  BEWERKBARE_VELDEN,
   herschikPrioriteiten,
   parseServicepunten,
   serialiseerServicepunten,
@@ -312,6 +313,28 @@ check(
   "hernoemen: het aantal vestigingen blijft gelijk",
   naHernoemen.vestigingen.length,
   model.vestigingen.length,
+);
+
+/**
+ * De reden achter de plek in de rij is bewerkbaar geworden (11-09-2026), toen
+ * het losse tabblad Volgorde verdween en die informatie naar de vestiging
+ * zelf verhuisde. Deze check legt vast dat hij ook echt in het bestand komt
+ * en er weer uit, want dat is precies wat er misgaat als een veld wel op het
+ * scherm staat maar niet in de lijst met bewerkbare velden.
+ */
+check(
+  "de reden achter de volgorde is een bewerkbaar veld",
+  (BEWERKBARE_VELDEN as readonly string[]).includes("volgordereden"),
+  true,
+);
+const metReden = parseServicepunten(md);
+const eersteKandidaat = metReden.vestigingen.find((v) => v.id === "annadal")!;
+eersteKandidaat.volgordereden = "120 p/mnd op 'ooglaseren maastricht' (KD 5).";
+const naReden = parseServicepunten(serialiseerServicepunten(metReden));
+check(
+  "en overleeft een rondje schrijven en lezen",
+  naReden.vestigingen.find((v) => v.id === "annadal")?.volgordereden,
+  "120 p/mnd op 'ooglaseren maastricht' (KD 5).",
 );
 
 console.log(fails === 0 ? `\nAlle checks geslaagd.` : `\n${fails} check(s) mislukt.`);

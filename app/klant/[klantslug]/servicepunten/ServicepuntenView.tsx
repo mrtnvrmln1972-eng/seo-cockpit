@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   ALLE_STAPPEN,
   STATUS_GROEPLABEL,
-  STATUS_LABEL,
   STATUS_VOLGORDE,
   type ServicepuntChecklistItem,
   type Vestiging,
@@ -47,7 +46,7 @@ import {
  * pagina te verversen.
  */
 
-type SubTab = "vestigingen" | "volgorde" | "basis" | "notities";
+type SubTab = "vestigingen" | "basis" | "notities";
 
 function checklistUitVestigingen(vestigingen: Vestiging[]): Record<string, Record<string, ServicepuntChecklistItem>> {
   const out: Record<string, Record<string, ServicepuntChecklistItem>> = {};
@@ -106,16 +105,6 @@ export default function ServicepuntenView({
     });
   }
 
-  function openVestiging(id: string) {
-    setTab("vestigingen");
-    requestAnimationFrame(() => {
-      const el = document.getElementById(`vest-${id}`);
-      if (el instanceof HTMLDetailsElement) {
-        el.open = true;
-        el.scrollIntoView({ block: "start", behavior: "smooth" });
-      }
-    });
-  }
 
   const tellingen = { draait: 0, bevestigd: 0, kandidaat: 0, uitzoeken: 0 };
   let klaarTotaal = 0;
@@ -227,13 +216,6 @@ export default function ServicepuntenView({
         </button>
         <button
           type="button"
-          className={`sp-tab${tab === "volgorde" ? " sp-tab-actief" : ""}`}
-          onClick={() => setTab("volgorde")}
-        >
-          Volgorde
-        </button>
-        <button
-          type="button"
           className={`sp-tab${tab === "basis" ? " sp-tab-actief" : ""}`}
           onClick={() => setTab("basis")}
         >
@@ -287,15 +269,6 @@ export default function ServicepuntenView({
         </div>
       )}
 
-      {tab === "volgorde" && (
-        <VolgordeTab
-          klantSlug={klantSlug}
-          dossier={dossier}
-          checklists={checklists}
-          onOpenVestiging={openVestiging}
-        />
-      )}
-
       {tab === "basis" && (
         <EenmaligGeregeldTab klantSlug={klantSlug} tekst={dossier.eenmaligGeregeld} />
       )}
@@ -314,137 +287,6 @@ export default function ServicepuntenView({
               opslaan={(tekst) => servicepuntNotitiesOpslaanAction(klantSlug, tekst)}
             />
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Het tabblad Volgorde: de wachtrij van punten die nog aangesloten moeten
- * worden, van boven naar beneden, en die volgorde sleep je zelf
- * (10-09-2026, op Maartens verzoek: "kun je het zo maken dat ik de
- * vestigingen kan slepen in volgorde?").
- *
- * Bij loslaten worden de nummers doorgenummerd vanaf 1 en in één keer
- * opgeslagen in servicepunten.md (het veld "Prioriteit" per vestiging).
- * Lukt dat niet, dan springt de lijst terug naar de volgorde die op de
- * server staat, met de melding erbij: beter zichtbaar terug dan een
- * volgorde tonen die niet is opgeslagen. Zelfde aanpak als de klantenlijst
- * in de zijbalk (NavKlanten.tsx) en de takenlijst op het werkbord.
- *
- * Slepen kan alleen als je de greep vasthebt (het nummer vooraan), zodat je
- * de tekst op een regel gewoon kunt selecteren en kopiëren.
- *
- * De punten die al draaien staan eronder in een aparte, niet-sleepbare
- * lijst: die hoeven niet meer in de rij te staan.
- */
-function VolgordeTab({
-  klantSlug,
-  dossier,
-  checklists,
-  onOpenVestiging,
-}: {
-  klantSlug: string;
-  dossier: ServicepuntenDossier;
-  checklists: Record<string, Record<string, ServicepuntChecklistItem>>;
-  onOpenVestiging: (id: string) => void;
-}) {
-  const wachtrijVanServer = useMemo(() => wachtrij(dossier.vestigingen), [dossier.vestigingen]);
-  const draaien = dossier.vestigingen.filter((v) => v.status === "draait");
-
-  const [fout, setFout] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
-
-  /**
-   * Zelfde sleepmechaniek als in het vestigingsoverzicht (11-09-2026): met
-   * aanwijs-gebeurtenissen, niet met HTML5-slepen. Zie de uitleg in
-   * app/_components/sleep-volgorde.ts; kort: dat laatste is niet na te meten
-   * en hing aan het moment waarop `draggable` aanging.
-   */
-  const idsVanServer = useMemo(() => wachtrijVanServer.map((v) => v.id), [wachtrijVanServer]);
-  const sleep = useSleepVolgorde(idsVanServer, (ids, herstel) => {
-    setFout(null);
-    startTransition(async () => {
-      try {
-        await servicepuntVolgordeOpslaanAction(klantSlug, ids);
-      } catch (err) {
-        herstel();
-        setFout(err instanceof Error ? err.message : "Kon de volgorde niet opslaan.");
-      }
-    });
-  });
-  const opId = new Map(dossier.vestigingen.map((v) => [v.id, v]));
-  const lijst = sleep.ids.map((id) => opId.get(id)).filter((v): v is Vestiging => Boolean(v));
-
-  function rij(v: Vestiging, nummer: number | null, sleepbaar: boolean) {
-    const cl = checklists[v.id] || {};
-    const klaar = ALLE_STAPPEN.filter((s) => cl[s.id]?.afgevinkt).length;
-    const totaal = ALLE_STAPPEN.length;
-    const pct = totaal ? Math.round((klaar / totaal) * 100) : 0;
-    const meta = v.volgordereden || v.opmerking || "";
-    const metaKort = meta.length > 90 ? `${meta.slice(0, 90)}…` : meta;
-    return (
-      <div
-        className={`sp-rm-rij${sleep.sleept === v.id ? " sp-rm-rij-sleept" : ""}`}
-        key={v.id}
-        data-sleep-id={sleepbaar ? v.id : undefined}
-      >
-        {sleepbaar ? (
-          <span
-            className="sp-rm-greep"
-            title="Sleep om de volgorde te veranderen"
-            onPointerDown={(e) => sleep.start(v.id, e)}
-          >
-            <span className="sp-rm-greepstippen">⠿</span>
-            <span className="sp-rm-nr">{nummer}</span>
-          </span>
-        ) : (
-          <span className="sp-rm-greep sp-rm-geengreep">
-            <span className="sp-stip sp-stip-draait" />
-          </span>
-        )}
-        <span className="sp-rm-plaats">{v.plaats}</span>
-        <span className="sp-rm-status">
-          <span className={`sp-stip sp-stip-${v.status}`} />
-          {STATUS_LABEL[v.status]}
-        </span>
-        <span className="sp-voortgang">
-          <span className="sp-balk">
-            <span className="sp-vul" style={{ width: `${pct}%` }} />
-          </span>
-          <span className="sp-cijfer">
-            {klaar}/{totaal}
-          </span>
-        </span>
-        <span className="sp-rm-meta">{metaKort}</span>
-        <button type="button" className="sp-rm-link" onClick={() => onOpenVestiging(v.id)}>
-          Open kaart →
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {fout && <p className="foutregel">{fout}</p>}
-
-      <div className="blok kaart" style={{ marginBottom: 14 }}>
-        <div className="sp-groepskop" style={{ margin: "16px 18px 0" }}>
-          <h4>Aansluiten, in deze volgorde ({lijst.length})</h4>
-          <span className="sp-lijn" />
-          <span className="sp-rm-hulp">Sleep aan het nummer om te wisselen</span>
-        </div>
-        {lijst.map((v, i) => rij(v, i + 1, true))}
-      </div>
-
-      {draaien.length > 0 && (
-        <div className="blok kaart" style={{ marginBottom: 14 }}>
-          <div className="sp-groepskop" style={{ margin: "16px 18px 0" }}>
-            <h4>Draaien al ({draaien.length})</h4>
-            <span className="sp-lijn" />
-          </div>
-          {draaien.map((v) => rij(v, null, false))}
         </div>
       )}
     </div>

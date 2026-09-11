@@ -245,6 +245,13 @@ export const BEWERKBARE_VELDEN = [
   "telefoon",
   "email",
   "beschikbaarheid",
+  /**
+   * De reden achter de plek in de rij (zoekvolume, moeilijkheid, dekking van
+   * een regio). Sinds 11-09-2026 bewerkbaar en zichtbaar op de vestiging
+   * zelf: het losse tabblad Volgorde is opgeheven en die informatie stond
+   * daar, niet hier.
+   */
+  "volgordereden",
   "opmerking",
 ] as const;
 export type BewerkbaarVeld = (typeof BEWERKBARE_VELDEN)[number];

@@ -2262,33 +2262,30 @@ strong {
   border-bottom-color: var(--accent);
 }
 
-.sp-groepskop {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin: 24px 0 10px;
-}
-.sp-groepskop:first-child {
-  margin-top: 0;
-}
-.sp-groepskop h4 {
-  margin: 0;
-  font-size: 11.5px;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.sp-groepskop .sp-lijn {
-  flex: 1 1 auto;
-  height: 1px;
-  background: var(--line);
-}
-
 .sp-kaarten {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* De kopregel boven de deelbare servicepuntenpagina (11-09-2026). Alleen
+   daar: in de cockpit zeggen de tabbalk en de klantenlijst al waar je bent. */
+.deelkop {
+  margin: 0 0 18px;
+}
+.deelkop h1 {
+  margin: 0 0 4px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  color: var(--head);
+}
+.deelkop p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 68ch;
 }
 
 .sp-kaart > .blokkop {
@@ -2306,6 +2303,28 @@ strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Waarom deze vestiging op deze plek in de rij staat (zoekvolume,
+   moeilijkheid, welke regio hij dekt). Stond op het opgeheven tabblad
+   Volgorde; hier krijgt hij de ruimte die overblijft en kapt hij netjes af,
+   met de hele tekst in de tooltip en in de gegevenslijst eronder. */
+.sp-sum-reden {
+  flex: 2 1 200px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--muted-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Naast een contactpersoon krijgt de contactpersoon de kleinste helft: die is
+   kort, de reden is een zin. */
+.sp-sum-sub + .sp-sum-reden {
+  flex: 2 1 180px;
+}
+.sp-sum-sub:has(+ .sp-sum-reden) {
+  flex: 0 1 auto;
 }
 
 .sp-p-draait {
@@ -2365,28 +2384,6 @@ strong {
   font-variant-numeric: tabular-nums;
 }
 
-.sp-voorstel {
-  background: var(--accent-wash);
-  border-left: 3px solid var(--accent);
-  border-radius: 0 8px 8px 0;
-  padding: 10px 14px;
-  margin: 0 0 14px;
-}
-.sp-voorstel .sp-lbl {
-  display: block;
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: var(--accent-2);
-  margin-bottom: 4px;
-}
-.sp-voorstel p {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--ink);
-}
 
 .sp-opmerking {
   font-size: 13.5px;
@@ -2550,45 +2547,6 @@ strong {
   color: var(--ink);
 }
 
-.sp-rm-rij {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 11px 16px;
-  border-bottom: 1px solid var(--line);
-  flex-wrap: wrap;
-}
-.sp-rm-rij:last-child {
-  border-bottom: none;
-}
-.sp-rm-plaats {
-  flex: 1 1 150px;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.sp-rm-meta {
-  flex: 2 1 220px;
-  font-size: 12px;
-  color: var(--muted-2);
-}
-.sp-rm-link {
-  flex: none;
-  font-family: var(--sans);
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--accent-2);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  padding: 0;
-}
-.sp-rm-link:hover {
-  color: var(--accent);
-}
-
 /* ---- Toegang: waarschuwingsbalk, inlogscherm en de deelbare, alleen-lezen
    servicepuntenpagina (09-09-2026). Zie lib/toegang.ts voor het waarom. */
 
@@ -2741,9 +2699,6 @@ strong {
 .sp-compact .sp-kaart .pill {
   font-size: 10.5px;
   padding: 3px 9px;
-}
-.sp-compact .sp-groepskop {
-  margin: 18px 0 7px;
 }
 .sp-compact .sp-pillen {
   margin-bottom: 14px;
@@ -3929,69 +3884,7 @@ pre.codeblok code {
   opacity: 1;
 }
 
-/* De wachtrij op het tabblad Volgorde: het nummer vooraan is de sleepgreep,
-   zelfde patroon als de klantenlijst in de zijbalk (10-09-2026). */
-.sp-rm-greep {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: grab;
-  user-select: none;
-  color: var(--muted-2);
-}
-.sp-rm-greep:active {
-  cursor: grabbing;
-}
-.sp-rm-greepstippen {
-  font-size: 13px;
-  line-height: 1;
-  opacity: 0.5;
-}
-.sp-rm-greep:hover .sp-rm-greepstippen {
-  opacity: 1;
-}
-.sp-rm-nr {
-  min-width: 22px;
-  text-align: center;
-  font-size: 11.5px;
-  font-weight: 800;
-  color: var(--head);
-  background: var(--surface-2);
-  border: 1px solid var(--line-2);
-  border-radius: 6px;
-  padding: 2px 5px;
-  font-variant-numeric: tabular-nums;
-}
-.sp-rm-rij[draggable="true"] {
-  cursor: grab;
-}
-.sp-rm-rij-sleept {
-  opacity: 0.4;
-}
-.sp-rm-geengreep {
-  cursor: default;
-  justify-content: center;
-  width: 41px;
-}
-/* Vaste kolombreedtes, anders begint elke balk op een andere plek doordat
-   de ene status een langer woord is dan de andere. */
-.sp-rm-status {
-  flex: none;
-  width: 152px;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.sp-rm-rij .sp-voortgang {
-  flex: none;
-}
+/* De hulpzin in de kop van een groep vestigingen ("Sleep aan de ⠿ …"). */
 .sp-rm-hulp {
   flex: none;
   font-size: 11px;
@@ -4107,8 +4000,7 @@ pre.codeblok code {
   cursor: grabbing;
 }
 /* Zonder dit scrolt de pagina mee zodra je met een vinger aan de greep trekt. */
-.sp-kaartgreep,
-.sp-rm-greep {
+.sp-kaartgreep {
   touch-action: none;
 }
 .sp-sleepbaar.sp-sleept {

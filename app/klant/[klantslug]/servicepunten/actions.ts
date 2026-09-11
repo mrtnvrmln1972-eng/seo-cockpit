@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getKlantBySlug, type Klant } from "@/lib/klanten";
 import { VersionConflictError } from "@/lib/drive";
+import { SERVICEPUNTEN_DEELPAD } from "@/lib/toegang";
 import { resolveDriveLinksInText } from "@/lib/links";
 import {
   ALLE_STAPPEN,
@@ -28,6 +29,17 @@ function foutmelding(err: unknown, fallback: string): Error {
   }
   if (err instanceof Error) return err;
   return new Error(fallback);
+}
+
+/**
+ * Na elke wijziging allebei de schermen verversen die dit dossier tonen: het
+ * tabblad in de cockpit en de deelbare pagina (11-09-2026, sinds die laatste
+ * ook bewerkbaar is). Vergeet je de tweede, dan blijft degene die via de
+ * deellink werkt naar zijn eigen oude stand kijken.
+ */
+function vernieuwBeideSchermen(klantSlug: string): void {
+  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  revalidatePath(SERVICEPUNTEN_DEELPAD);
 }
 
 async function klantMetServicepuntenDossier(klantSlug: string): Promise<Klant> {
@@ -59,7 +71,7 @@ export async function servicepuntVeldOpslaanAction(
     throw foutmelding(err, "Kon dit veld niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  vernieuwBeideSchermen(klantSlug);
 }
 
 /**
@@ -102,7 +114,7 @@ export async function servicepuntNaamOpslaanAction(
     throw foutmelding(err, "Kon de naam niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  vernieuwBeideSchermen(klantSlug);
 }
 
 export async function servicepuntStapOpslaanAction(
@@ -131,7 +143,7 @@ export async function servicepuntStapOpslaanAction(
     throw foutmelding(err, "Kon deze stap niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  vernieuwBeideSchermen(klantSlug);
 }
 
 /**
@@ -161,7 +173,7 @@ export async function servicepuntStapNotitieOpslaanAction(
     throw foutmelding(err, "Kon deze opmerking niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  vernieuwBeideSchermen(klantSlug);
 }
 
 /**
@@ -198,7 +210,7 @@ export async function servicepuntStapLinkOpslaanAction(
     throw foutmelding(err, "Kon deze link niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  vernieuwBeideSchermen(klantSlug);
 }
 
 export async function servicepuntLogToevoegenAction(
@@ -223,7 +235,7 @@ export async function servicepuntLogToevoegenAction(
     throw foutmelding(err, "Kon dit contactmoment niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  vernieuwBeideSchermen(klantSlug);
 }
 
 /**
@@ -250,7 +262,7 @@ export async function servicepuntVolgordeOpslaanAction(
     throw foutmelding(err, "Kon de volgorde niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  vernieuwBeideSchermen(klantSlug);
 }
 
 /** De vrije notities bij deze klant (de vierde tab), als eigen sectie in servicepunten.md. */
@@ -269,7 +281,7 @@ export async function servicepuntNotitiesOpslaanAction(
     throw foutmelding(err, "Kon de notities niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  vernieuwBeideSchermen(klantSlug);
 }
 
 export async function servicepuntEenmaligOpslaanAction(
@@ -287,5 +299,5 @@ export async function servicepuntEenmaligOpslaanAction(
     throw foutmelding(err, "Kon dit niet opslaan.");
   }
 
-  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+  vernieuwBeideSchermen(klantSlug);
 }
