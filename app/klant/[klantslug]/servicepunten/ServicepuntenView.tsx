@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 
 import {
   ALLE_STAPPEN,
@@ -13,6 +13,7 @@ import {
 import type { ServicepuntenDossier } from "@/lib/servicepunten";
 import VestigingKaart from "./VestigingKaart";
 import NotitieVeld from "@/app/_components/NotitieVeld";
+import { useSleepVolgorde } from "@/app/_components/sleep-volgorde";
 import {
   servicepuntStapOpslaanAction,
   servicepuntEenmaligOpslaanAction,
@@ -127,10 +128,52 @@ export default function ServicepuntenView({
   }
   const pctTotaal = stappenTotaal ? Math.round((klaarTotaal / stappenTotaal) * 100) : 0;
 
-  const gegroepeerd = STATUS_VOLGORDE.map((status) => ({
-    status,
-    vestigingen: dossier.vestigingen.filter((v) => v.status === status),
-  })).filter((g) => g.vestigingen.length > 0);
+  /**
+   * Slepen in het vestigingsoverzicht zelf (11-09-2026, op Maartens verzoek:
+   * "ik wil deze servicepunten ook in volgorde kunnen zetten, slepen").
+   * Dat kon al op het tabblad Volgorde, maar niet hier, terwijl hier wel
+   * "#3 in volgorde" op elke kaart staat.
+   *
+   * Twee dingen horen bij elkaar en zijn allebei nodig:
+   * 1. De kaarten in een groep staan nu ín die volgorde. Ze stonden in de
+   *    volgorde van het bestand, dus de nummers liepen door elkaar (#13, #2,
+   *    #12, #6) en dan zegt slepen niets.
+   * 2. Slepen verandert alleen de plekken bínnen die groep. De wachtrij loopt
+   *    over alle groepen heen; door alleen de bewoners van de plekken van
+   *    deze groep te wisselen, blijft de rest staan waar hij stond.
+   *
+   * De punten die al draaien staan niet in de wachtrij en zijn dus ook niet
+   * te slepen; daar valt geen volgorde aan te geven.
+   */
+  const rijVanServer = useMemo(
+    () => wachtrij(dossier.vestigingen).map((v) => v.id),
+    [dossier.vestigingen],
+  );
+  const [volgordeFout, setVolgordeFout] = useState<string | null>(null);
+
+  const sleep = useSleepVolgorde(rijVanServer, (ids, herstel) => {
+    setVolgordeFout(null);
+    startTransition(async () => {
+      try {
+        await servicepuntVolgordeOpslaanAction(klantSlug, ids);
+      } catch (err) {
+        herstel();
+        setVolgordeFout(err instanceof Error ? err.message : "Kon de volgorde niet opslaan.");
+      }
+    });
+  });
+  const plekInRij = new Map(sleep.ids.map((id, i) => [id, i + 1]));
+
+  const gegroepeerd = STATUS_VOLGORDE.map((status) => {
+    const inGroep = dossier.vestigingen.filter((v) => v.status === status);
+    if (status === "draait") return { status, vestigingen: inGroep, sleepbaar: false };
+    // Op de plek die de wachtrij aangeeft, zodat het nummer op elke kaart
+    // ook echt de volgorde van boven naar beneden is.
+    const opRij = inGroep
+      .slice()
+      .sort((a, b) => (plekInRij.get(a.id) ?? Infinity) - (plekInRij.get(b.id) ?? Infinity));
+    return { status, vestigingen: opRij, sleepbaar: opRij.length > 1 };
+  }).filter((g) => g.vestigingen.length > 0);
 
   return (
     // sp-compact: dezelfde strakke rijenlijst als de gedeelde pagina al had.
@@ -209,22 +252,34 @@ export default function ServicepuntenView({
 
       {tab === "vestigingen" && (
         <div>
-          {gegroepeerd.map(({ status, vestigingen }) => (
+          {volgordeFout && <p className="foutregel">{volgordeFout}</p>}
+          {gegroepeerd.map(({ status, vestigingen, sleepbaar }) => (
             <section className="sp-groepkaart" key={status} id={`sp-groep-${status}`}>
               <div className="sp-groepkop">
                 <span className={`sp-stip sp-stip-${status}`} />
                 <h4>{STATUS_GROEPLABEL[status]}</h4>
                 <span className="pill p-open">{vestigingen.length}</span>
+                {sleepbaar && (
+                  <span className="sp-rm-hulp">Sleep aan de ⠿ om de volgorde te veranderen</span>
+                )}
               </div>
               <div className="sp-kaarten">
                 {vestigingen.map((v) => (
-                  <VestigingKaart
+                  <div
                     key={v.id}
-                    klantSlug={klantSlug}
-                    vestiging={v}
-                    checklist={checklists[v.id] || {}}
-                    onStapChange={(stapId, next) => opStapChange(v.id, stapId, next)}
-                  />
+                    className={`sp-sleepbaar${sleep.sleept === v.id ? " sp-sleept" : ""}`}
+                    /* Waar de aanwijzer overheen gaat tijdens het slepen. */
+                    data-sleep-id={sleepbaar ? v.id : undefined}
+                  >
+                    <VestigingKaart
+                      klantSlug={klantSlug}
+                      vestiging={v}
+                      checklist={checklists[v.id] || {}}
+                      volgordeNr={plekInRij.get(v.id) ?? null}
+                      opGreep={sleepbaar ? (e) => sleep.start(v.id, e) : undefined}
+                      onStapChange={(stapId, next) => opStapChange(v.id, stapId, next)}
+                    />
+                  </div>
                 ))}
               </div>
             </section>
@@ -295,53 +350,32 @@ function VolgordeTab({
   checklists: Record<string, Record<string, ServicepuntChecklistItem>>;
   onOpenVestiging: (id: string) => void;
 }) {
-  const wachtrijVanServer = wachtrij(dossier.vestigingen);
+  const wachtrijVanServer = useMemo(() => wachtrij(dossier.vestigingen), [dossier.vestigingen]);
   const draaien = dossier.vestigingen.filter((v) => v.status === "draait");
 
-  const [lijst, setLijst] = useState(wachtrijVanServer);
-  const [sleept, setSleept] = useState<string | null>(null);
-  const [greep, setGreep] = useState<string | null>(null);
   const [fout, setFout] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  // De server is de baas: komt er verse data binnen (na opslaan, of na een
-  // wijziging elders), dan volgt de lokale lijst die. Dit is de "state
-  // bijstellen tijdens renderen"-vorm uit de React-documentatie, niet een
-  // effect: een effect zou de oude volgorde eerst nog een keer tekenen.
-  const [bron, setBron] = useState(dossier.vestigingen);
-  if (bron !== dossier.vestigingen) {
-    setBron(dossier.vestigingen);
-    setLijst(wachtrijVanServer);
-  }
-
-  function opDragOver(id: string) {
-    if (!sleept || sleept === id) return;
-    setLijst((oud) => {
-      const van = oud.findIndex((v) => v.id === sleept);
-      const naar = oud.findIndex((v) => v.id === id);
-      if (van === -1 || naar === -1 || van === naar) return oud;
-      const nieuw = oud.slice();
-      const [verplaatst] = nieuw.splice(van, 1);
-      nieuw.splice(naar, 0, verplaatst);
-      return nieuw;
-    });
-  }
-
-  function opDrop() {
-    if (!sleept) return;
-    setSleept(null);
-    setGreep(null);
+  /**
+   * Zelfde sleepmechaniek als in het vestigingsoverzicht (11-09-2026): met
+   * aanwijs-gebeurtenissen, niet met HTML5-slepen. Zie de uitleg in
+   * app/_components/sleep-volgorde.ts; kort: dat laatste is niet na te meten
+   * en hing aan het moment waarop `draggable` aanging.
+   */
+  const idsVanServer = useMemo(() => wachtrijVanServer.map((v) => v.id), [wachtrijVanServer]);
+  const sleep = useSleepVolgorde(idsVanServer, (ids, herstel) => {
     setFout(null);
-    const ids = lijst.map((v) => v.id);
     startTransition(async () => {
       try {
         await servicepuntVolgordeOpslaanAction(klantSlug, ids);
       } catch (err) {
-        setLijst(wachtrij(dossier.vestigingen));
+        herstel();
         setFout(err instanceof Error ? err.message : "Kon de volgorde niet opslaan.");
       }
     });
-  }
+  });
+  const opId = new Map(dossier.vestigingen.map((v) => [v.id, v]));
+  const lijst = sleep.ids.map((id) => opId.get(id)).filter((v): v is Vestiging => Boolean(v));
 
   function rij(v: Vestiging, nummer: number | null, sleepbaar: boolean) {
     const cl = checklists[v.id] || {};
@@ -352,32 +386,15 @@ function VolgordeTab({
     const metaKort = meta.length > 90 ? `${meta.slice(0, 90)}…` : meta;
     return (
       <div
-        className={`sp-rm-rij${sleept === v.id ? " sp-rm-rij-sleept" : ""}`}
+        className={`sp-rm-rij${sleep.sleept === v.id ? " sp-rm-rij-sleept" : ""}`}
         key={v.id}
-        draggable={sleepbaar && greep === v.id}
-        onDragStart={() => sleepbaar && setSleept(v.id)}
-        onDragOver={(e) => {
-          if (!sleepbaar) return;
-          e.preventDefault();
-          opDragOver(v.id);
-        }}
-        onDrop={(e) => {
-          if (!sleepbaar) return;
-          e.preventDefault();
-          opDrop();
-        }}
-        onDragEnd={() => {
-          setSleept(null);
-          setGreep(null);
-        }}
+        data-sleep-id={sleepbaar ? v.id : undefined}
       >
         {sleepbaar ? (
           <span
             className="sp-rm-greep"
             title="Sleep om de volgorde te veranderen"
-            onMouseDown={() => setGreep(v.id)}
-            onTouchStart={() => setGreep(v.id)}
-            onMouseUp={() => setGreep(null)}
+            onPointerDown={(e) => sleep.start(v.id, e)}
           >
             <span className="sp-rm-greepstippen">⠿</span>
             <span className="sp-rm-nr">{nummer}</span>

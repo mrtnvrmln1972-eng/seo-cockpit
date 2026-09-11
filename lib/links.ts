@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getFileMetadata } from "@/lib/drive";
+import { getFileMetadata, serviceAccountEmail } from "@/lib/drive";
 
 /**
  * lib/links.ts — geplakte Google Drive-links automatisch naar hun echte
@@ -80,8 +80,28 @@ export function magOpgehaaldWorden(url: string): boolean {
   }
 }
 
-export async function titelVanWebpagina(url: string): Promise<string | null> {
-  if (!magOpgehaaldWorden(url)) return null;
+/**
+ * Waarom er geen titel is. Niet om mee te rekenen, alleen om op het scherm
+ * één begrijpelijke zin van te maken (09-09-2026): "geen titel gevonden" laat
+ * je zoeken, "dit document is niet gedeeld met de cockpit" is meteen op te
+ * lossen. Gemeten aanleiding: een geplakte Google Docs-link gaf 401 en een
+ * Cowork-link 403, en op het scherm bleef in beide gevallen alleen de kale
+ * url staan zonder één woord uitleg.
+ */
+export type TitelReden =
+  | "gevonden"
+  | "geen-drive-toegang"
+  | "inloggen-nodig"
+  | "niet-bereikbaar"
+  | "geen-titel";
+
+export interface TitelUitslag {
+  titel: string | null;
+  reden: TitelReden;
+}
+
+export async function titelVanWebpaginaMetReden(url: string): Promise<TitelUitslag> {
+  if (!magOpgehaaldWorden(url)) return { titel: null, reden: "niet-bereikbaar" };
   const adres = new URL(url);
 
   const stop = AbortSignal.timeout(3000);
@@ -95,13 +115,21 @@ export async function titelVanWebpagina(url: string): Promise<string | null> {
         accept: "text/html,application/xhtml+xml",
       },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const slot = res.status === 401 || res.status === 403;
+      return { titel: null, reden: slot ? "inloggen-nodig" : "niet-bereikbaar" };
+    }
     const type = res.headers.get("content-type") ?? "";
-    if (!type.includes("html")) return null;
-    return titelUitHtml((await res.text()).slice(0, 200_000));
+    if (!type.includes("html")) return { titel: null, reden: "geen-titel" };
+    const titel = titelUitHtml((await res.text()).slice(0, 200_000));
+    return titel ? { titel, reden: "gevonden" } : { titel: null, reden: "geen-titel" };
   } catch {
-    return null;
+    return { titel: null, reden: "niet-bereikbaar" };
   }
+}
+
+export async function titelVanWebpagina(url: string): Promise<string | null> {
+  return (await titelVanWebpaginaMetReden(url)).titel;
 }
 
 /**
@@ -116,34 +144,99 @@ export async function titelVanWebpagina(url: string): Promise<string | null> {
  * Cowork-gesprek kan dat wél: dat heeft toegang tot de mail en kan de regel in
  * het dossier aanvullen.
  */
-const BEKENDE_BRONNEN: Array<[RegExp, string]> = [
-  [/^mail\.superhuman\.com$/i, "Mail"],
-  [/^mail\.google\.com$/i, "Mail"],
-  [/^outlook\.(office|live|office365)\.com$/i, "Mail"],
+const BEKENDE_BRONNEN: Array<{ host: RegExp; naam: (adres: URL) => string }> = [
+  { host: /^mail\.superhuman\.com$/i, naam: () => "Mail" },
+  { host: /^mail\.google\.com$/i, naam: () => "Mail" },
+  { host: /^outlook\.(office|live|office365)\.com$/i, naam: () => "Mail" },
+  /**
+   * Claude (09-09-2026). Gemeten: claude.ai geeft een anonieme opvraging een
+   * 403 van Cloudflare terug, dus hier valt nooit een titel te halen, hoe vaak
+   * je het ook probeert. Het pad zegt wél wat het is, en dat is precies wat
+   * Maarten in zijn notitie wil zien staan in plaats van cse_016yAgMh1DLz…
+   */
+  {
+    host: /^(?:www\.)?claude\.ai$/i,
+    naam: (adres) =>
+      adres.pathname.startsWith("/cowork/")
+        ? "Cowork-gesprek"
+        : adres.pathname.startsWith("/chat/") || adres.pathname.startsWith("/share/")
+          ? "Claude-gesprek"
+          : "Claude",
+  },
+  {
+    host: /^(?:www\.)?(?:chatgpt\.com|chat\.openai\.com)$/i,
+    naam: () => "ChatGPT-gesprek",
+  },
 ];
 
 /**
- * De titel bij een geplakte link: eerst Drive (dan hebben we de echte
- * bestandsnaam), anders een bekende bron, anders de <title> van de pagina zelf.
+ * Hoe een geplakte link heet: eerst een bekende bron (die nooit op te halen
+ * is, maar waarvan we weten wat het is), dan Drive (de echte bestandsnaam),
+ * dan de <title> van de pagina zelf. Geeft er de reden bij als er niets
+ * gevonden is, zodat het scherm kan zeggen wat eraan te doen is.
  */
-export async function titelVanLink(url: string): Promise<string | null> {
+export async function titelVanLinkMetReden(url: string): Promise<TitelUitslag> {
+  let adres: URL;
   try {
-    const host = new URL(url).hostname;
-    for (const [patroon, naam] of BEKENDE_BRONNEN) if (patroon.test(host)) return naam;
+    adres = new URL(url);
   } catch {
-    return null;
+    return { titel: null, reden: "niet-bereikbaar" };
+  }
+  for (const bron of BEKENDE_BRONNEN) {
+    if (bron.host.test(adres.hostname)) return { titel: bron.naam(adres), reden: "gevonden" };
   }
 
   const fileId = driveFileIdVan(url);
   if (fileId) {
     try {
       const meta = await getFileMetadata(fileId);
-      if (meta?.name) return meta.name;
+      if (meta?.name) return { titel: meta.name, reden: "gevonden" };
     } catch {
       // valt hieronder terug op de pagina zelf
     }
+    /**
+     * Een Drive-link waar het service-account niet bij kan. De pagina zelf
+     * ophalen heeft dan geen zin: gemeten geeft docs.google.com een anonieme
+     * opvraging een 401, altijd. Meteen de bruikbare reden teruggeven scheelt
+     * drie seconden wachten op een antwoord dat toch niets oplevert.
+     */
+    if (/(?:docs|drive)\.google\.com$/i.test(adres.hostname)) {
+      return { titel: null, reden: "geen-drive-toegang" };
+    }
   }
-  return titelVanWebpagina(url);
+  return titelVanWebpaginaMetReden(url);
+}
+
+/**
+ * De titel bij een geplakte link: eerst Drive (dan hebben we de echte
+ * bestandsnaam), anders een bekende bron, anders de <title> van de pagina zelf.
+ */
+export async function titelVanLink(url: string): Promise<string | null> {
+  return (await titelVanLinkMetReden(url)).titel;
+}
+
+/**
+ * De reden in één zin die Maarten iets zegt, met de handeling erbij als die
+ * er is. Staat hier en niet in het scherm, zodat elke plek die een titel
+ * opzoekt dezelfde uitleg geeft.
+ */
+export function uitlegBijReden(reden: TitelReden): string | null {
+  switch (reden) {
+    case "gevonden":
+      return null;
+    case "geen-drive-toegang": {
+      const account = serviceAccountEmail();
+      return account
+        ? `Geen titel: dit document is niet gedeeld met de cockpit. Deel het (Lezer is genoeg) met ${account} en plak de link opnieuw.`
+        : "Geen titel: dit document is niet gedeeld met de cockpit.";
+    }
+    case "inloggen-nodig":
+      return "Geen titel: deze pagina is alleen na inloggen te lezen, dus de link blijft zoals hij is.";
+    case "niet-bereikbaar":
+      return "Geen titel: deze pagina was niet op te halen, dus de link blijft zoals hij is.";
+    case "geen-titel":
+      return "Geen titel: deze pagina heeft er zelf geen, dus de link blijft zoals hij is.";
+  }
 }
 
 /** Combinatie van elk Drive-URL-patroon dat in de praktijk wordt geplakt. */

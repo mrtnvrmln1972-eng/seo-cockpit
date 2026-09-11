@@ -2908,6 +2908,30 @@ strong {
   padding: 0 4px;
 }
 
+/* De regel onder het veld als een geplakte link geen titel opleverde
+   (11-09-2026). Bewust binnen het veld en niet als losse melding elders: je
+   leest hem op de plek waar je net plakte, en hij verdwijnt zodra je opnieuw
+   plakt of hem wegklikt. */
+.opmaakveld-uitleg {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.opmaakveld-uitleg-weg {
+  font: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .opmaakknop {
   font-family: var(--sans);
   font-size: 13px;
@@ -4026,6 +4050,65 @@ pre.codeblok code {
 .sp-stap-linkveld a:hover {
   background: var(--accent-wash);
 }
+/* Het adres zelf is de link, niet een pijltje ernaast (11-09-2026). Hij mag
+   de hele breedte pakken en kapt netjes af als hij niet past; de volledige
+   url staat in de tooltip. */
+.sp-stap-linkveld a.sp-stap-linktekst {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  padding: 3px 7px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-stap-linkwijzig {
+  flex: none;
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--muted-2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 3px 5px;
+  cursor: pointer;
+}
+.sp-stap-linkwijzig:hover {
+  color: var(--accent-2);
+  border-color: var(--line-2);
+}
 .sp-stap-knop {
   flex: 0 1 auto;
+}
+
+/* Slepen in het vestigingsoverzicht (11-09-2026). De greep zit vooraan in de
+   kop van de kaart; alleen daaraan kun je slepen, zodat je de tekst op een
+   kaart gewoon kunt blijven selecteren. */
+.sp-kaartgreep {
+  flex: none;
+  cursor: grab;
+  color: var(--muted-2);
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 5px;
+  user-select: none;
+}
+.sp-kaartgreep:hover {
+  color: var(--accent-2);
+  background: var(--accent-wash);
+}
+.sp-kaartgreep:active {
+  cursor: grabbing;
+}
+/* Zonder dit scrolt de pagina mee zodra je met een vinger aan de greep trekt. */
+.sp-kaartgreep,
+.sp-rm-greep {
+  touch-action: none;
+}
+.sp-sleepbaar.sp-sleept {
+  opacity: 0.55;
 }

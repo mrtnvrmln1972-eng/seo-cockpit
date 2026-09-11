@@ -116,6 +116,26 @@ interface Props {
  * strip die altijd een regel hoog is, dus hij staat er nu gewoon altijd.
  */
 
+/**
+ * De plek in de tekst waar deze net geplakte kale url staat. Bewust zoeken in
+ * plaats van de positie onthouden die hij bij het plakken had: plak je twee
+ * links achter elkaar, dan verschuift de tweede zodra de titel van de eerste
+ * binnenkomt, en met een onthouden positie greep de tweede daardoor mis. Er
+ * wordt alleen vervangen waar de tekst nog letterlijk die url is, dus wat je
+ * zelf hebt getypt of aangepast blijft met rust.
+ */
+function zoekKaleLink(editor: Editor, url: string): { van: number; tot: number } | null {
+  let gevonden: { van: number; tot: number } | null = null;
+  editor.state.doc.descendants((node, pos) => {
+    if (gevonden || !node.isText || !node.text) return true;
+    const index = node.text.indexOf(url);
+    if (index === -1) return true;
+    gevonden = { van: pos + index, tot: pos + index + url.length };
+    return false;
+  });
+  return gevonden;
+}
+
 export default function Opmaakveld({
   naam,
   waarde,
@@ -150,6 +170,16 @@ export default function Opmaakveld({
   // één keer opgebouwd, dus hij mag niet aan een functie vastzitten die bij
   // elke render verandert.
   const opentLink = useRef<() => void>(() => {});
+  /**
+   * De uitleg onder het veld als een geplakte link geen titel opleverde
+   * (11-09-2026). Via een ref aangeroepen om dezelfde reden als opentLink: de
+   * plak-afhandeling zit vast aan de editor die maar één keer wordt opgebouwd.
+   */
+  const [linkUitleg, setLinkUitleg] = useState<string | null>(null);
+  const meldLinkUitleg = useRef<(tekst: string | null) => void>(() => {});
+  useEffect(() => {
+    meldLinkUitleg.current = setLinkUitleg;
+  }, []);
 
 
   // De plak-afhandeling hieronder heeft de editor nodig terwijl hij hem zelf
@@ -207,12 +237,11 @@ export default function Opmaakveld({
          * precies dezelfde url staat: heb je in de tussentijd doorgetypt of
          * ergens anders geklikt, dan gebeurt er niets.
          */
-        handlePaste: (view, event) => {
+        handlePaste: (_view, event) => {
           const geplakt = event.clipboardData?.getData("text/plain")?.trim() ?? "";
           if (!/^https?:\/\/\S+$/.test(geplakt)) return false;
           event.preventDefault();
 
-          const start = view.state.selection.from;
           const editorNu = editorRef.current;
           if (!editorNu) return false;
           editorNu
@@ -225,18 +254,25 @@ export default function Opmaakveld({
             })
             .run();
 
-          void titelVanLinkAction(geplakt).then((titel) => {
+          meldLinkUitleg.current(null);
+          void titelVanLinkAction(geplakt).then(({ titel, uitleg }) => {
             const e = editorRef.current;
-            if (!e || !titel || titel === geplakt) return;
-            const eind = start + geplakt.length;
-            if (e.state.doc.textBetween(start, eind) !== geplakt) return;
+            if (!e) return;
+            if (!titel || titel === geplakt) {
+              // Geen titel is geen stilte meer: er staat nu bij waaróm, en wat
+              // eraan te doen is (11-09-2026, zie link-acties.ts).
+              meldLinkUitleg.current(uitleg);
+              return;
+            }
+            const plek = zoekKaleLink(e, geplakt);
+            if (!plek) return;
             e.chain()
               .focus()
               .command(({ tr }) => {
-                tr.insertText(titel, start, eind);
+                tr.insertText(titel, plek.van, plek.tot);
                 tr.addMark(
-                  start,
-                  start + titel.length,
+                  plek.van,
+                  plek.van + titel.length,
                   e.schema.marks.link.create({ href: geplakt }),
                 );
                 return true;
@@ -374,6 +410,15 @@ export default function Opmaakveld({
           style={{ minHeight: minHoogte }}
           onChange={(e) => setMarkdown(e.target.value)}
         />
+      )}
+
+      {linkUitleg && (
+        <p className="opmaakveld-uitleg" role="status">
+          {linkUitleg}{" "}
+          <button type="button" className="opmaakveld-uitleg-weg" onClick={() => setLinkUitleg(null)}>
+            Sluiten
+          </button>
+        </p>
       )}
 
       {/* Wat er daadwerkelijk naar de server gaat. */}

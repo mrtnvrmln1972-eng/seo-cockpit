@@ -5,9 +5,18 @@
  * de titel en de vraag wélke adressen we überhaupt ophalen zijn de stukken
  * waar iets fout kan gaan, en die staan hier los.
  *
- * Draai met: npx tsx test-fixtures/verify-links.ts
+ * Draai met: npx tsx --conditions=react-server test-fixtures/verify-links.ts
+ *
+ * Die conditie is nodig omdat lib/links.ts "server-only" importeert; zonder
+ * de vlag gooit dat pakket meteen en draait er geen enkele check.
  */
-import { magOpgehaaldWorden, titelUitHtml, titelVanLink } from "../lib/links";
+import {
+  magOpgehaaldWorden,
+  titelUitHtml,
+  titelVanLink,
+  titelVanLinkMetReden,
+  uitlegBijReden,
+} from "../lib/links";
 
 let fails = 0;
 function ok(naam: string, waar: boolean, uitleg?: string) {
@@ -73,7 +82,51 @@ async function bekendeBronnen() {
   }
 }
 
-void bekendeBronnen().then(() => {
-  console.log(fails === 0 ? "\nAlle checks geslaagd." : `\n${fails} mislukt.`);
-  process.exit(fails ? 1 : 0);
-});
+async function claudeEnUitleg() {
+  console.log("\n--- 4. Links waar nooit een titel uit komt ---");
+
+  /**
+   * Gemeten op 11-09-2026 met de twee links die Maarten plakte: claude.ai
+   * geeft een anonieme opvraging een 403 van Cloudflare, en
+   * docs.google.com een 401. Uit allebei kwam dus niets, en op het scherm
+   * bleef alleen de kale url staan. Deze checks leggen vast dat een
+   * Claude-link nu een naam heeft, en dat een mislukte opzoeking altijd een
+   * zin oplevert die zegt wat eraan te doen is.
+   */
+  const cowork = await titelVanLinkMetReden(
+    "https://claude.ai/cowork/cse_016yAgMh1DLz7b1tKzae5FZ8",
+  );
+  ok(
+    'een Cowork-link heet "Cowork-gesprek"',
+    cowork.titel === "Cowork-gesprek" && cowork.reden === "gevonden",
+    JSON.stringify(cowork),
+  );
+
+  const gesprek = await titelVanLink("https://claude.ai/chat/1234-abcd");
+  ok('een Claude-chatlink heet "Claude-gesprek"', gesprek === "Claude-gesprek", String(gesprek));
+
+  ok(
+    "een gevonden titel geeft geen uitleg",
+    uitlegBijReden("gevonden") === null,
+  );
+  for (const reden of ["geen-drive-toegang", "inloggen-nodig", "niet-bereikbaar", "geen-titel"] as const) {
+    const zin = uitlegBijReden(reden);
+    ok(
+      `"${reden}" levert een leesbare zin op`,
+      typeof zin === "string" && zin.length > 20,
+      String(zin),
+    );
+  }
+  ok(
+    "de uitleg bij een niet-gedeeld document noemt het delen",
+    /deel/i.test(uitlegBijReden("geen-drive-toegang") ?? ""),
+    String(uitlegBijReden("geen-drive-toegang")),
+  );
+}
+
+void bekendeBronnen()
+  .then(claudeEnUitleg)
+  .then(() => {
+    console.log(fails === 0 ? "\nAlle checks geslaagd." : `\n${fails} mislukt.`);
+    process.exit(fails ? 1 : 0);
+  });

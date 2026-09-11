@@ -136,7 +136,13 @@ export async function servicepuntStapLinkOpslaanAction(
   if (!stap) throw new Error("Onbekende stap.");
   if (!stap.linkveld) throw new Error("Bij deze stap hoort geen link.");
   const klant = await klantMetServicepuntenDossier(klantSlug);
-  const link = String(linkRuw ?? "").trim();
+  /**
+   * Ook hier de titel erbij zoeken (11-09-2026), net als bij elke andere
+   * plek waar een link in een dossier belandt: de cel wordt `[Titel](url)`
+   * zodra de titel te vinden is. Levert het niets op, dan blijft de kale url
+   * staan en toont het scherm hem verkort. Zie lib/links.ts.
+   */
+  const link = await resolveDriveLinksInText(String(linkRuw ?? "").trim());
 
   try {
     await muteerEnSchrijf(klant.mapId!, (dossier) => {

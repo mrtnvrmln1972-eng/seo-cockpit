@@ -8,6 +8,7 @@ import {
   type Vestiging,
 } from "@/lib/servicepunten-model";
 import NotitieVeld from "@/app/_components/NotitieVeld";
+import { leesLinkCel } from "@/lib/link-cel";
 import { renderTekst } from "@/lib/scanbaar";
 import {
   servicepuntVeldOpslaanAction,
@@ -46,13 +47,30 @@ import {
  * over het risico op schrijfconflicten bij dit ene, gedeelde bestand).
  */
 
-const VELDEN: { key: BewerkbaarVeld; label: string }[] = [
+/**
+ * De regels in de gegevenslijst, in leesvolgorde. "Beschikbaarheid" stond
+ * hier als "Quick scans" (11-09-2026 aangepast op Maartens verzoek: "de
+ * beschikbaarheid die ze hebben aangegeven, als aparte regel bij de
+ * adresgegevens"). Het is dezelfde regel en hetzelfde veld, het heette
+ * alleen niet zo: in servicepunten.md staat de kolom van meet af aan als
+ * "Beschikbaarheid quick scans" en er staat ook precies dat in ("Om de week
+ * donderdag; geblokkeerd 14:30-18:00"). De kolomnaam in het bestand blijft
+ * ongewijzigd, dus geen enkele bestaande waarde verhuist.
+ *
+ * Hij staat nu direct onder het adres: het is een gegeven over de plek zelf,
+ * niet over de persoon die je erover spreekt.
+ */
+const VELDEN: { key: BewerkbaarVeld; label: string; plaatshouder?: string }[] = [
   { key: "adres", label: "Adres" },
+  {
+    key: "beschikbaarheid",
+    label: "Beschikbaarheid",
+    plaatshouder: "Welke dagen en tijden ze hebben aangegeven",
+  },
   { key: "contact", label: "Contactpersoon" },
   { key: "optometristen", label: "Optometrist(en)" },
   { key: "telefoon", label: "Telefoon" },
   { key: "email", label: "E-mail" },
-  { key: "beschikbaarheid", label: "Quick scans" },
   { key: "partner", label: "Partner" },
 ];
 
@@ -61,15 +79,32 @@ export default function VestigingKaart({
   vestiging,
   checklist,
   onStapChange,
+  volgordeNr,
+  opGreep,
 }: {
   klantSlug: string;
   vestiging: Vestiging;
   checklist: Record<string, ServicepuntChecklistItem>;
   onStapChange: (stapId: string, next: ServicepuntChecklistItem) => void;
+  /**
+   * De plek in de wachtrij zoals hij op dít moment op het scherm staat. Weet
+   * het overzicht die (11-09-2026, sinds je hier kunt slepen), dan is die
+   * leidend boven het opgeslagen nummer: tijdens het slepen loopt het
+   * opgeslagen nummer een tel achter, en twee vestigingen kunnen in het
+   * bestand hetzelfde nummer dragen.
+   */
+  volgordeNr?: number | null;
+  /**
+   * Begint het slepen. Wordt alleen meegegeven waar slepen mag; zonder deze
+   * prop verschijnt er geen greep en verandert er niets.
+   */
+  opGreep?: (e: React.PointerEvent) => void;
 }) {
   const [, startTransition] = useTransition();
   const [veldFout, setVeldFout] = useState<string | null>(null);
   const [openStap, setOpenStap] = useState<string | null>(null);
+  /** Welke staplink op dit moment als invoerveld openstaat (11-09-2026). */
+  const [bewerktLink, setBewerktLink] = useState<string | null>(null);
   /**
    * De link die je bij een stap hebt geplakt, zoals hij nu op het scherm
    * staat. Los bijgehouden zodat het pijltje ernaast meteen meebeweegt,
@@ -96,7 +131,14 @@ export default function VestigingKaart({
 
   function opBlurLink(stapId: string, waarde: string) {
     const nu = waarde.trim();
-    if (nu === (links[stapId] ?? checklist[stapId]?.link ?? "")) return;
+    /**
+     * Vergelijken op het adres zelf, niet op de hele cel: die staat sinds
+     * 11-09-2026 als `[Titel](url)` in het dossier, terwijl het invoerveld
+     * het kale adres toont. Zonder dit zou elke keer dat je het veld opent en
+     * weer verlaat een schrijfactie naar Drive gaan die niets verandert.
+     */
+    const bestaand = leesLinkCel(links[stapId] ?? checklist[stapId]?.link ?? "");
+    if (nu === bestaand.url) return;
     setLinks((oud) => ({ ...oud, [stapId]: nu }));
     startTransition(async () => {
       try {
@@ -121,12 +163,29 @@ export default function VestigingKaart({
     });
   }
 
+  const toonNummer = volgordeNr ?? vestiging.prioriteit;
+
   return (
     <details className="blok kaart sp-kaart" id={`vest-${vestiging.id}`}>
       <summary className="blokkop">
+        {opGreep && (
+          <span
+            className="sp-kaartgreep"
+            title="Sleep om de volgorde te veranderen"
+            aria-hidden="true"
+            onPointerDown={(e) => opGreep(e)}
+            /* Een klik op de greep mag de kaart niet open- of dichtklappen. */
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            ⠿
+          </span>
+        )}
         <h3>{vestiging.plaats}</h3>
-        {vestiging.prioriteit != null && (
-          <span className="pill sp-p-prioriteit">#{vestiging.prioriteit} in volgorde</span>
+        {toonNummer != null && (
+          <span className="pill sp-p-prioriteit">#{toonNummer} in volgorde</span>
         )}
         {vestiging.contact && <span className="sp-sum-sub">{vestiging.contact}</span>}
         <span className="sp-voortgang">
@@ -149,14 +208,14 @@ export default function VestigingKaart({
         )}
 
         <ul className="sp-gegevenslijst">
-          {VELDEN.map(({ key, label }) => (
+          {VELDEN.map(({ key, label, plaatshouder }) => (
             <li key={key}>
               <span className="sp-veldnaam">{label}</span>
               <input
                 type="text"
                 className="sp-veldwaarde"
                 defaultValue={vestiging[key]}
-                placeholder="—"
+                placeholder={plaatshouder ?? "—"}
                 onBlur={(e) => opBlurVeld(key, e.target.value)}
               />
             </li>
@@ -190,6 +249,8 @@ export default function VestigingKaart({
               const item = checklist[stap.id] || { afgevinkt: false, datum: "", notitie: "", link: "" };
               const open = openStap === stap.id;
               const link = links[stap.id] ?? item.link;
+              // De cel bevat een kale url of `[Titel](url)`; zie lib/link-cel.ts.
+              const gelezenLink = leesLinkCel(link);
               return (
                 <div className={`sp-stap${item.afgevinkt ? " sp-stap-af" : ""}`} key={stap.id}>
                   <div className="sp-stap-regel">
@@ -209,26 +270,51 @@ export default function VestigingKaart({
                     </button>
                     {stap.linkveld && (
                       <span className="sp-stap-linkveld">
-                        <input
-                          type="url"
-                          inputMode="url"
-                          defaultValue={item.link}
-                          placeholder={stap.linkveld.plaatshouder}
-                          onBlur={(e) => opBlurLink(stap.id, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") e.currentTarget.blur();
-                          }}
-                        />
-                        {link && (
-                          <a
-                            href={link}
-                            target="_blank"
-                            rel="noreferrer"
-                            title="Deze pagina openen"
-                            aria-label="Deze pagina openen"
-                          >
-                            ↗
-                          </a>
+                        {gelezenLink.url && bewerktLink !== stap.id ? (
+                          /**
+                           * Staat er een adres, dan is dat een gewone link
+                           * waar je op klikt (11-09-2026). Het stond hier in
+                           * een invoerveld: het zág eruit als een link, maar
+                           * een klik zette alleen je cursor erin, en het
+                           * pijltje ernaast was het enige dat werkte. Wijzigen
+                           * kan met het potlood ernaast.
+                           */
+                          <>
+                            <a
+                              className="sp-stap-linktekst"
+                              href={gelezenLink.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={gelezenLink.url}
+                            >
+                              {gelezenLink.label}
+                            </a>
+                            <button
+                              type="button"
+                              className="sp-stap-linkwijzig"
+                              onClick={() => setBewerktLink(stap.id)}
+                              title="Dit adres aanpassen"
+                              aria-label="Dit adres aanpassen"
+                            >
+                              ✎
+                            </button>
+                          </>
+                        ) : (
+                          <input
+                            type="url"
+                            inputMode="url"
+                            autoFocus={bewerktLink === stap.id}
+                            defaultValue={gelezenLink.url}
+                            placeholder={stap.linkveld.plaatshouder}
+                            onBlur={(e) => {
+                              setBewerktLink(null);
+                              opBlurLink(stap.id, e.target.value);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") e.currentTarget.blur();
+                              if (e.key === "Escape") setBewerktLink(null);
+                            }}
+                          />
                         )}
                       </span>
                     )}

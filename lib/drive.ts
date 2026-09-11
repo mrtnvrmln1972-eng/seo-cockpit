@@ -65,6 +65,25 @@ export function getRootFolderId(): string {
   return id;
 }
 
+/**
+ * Het e-mailadres van het service-account (het veld client_email uit de
+ * sleutel). Geen geheim: het is de identiteit waarmee dit dashboard bij Drive
+ * komt, en precies het adres waarmee een document gedeeld moet worden voordat
+ * de cockpit de titel ervan kan opzoeken. Wordt daarom in beeld getoond zodra
+ * een titel-opzoeking op "geen toegang" stukloopt.
+ *
+ * Geeft null terug in plaats van te gooien: dit is een hulpzin op het scherm,
+ * geen werkende functie die om moet vallen als de sleutel ontbreekt.
+ */
+export function serviceAccountEmail(): string | null {
+  try {
+    const adres = leesServiceAccountSleutel()["client_email"];
+    return typeof adres === "string" && adres.includes("@") ? adres : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface DriveFileRef {
   id: string;
   name: string;
@@ -202,6 +221,12 @@ export async function getFileMetadata(
     const res = await drive.files.get({
       fileId,
       fields: "id, name, mimeType, modifiedTime",
+      // Zonder deze vlag geeft Drive een 404 op elk bestand dat in een
+      // gedeelde schijf staat in plaats van in "Mijn Drive" (09-09-2026,
+      // gevonden bij het opzoeken van de titel van een geplakte Docs-link:
+      // een document waar het service-account wél bij mag, kwam terug als
+      // "niet gevonden" en dus zonder titel).
+      supportsAllDrives: true,
     });
     const f = res.data;
     if (!f.id || !f.name || !f.mimeType || !f.modifiedTime) return null;
