@@ -82,6 +82,28 @@ voordat het project gebouwd wordt. Vul daar het volgende in:
 Na het invullen klik je op **Deploy**. Vercel bouwt en publiceert de app
 daarna vanzelf.
 
+### Stap 6 — Geef het service-account leesrechten op Search Console en Analytics
+
+Deze stap is alleen nodig voor het tabblad **Resultaten**; de rest van de
+cockpit werkt ook zonder. Het gaat om hetzelfde service-account als hierboven,
+dus je hoeft geen tweede account te maken.
+
+1. Ga in Google Cloud naar **API's en services → Bibliotheek** en zet daar twee
+   API's aan, op dezelfde manier als de Drive API bij stap 2:
+   **Google Search Console API** en **Google Analytics Data API**.
+2. Open https://search.google.com/search-console/users, kies bovenin de
+   property van de klant, klik op **Gebruiker toevoegen**, plak het adres van
+   het service-account (dat eindigt op `.iam.gserviceaccount.com`) en kies
+   recht **Beperkt**. Dat recht is genoeg: de cockpit leest alleen.
+3. Open https://analytics.google.com/analytics/web/#/a/admin/accounts, ga naar
+   **Toegangsbeheer voor property** van diezelfde klant, klik op **+** en geef
+   hetzelfde adres de rol **Viewer**.
+
+Herhaal stap 2 en 3 per klant. Het tabblad Resultaten toont het adres van het
+service-account zelf op het scherm met dezelfde twee links erbij, dus je hoeft
+het nergens op te zoeken: zolang de toegang ontbreekt staat er wat er moet
+gebeuren, en zodra hij er is staan de cijfers er vanzelf.
+
 ### Wie kan er bij?
 
 Er zijn twee soorten toegang, en ze staan los van elkaar (zie

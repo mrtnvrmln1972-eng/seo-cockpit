@@ -39,6 +39,12 @@ import { NOC_SLUG } from "@/lib/servicepunten-model";
  * verzoek, zie lib/servicepunten.ts). Vandaar de conditionele toevoeging
  * hieronder in plaats van een vaste plek in TABS: elke andere klant houdt
  * exact dezelfde zes tabs als voorheen.
+ *
+ * Resultaten toegevoegd op 11-09-2026, rechts van Meta-tool op Maartens
+ * verzoek: de cijfers uit Search Console (later Analytics, Ads en Ahrefs),
+ * zoals ze in het oude SEO-dashboard op de tab "resultaten" stonden. Zie
+ * lib/google-data.ts voor waar die cijfers vandaan komen en lib/kpi-dossier.ts
+ * voor wat je er zelf in vastzet.
  */
 const TABS = [
   { segment: "werkbord", label: "Takenlijst" },
@@ -47,6 +53,7 @@ const TABS = [
   { segment: "signalen", label: "Signalen" },
   { segment: "notities", label: "Notities" },
   { segment: "meta", label: "Meta-tool" },
+  { segment: "resultaten", label: "Resultaten" },
 ] as const;
 
 export default function Tabs({ klantSlug }: { klantSlug: string }) {

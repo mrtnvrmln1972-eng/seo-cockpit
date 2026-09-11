@@ -125,3 +125,33 @@ Concreet betekent dit:
 Zie `README.md` voor de niet-technische installatiestappen die Maarten zelf
 moet zetten (service-account aanmaken, map delen, omgevingsvariabelen in
 Vercel) voordat dit project daadwerkelijk data toont.
+
+## De Resultaten-tab en de Google-koppeling
+
+Het tabblad **Resultaten** (rechts van Meta-tool) is de enige plek in deze
+cockpit waar cijfers van buiten Drive binnenkomen. Drie dingen om te weten
+voor wie eraan verder bouwt:
+
+- `lib/google-data.ts` praat met Search Console (en straks Analytics) via
+  **hetzelfde service-account** als Drive, met alleen-lezen scopes
+  (`webmasters.readonly`, `analytics.readonly`). Er is dus geen tweede sleutel
+  en geen gebruikers-OAuth; het oude SEO-dashboard doet dat wél en dat is
+  bewust niet overgenomen. Zie `README.md` stap 6 voor wat Maarten per klant
+  moet toestaan.
+- **De architectuurregel blijft staan: geen database.** Wat je op dit tabblad
+  vastzet (welke zoekwoorden je volgt, welke pagina's een ster hebben en in
+  welke volgorde ze staan, en eventueel een met de hand gekozen property) gaat
+  naar `kpi.md` in de klantmap, met dezelfde tabelconventie als elk ander
+  dossierbestand. Zie `lib/kpi-dossier.ts`. Het oude dashboard gebruikt daar
+  drie Postgres-tabellen voor.
+- **Search Console loopt twee dagen achter.** `periodeVan()` houdt daar
+  rekening mee; een periode die tot vandaag loopt telt twee lege dagen mee en
+  laat een daling zien die er niet is. `test-fixtures/verify-kpi.ts` zet dat
+  vast, samen met het heen-en-weer schrijven van `kpi.md`.
+
+Bewust niet gebouwd, op Maartens uitdrukkelijke verzoek (11-09-2026): het
+**Quick win**-label en de knop **Toelichting** die het oude dashboard bij de
+zoekwoorden heeft.
+
+Nog te doen: Google Analytics en Google Ads, en daarna Ahrefs met
+AI-vindbaarheid en Kansen.

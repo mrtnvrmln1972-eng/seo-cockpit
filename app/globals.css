@@ -4332,3 +4332,489 @@ pre.codeblok code {
   font-size: 14px;
   max-width: 76ch;
 }
+
+/* ---- De Resultaten-tab (11-09-2026) --------------------------------------
+   De cijfers uit Search Console, naar het voorbeeld van de tab "resultaten"
+   in het oude SEO-dashboard. Geen nieuwe kleuren: beter is --ok, slechter is
+   --crit, en de lijn van deze periode is het accent. Zie
+   app/klant/[klantslug]/resultaten/page.tsx voor het waarom. */
+.res {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.res-kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.res-kop h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--head);
+}
+
+.res-bron {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.res-knoppen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.res-knop {
+  border: 1px solid var(--line);
+  background: var(--ground);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.res-knop:hover:not(:disabled) {
+  border-color: var(--line-2);
+  color: var(--ink);
+}
+
+.res-knop.aan {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.res-knop:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.res-knop.klein {
+  padding: 3px 8px;
+  font-size: 11.5px;
+}
+
+/* Een streepje tussen de periode en waarmee je vergelijkt: twee rijtjes
+   knoppen naast elkaar lezen anders als één rij keuzes. */
+.res-scheiding {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 4px;
+  background: var(--line);
+}
+
+/* De vier cijfers bovenaan. */
+.res-cijfers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.res-cijfers.laadt {
+  opacity: 0.55;
+}
+
+.res-kaart {
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.res-kaart-titel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.res-kaart-waarde {
+  margin: 4px 0 6px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--head);
+  line-height: 1.1;
+}
+
+/* Het verschil met de vorige periode. In een tabel staat hij onder het getal,
+   in een kaart eronder; in allebei de gevallen mag hij nooit meer aandacht
+   trekken dan het getal zelf. */
+.res-delta {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.res-delta.beter {
+  color: var(--ok);
+}
+
+.res-delta.slechter {
+  color: var(--crit);
+}
+
+.res-delta.neutraal {
+  color: var(--muted-2);
+}
+
+.res-delta-abs {
+  margin-left: 4px;
+  font-weight: 500;
+  color: var(--muted-2);
+}
+
+.res-paneel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.res-paneelkop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.res-paneelkop h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--head);
+}
+
+.res-hulp {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-2);
+}
+
+.res-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.res-zoek {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-family: inherit;
+  font-size: 12.5px;
+  min-width: 180px;
+}
+
+.res-zoek:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* De grafiek. Hij mag zijwaarts schuiven in zijn eigen kader, want krimpt hij
+   mee tot telefoonbreedte, dan worden de datums en de getallen langs de as
+   onleesbaar klein (de tekst in een SVG schaalt mee met de tekening). Vandaar
+   een ondergrens van 560 px; op een computer komt die nooit in de buurt en zie
+   je dus ook geen schuifbalk. Met eigen ogen gezien op 390 px, 11-09-2026. */
+.res-grafiekwrap {
+  overflow-x: auto;
+}
+
+.res-grafiek {
+  width: 100%;
+  min-width: 560px;
+  height: auto;
+}
+
+.res-raster {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.res-as {
+  fill: var(--muted-2);
+  font-size: 11px;
+  font-family: var(--sans);
+}
+
+.res-lijn {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.res-lijn.nu {
+  stroke: var(--accent);
+}
+
+.res-lijn.vorig {
+  stroke: var(--line-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.res-legenda {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.res-staal {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  border-top: 2px solid var(--accent);
+}
+
+.res-staal.vorig {
+  margin-left: 10px;
+  border-top: 2px dashed var(--line-2);
+}
+
+/* De twee tabellen. Ze mogen zijwaarts schuiven in hun eigen kader; de pagina
+   zelf nooit. */
+.res-tabelwrap {
+  overflow-x: auto;
+}
+
+.res-tabel {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.res-tabel th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.res-tabel td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--surface-2);
+  vertical-align: top;
+}
+
+.res-tabel th.num,
+.res-tabel td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.res-tabel tbody tr:hover {
+  background: var(--surface);
+}
+
+.res-kw {
+  display: block;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.res-kwpad {
+  display: block;
+  font-size: 11.5px;
+  color: var(--muted-2);
+  text-decoration: none;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.res-kwpad:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* Een zoekwoord dat je volgt: een streepje links, want een hele rij kleuren
+   maakt de tabel onleesbaar. */
+.res-focus-prio > td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.res-focus-secundair > td:first-child {
+  box-shadow: inset 3px 0 0 var(--info);
+}
+
+.res-focusknoppen {
+  display: flex;
+  gap: 4px;
+}
+
+/* De pagina's: geen tabel maar rijen, want ze klappen open en ze zijn te
+   slepen. */
+.res-paginas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.res-pagina {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--ground);
+}
+
+.res-pagina.ster {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.res-pagina.sleept {
+  opacity: 0.6;
+  border-color: var(--line-2);
+}
+
+.res-paginarij {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+}
+
+.res-greep {
+  border: none;
+  background: none;
+  color: var(--muted-2);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: grab;
+  /* Zonder dit scrolt de pagina mee zodra je met een vinger aan de greep trekt. */
+  touch-action: none;
+}
+
+.res-ster {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.res-ster:not(.aan) {
+  color: var(--muted-2);
+}
+
+.res-paginanaam {
+  flex: 1 1 220px;
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.res-paginanaam:hover {
+  color: var(--accent);
+}
+
+.res-paginalink {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.res-paginalink:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.res-paginagetal {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  min-width: 110px;
+}
+
+.res-paginakw {
+  padding: 0 10px 10px 34px;
+  overflow-x: auto;
+}
+
+/* Het scherm zonder toegang: het adres van het service-account staat groot,
+   want dat is wat er gekopieerd moet worden. */
+.res-toegang .res-adres {
+  margin: 6px 0;
+}
+
+.res-toegang code {
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 12.5px;
+  word-break: break-all;
+}
+
+.res-stappen {
+  /* De opsomming heeft zijn eigen bolletjes nodig: de reset bovenaan dit
+     bestand haalt ze overal weg, en dan zijn het drie losse alinea's. */
+  list-style: disc;
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.res-stappen a {
+  color: var(--accent);
+  word-break: break-all;
+}
+
+@media (max-width: 700px) {
+  .res-kaart-waarde {
+    font-size: 22px;
+  }
+
+  .res-paginagetal {
+    min-width: 0;
+  }
+
+  .res-paginakw {
+    padding-left: 10px;
+  }
+
+  /* Bij 560 px breed gedrukt in 360 px blijft de as leesbaar op ongeveer 12 px. */
+  .res-as {
+    font-size: 17px;
+  }
+}
