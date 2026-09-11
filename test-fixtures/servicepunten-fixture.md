@@ -32,6 +32,7 @@ Laatst bijgewerkt: 2026-09-09
 | Lokaal nummer gekoppeld | x | 2026-09-06 |
 | Google Mijn Bedrijf aangemaakt | | |
 | SEO-landingpagina live | | |
+| Foto's vestiging verwerkt op landingpagina's en Google Mijn Bedrijf-pagina | | |
 | Ads-pagina (no-index) klaar | | |
 | Ads-campagne aan | | |
 | Zichtbaar op de site | | |

@@ -11,6 +11,7 @@ import NotitieVeld from "@/app/_components/NotitieVeld";
 import { leesLinkCel } from "@/lib/link-cel";
 import { renderTekst } from "@/lib/scanbaar";
 import {
+  servicepuntNaamOpslaanAction,
   servicepuntVeldOpslaanAction,
   servicepuntStapNotitieOpslaanAction,
   servicepuntStapLinkOpslaanAction,
@@ -111,6 +112,8 @@ export default function VestigingKaart({
    * zonder op de server te wachten.
    */
   const [links, setLinks] = useState<Record<string, string>>({});
+  /** Het naamveld, zodat het potlood in de kop er meteen naartoe kan springen. */
+  const naamVeld = useRef<HTMLInputElement>(null);
   const laatsteWaarden = useRef<Record<BewerkbaarVeld, string>>({
     partner: vestiging.partner,
     adres: vestiging.adres,
@@ -150,6 +153,30 @@ export default function VestigingKaart({
     });
   }
 
+  /**
+   * De naam van de vestiging. Aparte functie en geen gewoon veld, want het is
+   * de kop van de sectie in servicepunten.md; zie de uitleg bij de actie.
+   * Faalt het opslaan (bijvoorbeeld omdat een andere vestiging al zo heet),
+   * dan komt de oude naam terug te staan: liever zichtbaar terug dan een naam
+   * tonen die niet is opgeslagen.
+   */
+  function opBlurNaam(waarde: string) {
+    const naam = waarde.trim();
+    if (!naam || naam === vestiging.plaats) {
+      if (naamVeld.current) naamVeld.current.value = vestiging.plaats;
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await servicepuntNaamOpslaanAction(klantSlug, vestiging.id, naam);
+        setVeldFout(null);
+      } catch (err) {
+        if (naamVeld.current) naamVeld.current.value = vestiging.plaats;
+        setVeldFout(err instanceof Error ? err.message : "Kon de naam niet opslaan.");
+      }
+    });
+  }
+
   function opBlurVeld(veld: BewerkbaarVeld, waarde: string) {
     if (waarde === laatsteWaarden.current[veld]) return;
     startTransition(async () => {
@@ -184,6 +211,31 @@ export default function VestigingKaart({
           </span>
         )}
         <h3>{vestiging.plaats}</h3>
+        {/*
+          De naam zelf staat als eerste regel in de gegevenslijst, net als elk
+          ander veld van deze vestiging. Dit potlood is de weg ernaartoe
+          (11-09-2026): het klapt de kaart open en zet de cursor in dat veld.
+          Bewust geen invoerveld ín de kop: elke klik daarin zou de kaart
+          open- en dichtklappen.
+        */}
+        <button
+          type="button"
+          className="sp-naamwijzig"
+          title="Naam van deze vestiging aanpassen"
+          aria-label="Naam van deze vestiging aanpassen"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const kaart = e.currentTarget.closest("details");
+            if (kaart instanceof HTMLDetailsElement) kaart.open = true;
+            requestAnimationFrame(() => {
+              naamVeld.current?.focus();
+              naamVeld.current?.select();
+            });
+          }}
+        >
+          ✎
+        </button>
         {toonNummer != null && (
           <span className="pill sp-p-prioriteit">#{toonNummer} in volgorde</span>
         )}
@@ -208,6 +260,24 @@ export default function VestigingKaart({
         )}
 
         <ul className="sp-gegevenslijst">
+          <li>
+            <span className="sp-veldnaam">Naam</span>
+            <input
+              ref={naamVeld}
+              type="text"
+              className="sp-veldwaarde"
+              defaultValue={vestiging.plaats}
+              placeholder="Plaatsnaam"
+              onBlur={(e) => opBlurNaam(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Escape") {
+                  e.currentTarget.value = vestiging.plaats;
+                  e.currentTarget.blur();
+                }
+              }}
+            />
+          </li>
           {VELDEN.map(({ key, label, plaatshouder }) => (
             <li key={key}>
               <span className="sp-veldnaam">{label}</span>

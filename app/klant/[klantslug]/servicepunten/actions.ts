@@ -62,6 +62,49 @@ export async function servicepuntVeldOpslaanAction(
   revalidatePath(`/klant/${klantSlug}/servicepunten`);
 }
 
+/**
+ * De naam van een vestiging aanpassen (11-09-2026, op Maartens verzoek: "daar
+ * wil ik de titel van de vestigingen kunnen aanpassen").
+ *
+ * De naam is geen gewoon veld maar de kop van de sectie in servicepunten.md
+ * ("## Heerlen"), en daar hangt het id van de vestiging aan. Dat id wordt bij
+ * elke ronde opnieuw uit de naam afgeleid en nergens los bewaard, dus na een
+ * hernoeming klopt alles vanzelf weer: de plek in de wachtrij staat als
+ * nummer bij de vestiging zelf, en de aansluitstappen staan in zijn eigen
+ * sectie. Enige echte valkuil: twee vestigingen die dezelfde naam krijgen
+ * worden één id, en dan lopen ze door elkaar. Dat wordt hier geweigerd.
+ */
+export async function servicepuntNaamOpslaanAction(
+  klantSlug: string,
+  vestigingId: string,
+  naamRuw: string,
+): Promise<void> {
+  const klant = await klantMetServicepuntenDossier(klantSlug);
+  const naam = String(naamRuw ?? "")
+    // Een regelovergang of een # zou de kop van de sectie breken.
+    .replace(/[\r\n#|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!naam) throw new Error("Een vestiging heeft een naam nodig.");
+
+  try {
+    await muteerEnSchrijf(klant.mapId!, (dossier) => {
+      const vestiging = dossier.vestigingen.find((v) => v.id === vestigingId);
+      if (!vestiging) throw new Error("Deze vestiging is niet gevonden in servicepunten.md.");
+      if (vestiging.plaats === naam) return;
+      const botst = dossier.vestigingen.some(
+        (v) => v.id !== vestigingId && v.plaats.toLowerCase() === naam.toLowerCase(),
+      );
+      if (botst) throw new Error(`Er staat al een vestiging met de naam "${naam}".`);
+      vestiging.plaats = naam;
+    });
+  } catch (err) {
+    throw foutmelding(err, "Kon de naam niet opslaan.");
+  }
+
+  revalidatePath(`/klant/${klantSlug}/servicepunten`);
+}
+
 export async function servicepuntStapOpslaanAction(
   klantSlug: string,
   vestigingId: string,

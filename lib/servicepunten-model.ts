@@ -136,6 +136,17 @@ export const STAP_GROEPEN: ServicepuntStapGroep[] = [
         linkveld: { plaatshouder: "Link naar de landingspagina" },
       },
       {
+        /**
+         * 11-09-2026 erbij op Maartens verzoek. Staat bewust ná de twee
+         * stappen waar de foto's terecht moeten komen: er valt niets te
+         * verwerken zolang het bedrijfsprofiel en de landingspagina er nog
+         * niet zijn.
+         */
+        id: "fotos-verwerkt",
+        label: "Foto's vestiging verwerkt op landingpagina's en Google Mijn Bedrijf-pagina",
+        crit: "De foto's van de vestiging staan op de SEO-landingpagina én op de Google Mijn Bedrijf-pagina. Echte foto's, geen gegenereerd beeld.",
+      },
+      {
         id: "ads",
         label: "Ads-pagina (no-index) klaar",
         crit: "Aparte advertentiepagina voor de campagne, buiten de Google-index.",

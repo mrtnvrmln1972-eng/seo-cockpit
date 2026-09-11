@@ -48,8 +48,11 @@ check(
 
 check("eindhoven checklist: contact afgevinkt", eindhoven?.checklist["contact"], { afgevinkt: true, datum: "2026-09-06", notitie: "", link: "" });
 check("eindhoven checklist: login niet afgevinkt", eindhoven?.checklist["login"], { afgevinkt: false, datum: "", notitie: "", link: "" });
-check("eindhoven checklist: alle 15 stappen aanwezig", Object.keys(eindhoven?.checklist ?? {}).length, ALLE_STAPPEN.length);
-check("eindhoven voortgang", eindhoven ? voortgang(eindhoven) : null, { klaar: 4, totaal: 15 });
+check("eindhoven checklist: alle stappen aanwezig", Object.keys(eindhoven?.checklist ?? {}).length, ALLE_STAPPEN.length);
+check("eindhoven voortgang", eindhoven ? voortgang(eindhoven) : null, {
+  klaar: 4,
+  totaal: ALLE_STAPPEN.length,
+});
 
 check("eindhoven contactlog: 1 regel", eindhoven?.contactlog.length, 1);
 check("eindhoven contactlog[0].wie", eindhoven?.contactlog[0]?.wie, "Maarten");
@@ -63,7 +66,7 @@ check(
   annadal?.volgordereden,
   "50 p/mnd op 'ooglaseren maastricht' (KD 5, makkelijk), tweede punt in Limburg naast Heerlen.",
 );
-check("annadal checklist: lege tabel -> alle 15 stappen default onafgevinkt", Object.keys(annadal?.checklist ?? {}).length, ALLE_STAPPEN.length);
+check("annadal checklist: lege tabel -> alle stappen default onafgevinkt", Object.keys(annadal?.checklist ?? {}).length, ALLE_STAPPEN.length);
 check("annadal checklist: geen enkele stap afgevinkt", annadal ? voortgang(annadal).klaar : null, 0);
 check("annadal contactlog: leeg", annadal?.contactlog.length, 0);
 
@@ -268,6 +271,47 @@ check(
     ["a", 2],
     ["b", 1],
   ],
+);
+
+/**
+ * De nieuwe stap van 11-09-2026 en het hernoemen van een vestiging.
+ *
+ * Hernoemen raakt meer dan een naam: de naam ís de kop van de sectie in
+ * servicepunten.md en het id wordt eruit afgeleid. Deze checks leggen vast dat
+ * na een rondje schrijven en lezen de nieuwe naam én het nieuwe id eruit
+ * komen, en dat de aangevinkte stappen van díé vestiging meeverhuizen.
+ */
+const fotoStap = ALLE_STAPPEN.find((s) => s.id === "fotos-verwerkt");
+check("de fotostap bestaat", Boolean(fotoStap), true);
+check(
+  "en staat na de landingspagina en vóór de Ads-pagina",
+  ALLE_STAPPEN.findIndex((s) => s.id === "seo") < ALLE_STAPPEN.indexOf(fotoStap!) &&
+    ALLE_STAPPEN.indexOf(fotoStap!) < ALLE_STAPPEN.findIndex((s) => s.id === "ads"),
+  true,
+);
+check(
+  "de fotostap wordt uit de fixture gelezen, niet als onbekende regel weggegooid",
+  Boolean(model.vestigingen.find((v) => v.id === "eindhoven-oosterhof")?.checklist["fotos-verwerkt"]),
+  true,
+);
+
+const hernoemd = parseServicepunten(md);
+const teHernoemen = hernoemd.vestigingen.find((v) => v.id === "eindhoven-oosterhof")!;
+teHernoemen.plaats = "Eindhoven Centrum";
+const naHernoemen = parseServicepunten(serialiseerServicepunten(hernoemd));
+const nieuwe = naHernoemen.vestigingen.find((v) => v.plaats === "Eindhoven Centrum");
+check("hernoemen: de nieuwe naam staat in het bestand", Boolean(nieuwe), true);
+check("hernoemen: het id volgt de naam", nieuwe?.id, "eindhoven-centrum");
+check("hernoemen: de oude naam is weg", naHernoemen.vestigingen.some((v) => v.id === "eindhoven-oosterhof"), false);
+check(
+  "hernoemen: de aangevinkte stappen verhuizen mee",
+  nieuwe ? voortgang(nieuwe) : null,
+  { klaar: 4, totaal: ALLE_STAPPEN.length },
+);
+check(
+  "hernoemen: het aantal vestigingen blijft gelijk",
+  naHernoemen.vestigingen.length,
+  model.vestigingen.length,
 );
 
 console.log(fails === 0 ? `\nAlle checks geslaagd.` : `\n${fails} check(s) mislukt.`);

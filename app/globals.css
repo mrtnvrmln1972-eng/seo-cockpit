@@ -4054,7 +4054,9 @@ pre.codeblok code {
    de hele breedte pakken en kapt netjes af als hij niet past; de volledige
    url staat in de tooltip. */
 .sp-stap-linkveld a.sp-stap-linktekst {
-  flex: 1 1 auto;
+  /* Niet uitrekken: het potlood hoort tégen de link aan te staan, niet aan de
+     andere kant van een leeg vak (gezien op het scherm, 11-09-2026). */
+  flex: 0 1 auto;
   min-width: 0;
   font-size: 12px;
   padding: 3px 7px;
@@ -4111,4 +4113,32 @@ pre.codeblok code {
 }
 .sp-sleepbaar.sp-sleept {
   opacity: 0.55;
+}
+
+/* Het potlood naast de naam in de kop van een vestigingskaart (11-09-2026):
+   klapt de kaart open en zet de cursor in het naamveld. Blijft ingetogen tot
+   je de kaart aanwijst, zodat de kop rustig blijft. */
+.sp-naamwijzig {
+  flex: none;
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--muted-2);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 3px 5px;
+  cursor: pointer;
+  /* Gedempt maar altijd zichtbaar: een knop die pas bij hover verschijnt vind
+     je niet als je hem zoekt, en dit is precies wat Maarten kwam halen. */
+  opacity: 0.5;
+}
+.sp-kaart:hover .sp-naamwijzig,
+.sp-naamwijzig:hover,
+.sp-naamwijzig:focus-visible {
+  opacity: 1;
+}
+.sp-naamwijzig:hover {
+  color: var(--accent-2);
+  border-color: var(--line-2);
 }
