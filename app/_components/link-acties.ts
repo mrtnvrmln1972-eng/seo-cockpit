@@ -29,7 +29,13 @@ export async function titelVanLinkAction(
   url: string,
 ): Promise<{ titel: string | null; uitleg: string | null }> {
   try {
-    const uitslag = await titelVanLinkMetReden(String(url ?? ""));
+    // Bewust `opnieuw`: plakken is een handeling van Maarten zelf, dus daar
+    // hoort een vers antwoord bij, ook als een eerdere poging op dit adres
+    // mislukte. Dat is precies de weg terug uit "dit document is niet gedeeld
+    // met de cockpit": delen, en de link opnieuw plakken. Het antwoord gaat
+    // wél het geheugen in, zodat de automatische opslag een seconde later
+    // niets meer hoeft op te halen (zie lib/links.ts).
+    const uitslag = await titelVanLinkMetReden(String(url ?? ""), { opnieuw: true });
     return { titel: uitslag.titel, uitleg: uitlegBijReden(uitslag.reden) };
   } catch {
     return { titel: null, uitleg: null };

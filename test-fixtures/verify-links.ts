@@ -12,10 +12,12 @@
  */
 import {
   magOpgehaaldWorden,
+  resolveDriveLinksInText,
   titelUitHtml,
   titelVanLink,
   titelVanLinkMetReden,
   uitlegBijReden,
+  vergeetTitels,
 } from "../lib/links";
 
 let fails = 0;
@@ -124,8 +126,110 @@ async function claudeEnUitleg() {
   );
 }
 
+/**
+ * Het geheugen en het naast elkaar opzoeken (12-09-2026). Beide zijn er omdat
+ * typen in een taak met een paar kale links merkbaar traag werd: de toelichting
+ * slaat zichzelf een seconde na je laatste toetsaanslag op, en bij élke opslag
+ * ging hij opnieuw langs álle links.
+ *
+ * Geen echt netwerk: fetch wordt hier vervangen door een telraam dat ook nog
+ * een halve seconde doet alsof het traag is, zodat "naast elkaar" ook echt te
+ * meten valt in plaats van te beweren.
+ */
+async function geheugenEnTempo() {
+  console.log("\n--- 5. Niet twee keer hetzelfde opzoeken ---");
+
+  const echteFetch = globalThis.fetch;
+  let opgehaald = 0;
+  const traagheidMs = 500;
+  globalThis.fetch = (async (adres: string | URL | Request) => {
+    opgehaald++;
+    await new Promise((klaar) => setTimeout(klaar, traagheidMs));
+    const naam = String(adres);
+    return new Response(`<title>Titel van ${new URL(naam).pathname}</title>`, {
+      status: 200,
+      headers: { "content-type": "text/html" },
+    });
+  }) as typeof fetch;
+
+  try {
+    vergeetTitels();
+    const eerste = await titelVanLink("https://voorbeeld.nl/een");
+    const tweede = await titelVanLink("https://voorbeeld.nl/een");
+    ok("dezelfde titel komt er de tweede keer ook uit", eerste === tweede, String(tweede));
+    ok("maar er is maar één keer opgehaald", opgehaald === 1, `${opgehaald} keer`);
+
+    const vers = await titelVanLink("https://voorbeeld.nl/een", { opnieuw: true });
+    ok("plakken kijkt wél opnieuw", opgehaald === 2 && vers === eerste, `${opgehaald} keer`);
+
+    // Een mislukte opzoeking mag net zo goed niet elke opslag opnieuw.
+    vergeetTitels();
+    opgehaald = 0;
+    globalThis.fetch = (async () => {
+      opgehaald++;
+      await new Promise((klaar) => setTimeout(klaar, traagheidMs));
+      return new Response("nee", { status: 403 });
+    }) as typeof fetch;
+    const mis1 = await titelVanLinkMetReden("https://voorbeeld.nl/dicht");
+    const mis2 = await titelVanLinkMetReden("https://voorbeeld.nl/dicht");
+    ok(
+      "een mislukte opzoeking wordt onthouden, mét zijn reden",
+      opgehaald === 1 && mis1.reden === "inloggen-nodig" && mis2.reden === "inloggen-nodig",
+      `${opgehaald} keer, ${mis1.reden}/${mis2.reden}`,
+    );
+
+    // Vier verschillende trage links in één tekst: naast elkaar, niet erachter.
+    vergeetTitels();
+    opgehaald = 0;
+    globalThis.fetch = (async (adres: string | URL | Request) => {
+      opgehaald++;
+      await new Promise((klaar) => setTimeout(klaar, traagheidMs));
+      return new Response(`<title>T${new URL(String(adres)).pathname}</title>`, {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      });
+    }) as typeof fetch;
+    const tekst = [
+      "https://voorbeeld.nl/a",
+      "https://voorbeeld.nl/b",
+      "https://voorbeeld.nl/c",
+      "https://voorbeeld.nl/d",
+    ].join("\n");
+    const begonnen = Date.now();
+    const uit = await resolveDriveLinksInText(tekst);
+    const duurde = Date.now() - begonnen;
+    ok("alle vier de links kregen een titel", (uit.match(/\[T\//g) ?? []).length === 4, uit);
+    ok("alle vier zijn opgehaald", opgehaald === 4, `${opgehaald} keer`);
+    ok(
+      `vier trage links kosten één wachttijd, geen vier (${duurde} ms)`,
+      duurde < traagheidMs * 2,
+      `${duurde} ms, achter elkaar zou ${traagheidMs * 4} ms zijn`,
+    );
+
+    // En de tweede opslag van diezelfde tekst haalt niets meer op.
+    opgehaald = 0;
+    const nogmaals = Date.now();
+    await resolveDriveLinksInText(tekst);
+    ok(
+      "een tweede opslag van dezelfde tekst haalt niets meer op",
+      opgehaald === 0 && Date.now() - nogmaals < traagheidMs,
+      `${opgehaald} keer`,
+    );
+
+    // Een tekst die al helemaal opgelost is kost sowieso niets.
+    opgehaald = 0;
+    vergeetTitels();
+    await resolveDriveLinksInText("[Een naam](https://voorbeeld.nl/x) en [Twee](https://voorbeeld.nl/y)");
+    ok("een tekst met alleen al-benoemde links haalt niets op", opgehaald === 0, `${opgehaald} keer`);
+  } finally {
+    globalThis.fetch = echteFetch;
+    vergeetTitels();
+  }
+}
+
 void bekendeBronnen()
   .then(claudeEnUitleg)
+  .then(geheugenEnTempo)
   .then(() => {
     console.log(fails === 0 ? "\nAlle checks geslaagd." : `\n${fails} mislukt.`);
     process.exit(fails ? 1 : 0);

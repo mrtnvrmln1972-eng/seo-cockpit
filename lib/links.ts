@@ -170,12 +170,90 @@ const BEKENDE_BRONNEN: Array<{ host: RegExp; naam: (adres: URL) => string }> = [
 ];
 
 /**
+ * Wat we van een adres al weten, met een houdbaarheidsdatum erbij
+ * (12-09-2026). Dit is geen snelheidstruc maar een reparatie: de toelichting
+ * bij een taak slaat zichzelf ongeveer een seconde na je laatste toetsaanslag
+ * op, en bij élke opslag ging resolveDriveLinksInText opnieuw langs álle kale
+ * links in die tekst. Voor een link die nooit een titel oplevert (een Google
+ * Doc dat niet met de cockpit gedeeld is, een pagina die niet reageert) kostte
+ * dat tot drie seconden per link per opslag, en dus werd typen in een taak met
+ * een paar van die links merkbaar traag. Gemeld door Maarten op 12-09-2026.
+ *
+ * Een gevonden titel houden we een uur vast (een documentnaam verandert zelden
+ * tussen twee toetsaanslagen), een mislukte opzoeking tien minuten. Dat laatste
+ * is precies lang genoeg om het herhalen tijdens het typen te stoppen, en het
+ * staat niets in de weg: plak je de link opnieuw nadat je het document hebt
+ * gedeeld, dan wordt er hoe dan ook vers gekeken (zie `opnieuw` hieronder).
+ *
+ * Het geheugen leeft in het werkgeheugen van de server en is dus per
+ * serverproces. Raakt dat proces weg, dan gebeurt er niets ergers dan wat
+ * hiervoor altijd al gebeurde: één keer opnieuw opzoeken.
+ */
+const GEHEUGEN_GEVONDEN_MS = 60 * 60 * 1000;
+const GEHEUGEN_MISLUKT_MS = 10 * 60 * 1000;
+const GEHEUGEN_MAX = 500;
+
+const titelGeheugen = new Map<string, { uitslag: TitelUitslag; tot: number }>();
+
+function uitGeheugen(url: string): TitelUitslag | null {
+  const bewaard = titelGeheugen.get(url);
+  if (!bewaard) return null;
+  if (bewaard.tot <= Date.now()) {
+    titelGeheugen.delete(url);
+    return null;
+  }
+  return bewaard.uitslag;
+}
+
+function inGeheugen(url: string, uitslag: TitelUitslag): TitelUitslag {
+  // De oudste eruit zodra het vol is. Een Map houdt zijn invoegvolgorde aan,
+  // dus de eerste sleutel is ook echt de oudste.
+  if (titelGeheugen.size >= GEHEUGEN_MAX) {
+    const oudste = titelGeheugen.keys().next().value;
+    if (oudste !== undefined) titelGeheugen.delete(oudste);
+  }
+  const duur = uitslag.reden === "gevonden" ? GEHEUGEN_GEVONDEN_MS : GEHEUGEN_MISLUKT_MS;
+  titelGeheugen.set(url, { uitslag, tot: Date.now() + duur });
+  return uitslag;
+}
+
+/** Alleen voor de proef: het geheugen leegmaken. */
+export function vergeetTitels(): void {
+  titelGeheugen.clear();
+}
+
+export interface TitelOpties {
+  /**
+   * Niet uit het geheugen lezen maar echt opnieuw kijken. Gebruikt door de
+   * plak-actie in de editor (app/_components/link-acties.ts): plakken is een
+   * handeling van Maarten zelf en gebeurt zelden, dus daar hoort een vers
+   * antwoord bij. Dat is ook de weg terug uit een mislukte opzoeking: deel het
+   * document met de cockpit en plak de link opnieuw, precies zoals de uitleg
+   * op het scherm zegt. Het antwoord gaat wél het geheugen in, zodat de opslag
+   * een seconde later niets meer hoeft op te halen.
+   */
+  opnieuw?: boolean;
+}
+
+/**
  * Hoe een geplakte link heet: eerst een bekende bron (die nooit op te halen
  * is, maar waarvan we weten wat het is), dan Drive (de echte bestandsnaam),
  * dan de <title> van de pagina zelf. Geeft er de reden bij als er niets
  * gevonden is, zodat het scherm kan zeggen wat eraan te doen is.
  */
-export async function titelVanLinkMetReden(url: string): Promise<TitelUitslag> {
+export async function titelVanLinkMetReden(
+  url: string,
+  opties?: TitelOpties,
+): Promise<TitelUitslag> {
+  if (!opties?.opnieuw) {
+    const bekend = uitGeheugen(url);
+    if (bekend) return bekend;
+  }
+  return inGeheugen(url, await zoekTitelOp(url));
+}
+
+/** Het echte opzoeken, zonder geheugen ervoor. */
+async function zoekTitelOp(url: string): Promise<TitelUitslag> {
   let adres: URL;
   try {
     adres = new URL(url);
@@ -211,8 +289,8 @@ export async function titelVanLinkMetReden(url: string): Promise<TitelUitslag> {
  * De titel bij een geplakte link: eerst Drive (dan hebben we de echte
  * bestandsnaam), anders een bekende bron, anders de <title> van de pagina zelf.
  */
-export async function titelVanLink(url: string): Promise<string | null> {
-  return (await titelVanLinkMetReden(url)).titel;
+export async function titelVanLink(url: string, opties?: TitelOpties): Promise<string | null> {
+  return (await titelVanLinkMetReden(url, opties)).titel;
 }
 
 /**
@@ -268,12 +346,25 @@ function driveFileIdVan(url: string): string | null {
 const LINK_PATROON = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<\]\)]+)/g;
 
 /**
+ * Een stuk tekst dat we straks ongewijzigd overnemen, of een kale url die nog
+ * een titel mag krijgen. Eerst de hele tekst in zulke stukjes knippen en pas
+ * dáárna opzoeken: zo kunnen alle opzoekingen tegelijk lopen.
+ */
+type Stuk = { soort: "tekst"; tekst: string } | { soort: "url"; url: string; staart: string };
+
+/**
  * Zoekt kale Google Drive-links in vrije tekst en zet ze om naar
  * `[Echte titel](url)`. Niet-Drive-URL's en al bestaande `[tekst](url)`-links
  * blijven ongewijzigd. Faalt de opzoeking (geen toegang, verwijderd
  * document, netwerkfout) dan blijft de URL kaal staan — renderCel() maakt
  * 'm dan alsnog klikbaar, alleen zonder titel. Nooit een fout gooien: dit is
  * een verrijking, geen verplicht onderdeel van het opslaan.
+ *
+ * De opzoekingen lopen sinds 12-09-2026 naast elkaar in plaats van achter
+ * elkaar. Ze stonden in een lus met een await erin, dus vier links die geen
+ * antwoord geven kostten vier keer de wachttijd van drie seconden. Bij elke
+ * automatische opslag. Naast elkaar is dat één keer drie seconden, en samen
+ * met het geheugen hierboven daarna nul.
  */
 export async function resolveDriveLinksInText(tekst: string): Promise<string> {
   if (!tekst || !tekst.includes("http")) return tekst;
@@ -281,8 +372,7 @@ export async function resolveDriveLinksInText(tekst: string): Promise<string> {
   const matches = Array.from(tekst.matchAll(LINK_PATROON));
   if (!matches.length) return tekst;
 
-  const titelCache = new Map<string, string | null>();
-  let out = "";
+  const stukken: Stuk[] = [];
   let cursor = 0;
 
   for (const m of matches) {
@@ -291,12 +381,12 @@ export async function resolveDriveLinksInText(tekst: string): Promise<string> {
     const kaleUrlRuw = m[3];
     const start = m.index ?? 0;
 
-    out += tekst.slice(cursor, start);
+    stukken.push({ soort: "tekst", tekst: tekst.slice(cursor, start) });
     cursor = start + volledigeMatch.length;
 
     if (mdUrl) {
       // Al een markdown-link met eigen label — niet aankomen.
-      out += volledigeMatch;
+      stukken.push({ soort: "tekst", tekst: volledigeMatch });
       continue;
     }
 
@@ -310,30 +400,35 @@ export async function resolveDriveLinksInText(tekst: string): Promise<string> {
       url = url.slice(0, url.length - staart.length);
     }
     if (!url) {
-      out += volledigeMatch;
+      stukken.push({ soort: "tekst", tekst: volledigeMatch });
       continue;
     }
+    stukken.push({ soort: "url", url, staart });
+  }
+  stukken.push({ soort: "tekst", tekst: tekst.slice(cursor) });
 
-    if (!titelCache.has(url)) {
-      let titel: string | null = null;
+  // Elk adres één keer, allemaal tegelijk.
+  const adressen = [...new Set(stukken.filter((s) => s.soort === "url").map((s) => s.url))];
+  if (!adressen.length) return tekst;
+  const titels = new Map<string, string | null>();
+  await Promise.all(
+    adressen.map(async (url) => {
       try {
-        titel = await titelVanLink(url);
+        titels.set(url, await titelVanLink(url));
       } catch {
-        titel = null;
+        titels.set(url, null);
       }
-      titelCache.set(url, titel);
-    }
-    const titel = titelCache.get(url) ?? null;
+    }),
+  );
 
-    if (titel) {
+  return stukken
+    .map((stuk) => {
+      if (stuk.soort === "tekst") return stuk.tekst;
+      const titel = titels.get(stuk.url) ?? null;
+      if (!titel) return stuk.url + stuk.staart;
       // Vierkante haken uit de titel halen zodat de `[label](url)`-syntax
       // zelf niet per ongeluk breekt.
-      const veiligeTitel = titel.replace(/[[\]]/g, "");
-      out += `[${veiligeTitel}](${url})${staart}`;
-    } else {
-      out += url + staart;
-    }
-  }
-  out += tekst.slice(cursor);
-  return out;
+      return `[${titel.replace(/[[\]]/g, "")}](${stuk.url})${stuk.staart}`;
+    })
+    .join("");
 }
