@@ -155,3 +155,23 @@ zoekwoorden heeft.
 
 Nog te doen: Google Analytics en Google Ads, en daarna Ahrefs met
 AI-vindbaarheid en Kansen.
+
+## Staat mijn push al live?
+
+Zelf na te kijken, zonder Vercel te openen en zonder het wachtwoord van de
+cockpit (12-09-2026). Elke pagina draagt de deploy waar hij vandaan komt in zijn
+eigen HTML:
+
+```
+curl -sS https://seo-cockpit-eight.vercel.app/bord-cc5100460da936203b8222ad79b65779 \
+  | grep -o 'data-dpl-id="[^"]*"' | head -1
+```
+
+Verandert die waarde na een push, dan staat de nieuwe versie live. Het
+Developerbord is bewust het adres in dit voorbeeld: dat is een deelpad en blijft
+dus ook zonder inloggen bereikbaar (zie `lib/toegang.ts`), terwijl elke
+klantpagina achter `COCKPIT_WACHTWOORD` zit en je op het inlogscherm uitkomt.
+
+Kijk niet naar de bestandsnamen onder `/_next/static/`: die dragen een hash over
+hun inhoud, dus een wijziging die alleen de serverkant raakt laat ze ongemoeid en
+dan lijkt het onterecht alsof er niets is uitgerold.
