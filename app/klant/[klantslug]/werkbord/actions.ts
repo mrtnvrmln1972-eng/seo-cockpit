@@ -206,13 +206,20 @@ export async function taakVerwijderenAction(klantSlug: string, n: number): Promi
  * oplevert. De toelichting gaat er letterlijk in zoals hij is ingetypt: het
  * blijft een markdown-dossierbestand dat ook buiten deze app gelezen en
  * bewerkt wordt (zie CLAUDE.md), dus we sleutelen hier niet aan de opmaak.
+ *
+ * Geeft terug wat er WERKELIJK is weggeschreven (12-09-2026). Er is namelijk
+ * één ding dat hier wél verandert: een kale link wordt `[Titel](url)`. Dat
+ * gebeurde al, maar het scherm hoorde het niet, dus stond in Drive de titel en
+ * op Maartens scherm nog de kale link tot hij de pagina herlaadde. Zijn woorden
+ * bij het melden: "dan toont hij niet, of slaat hij wel meteen op". Nu komt de
+ * geschreven tekst terug en neemt het veld hem over zodra je eruit klikt.
  */
 export async function taakBewerkenAction(
   klantSlug: string,
   n: number,
   titelRuw: string,
   toelichtingRuw: string,
-): Promise<void> {
+): Promise<{ titel: string; toelichting: string }> {
   const klant = await getKlantBySlug(klantSlug);
   if (!klant?.mapId) throw new Error("Deze klant heeft nog geen dossier in Drive.");
 
@@ -255,8 +262,9 @@ export async function taakBewerkenAction(
 
   // BEWUST geen revalidatePath: deze actie loopt tijdens het typen (autosave,
   // zie BewerkTaak.tsx). Een verversing zou de tekst midden in het typen
-  // vervangen door de verse serverversie, de editor opnieuw opbouwen en de
-  // cursor laten wegspringen. De lijst op het scherm krijgt de nieuwe titel
-  // rechtstreeks van de editor door; bij de volgende paginalading komt alles
-  // sowieso weer vers uit Drive.
+  // vervangen door de verse serverversie, de hele pagina opnieuw laten renderen
+  // en de cursor laten wegspringen. De lijst op het scherm krijgt de nieuwe
+  // titel en toelichting hieronder rechtstreeks terug; bij de volgende
+  // paginalading komt alles sowieso weer vers uit Drive.
+  return { titel, toelichting };
 }

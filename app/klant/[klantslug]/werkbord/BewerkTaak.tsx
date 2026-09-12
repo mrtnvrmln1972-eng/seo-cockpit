@@ -24,6 +24,19 @@ import Opmaakveld from "@/app/_components/Opmaakveld";
  * midden in het typen verse tekst van de server terugsturen, en dan bouwt de
  * editor zichzelf opnieuw op en springt je cursor weg. De lijst eromheen krijgt
  * de nieuwe titel daarom rechtstreeks van hier door (onOpgeslagen).
+ *
+ * TWEE DINGEN RECHTGEZET OP 12-09-2026, na "hij is een beetje buggy":
+ *
+ *   1. Er kon meer dan één opslag tegelijk lopen. Het opslaan doet eerst een
+ *      ronde langs Drive om de titel van geplakte links op te halen, en dat
+ *      duurt tot een paar seconden. Typte je in de tussentijd door, dan ging
+ *      er een tweede opslag langs met dezelfde "zo zag het bestand eruit"-
+ *      stempel, en die kwam terug met "dit bestand is intussen elders
+ *      gewijzigd, laad de pagina opnieuw" terwijl er niemand anders aan het
+ *      werk was. Nu wacht een tweede opslag netjes op de eerste.
+ *   2. Wat de server WEGSCHRIJFT gaat terug naar het scherm. Een kale link
+ *      wordt bij het opslaan `[Titel](url)`; dat stond dus wél in Drive maar
+ *      niet in beeld, tot je de pagina herlaadde.
  */
 
 /** Zoveel wachten na de laatste toetsaanslag voordat we opslaan. */
@@ -50,6 +63,8 @@ export default function BewerkTaak({
   const laatstOpgeslagen = useRef({ titel, toelichting });
   const huidig = useRef({ titel, toelichting });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Loopt er nu een opslag? Zo ja, dan wacht de volgende daarop. */
+  const bezig = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     return () => {
@@ -62,16 +77,32 @@ export default function BewerkTaak({
     timer.current = setTimeout(() => void slaOp(), WACHT_MS);
   }
 
-  async function slaOp() {
+  /**
+   * Eén opslag tegelijk. Loopt er al een, dan gaat deze er achteraan in plaats
+   * van ernaast: twee gelijktijdige schrijfacties op hetzelfde dossierbestand
+   * botsen op de versiecontrole in lib/drive.ts en leveren dan een melding op
+   * die nergens op slaat.
+   */
+  function slaOp(): Promise<void> {
+    const volgende = (bezig.current ?? Promise.resolve()).then(() => slaNuOp());
+    bezig.current = volgende.finally(() => {
+      if (bezig.current === volgende) bezig.current = null;
+    });
+    return volgende;
+  }
+
+  async function slaNuOp() {
     const { titel: t, toelichting: tl } = huidig.current;
     if (t.trim() === "") return; // een taak zonder titel slaan we niet op
     if (t === laatstOpgeslagen.current.titel && tl === laatstOpgeslagen.current.toelichting) return;
     setStand("bezig");
     setFout(null);
     try {
-      await taakBewerkenAction(klantSlug, n, t, tl);
+      const bewaard = await taakBewerkenAction(klantSlug, n, t, tl);
+      // Wat wij verstuurden blijft de maatstaf voor "is er sindsdien iets
+      // veranderd"; wat de server ervan maakte gaat terug naar het scherm.
       laatstOpgeslagen.current = { titel: t, toelichting: tl };
-      onOpgeslagen?.(t, tl);
+      onOpgeslagen?.(bewaard.titel, bewaard.toelichting);
       setStand("klaar");
       setTimeout(() => setStand((s) => (s === "klaar" ? "rust" : s)), 1800);
     } catch {

@@ -81,9 +81,17 @@ const VinkPunt = TaskItem.extend({
  * Je kunt zelf ook naar broncode schakelen met de knop rechts in de strip, en
  * weer terug. Ook dat gaat langs hetzelfde vangnet.
  *
- * De strip zelf klapt in en uit met het pijltje links, en die stand wordt
- * onthouden. Dat gebeurt bewust met één stuk state en zonder animatie: het
- * knopje mag nooit uit de pas lopen met wat je ziet.
+ * DE EDITOR WORDT ÉÉN KEER OPGEBOUWD (12-09-2026). Dat was het echte
+ * probleem achter "hij is een beetje buggy" van Maarten: de editor hing aan
+ * useEditor(..., [waarde, controle.gelijk]), en @tiptap/react gooit bij elke
+ * wijziging in die lijst de hele editor weg en bouwt hem opnieuw op. De
+ * takenlijst geeft na élke automatische opslag de zojuist opgeslagen tekst als
+ * nieuwe `waarde` terug (werkbord/TakenlijstItems.tsx → BewerkTaak), dus dat
+ * gebeurde ongeveer een seconde nadat je stopte met typen. Zichtbaar als: de
+ * tekst knippert even weg, de cursor springt naar het begin, en de titel van
+ * een zojuist geplakte link kwam in een editor terecht die al weg was, dus je
+ * hield de kale link over. Nu blijft de editor staan en wordt tekst van buiten
+ * alleen overgenomen als hij echt van buiten komt (zie zetExterneTekst).
  */
 
 export type OpmaakModus = "opgemaakt" | "bron";
@@ -120,14 +128,21 @@ interface Props {
  * De plek in de tekst waar deze net geplakte kale url staat. Bewust zoeken in
  * plaats van de positie onthouden die hij bij het plakken had: plak je twee
  * links achter elkaar, dan verschuift de tweede zodra de titel van de eerste
- * binnenkomt, en met een onthouden positie greep de tweede daardoor mis. Er
- * wordt alleen vervangen waar de tekst nog letterlijk die url is, dus wat je
- * zelf hebt getypt of aangepast blijft met rust.
+ * binnenkomt, en met een onthouden positie greep de tweede daardoor mis.
+ *
+ * Er wordt alleen gekeken naar tekst die ook echt een link IS met precies dit
+ * adres. Losse tekst waar toevallig dezelfde url in staat blijft dus met rust,
+ * en heb je na het plakken doorgetypt ("… (korte versie)"), dan wordt nog
+ * steeds alleen het url-gedeelte vervangen. Heeft de eerste van twee dezelfde
+ * links zijn titel al, dan is hij geen kale link meer en krijgt de tweede hem.
  */
 function zoekKaleLink(editor: Editor, url: string): { van: number; tot: number } | null {
   let gevonden: { van: number; tot: number } | null = null;
   editor.state.doc.descendants((node, pos) => {
-    if (gevonden || !node.isText || !node.text) return true;
+    if (gevonden) return false;
+    if (!node.isText || !node.text) return true;
+    const link = node.marks.find((m) => m.type.name === "link");
+    if (!link || link.attrs.href !== url) return true;
     const index = node.text.indexOf(url);
     if (index === -1) return true;
     gevonden = { van: pos + index, tot: pos + index + url.length };
@@ -135,6 +150,9 @@ function zoekKaleLink(editor: Editor, url: string): { van: number; tot: number }
   });
   return gevonden;
 }
+
+/** Wat er onder het veld staat over de laatst geplakte link. */
+type LinkStand = { bezig: boolean; uitleg: string | null };
 
 export default function Opmaakveld({
   naam,
@@ -145,13 +163,26 @@ export default function Opmaakveld({
   onChange,
 }: Props) {
   /**
-   * De uitkomst van het vangnet, één keer bepaald bij de eerste render van
-   * deze tekst. Bewust met useMemo op de binnenkomende waarde: als de server
-   * na het opslaan verse tekst doorgeeft, wordt hij opnieuw beoordeeld.
+   * De tekst waar dit veld mee begon, één keer vastgezet. De editor wordt maar
+   * één keer opgebouwd, dus zijn beginwaarde mag niet meebewegen met latere
+   * renders; een latere wijziging van buiten loopt langs zetExterneTekst.
    */
-  const controle = useMemo(() => rondlopen(waarde), [waarde]);
+  const [beginWaarde] = useState(waarde);
+
+  /**
+   * De uitkomst van het vangnet voor de tekst waar we mee begonnen. Bepaalt
+   * of dit veld opgemaakt of als broncode opent, en welke melding er in de
+   * strip staat als de knoppen er niet zijn.
+   */
+  const controle = useMemo(() => rondlopen(beginWaarde), [beginWaarde]);
 
   const [markdown, zetMarkdownRuw] = useState(waarde);
+  /**
+   * De tekst die de editor nu bevat. Hiermee herkennen we onze eigen tekst als
+   * hij na het opslaan als nieuwe `waarde` terugkomt: dat is geen wijziging van
+   * buiten en er hoeft dus niets overschreven te worden.
+   */
+  const eigenTekst = useRef(waarde);
   // Eén plek waar de tekst verandert, zodat het verborgen veld en een
   // eventuele onChange nooit uit de pas kunnen lopen.
   const meldWijziging = useRef(onChange);
@@ -159,115 +190,126 @@ export default function Opmaakveld({
     meldWijziging.current = onChange;
   }, [onChange]);
   const setMarkdown = useCallback((nieuw: string) => {
+    eigenTekst.current = nieuw;
     zetMarkdownRuw(nieuw);
     meldWijziging.current?.(nieuw);
   }, []);
   const [modus, setModus] = useState<OpmaakModus>(controle.gelijk ? "opgemaakt" : "bron");
   const [linkVenster, setLinkVenster] = useState(false);
   const [linkAdres, setLinkAdres] = useState("");
-  const bronVeld = useRef<HTMLTextAreaElement>(null);
   // Zodat Cmd+K binnen de editor het linkvenster kan openen: de editor wordt
   // één keer opgebouwd, dus hij mag niet aan een functie vastzitten die bij
   // elke render verandert.
   const opentLink = useRef<() => void>(() => {});
   /**
-   * De uitleg onder het veld als een geplakte link geen titel opleverde
-   * (11-09-2026). Via een ref aangeroepen om dezelfde reden als opentLink: de
-   * plak-afhandeling zit vast aan de editor die maar één keer wordt opgebouwd.
+   * Wat er met de laatst geplakte link gebeurt (11-09-2026, uitgebreid
+   * 12-09-2026). Eerst "Titel ophalen…", want stilte terwijl er niets
+   * verandert leest als stuk. Lukt het niet, dan staat eronder waaróm en wat
+   * eraan te doen is. Via een ref aangeroepen om dezelfde reden als opentLink:
+   * de plak-afhandeling zit vast aan de editor die maar één keer wordt
+   * opgebouwd.
    */
-  const [linkUitleg, setLinkUitleg] = useState<string | null>(null);
-  const meldLinkUitleg = useRef<(tekst: string | null) => void>(() => {});
+  const [linkStand, setLinkStand] = useState<LinkStand>({ bezig: false, uitleg: null });
+  const meldLinkStand = useRef<(stand: LinkStand) => void>(() => {});
   useEffect(() => {
-    meldLinkUitleg.current = setLinkUitleg;
+    meldLinkStand.current = setLinkStand;
   }, []);
-
 
   // De plak-afhandeling hieronder heeft de editor nodig terwijl hij hem zelf
   // aan het opbouwen is; vandaar een ref in plaats van de variabele zelf.
   const editorRef = useRef<Editor | null>(null);
 
-  const editor = useEditor(
-    {
-      immediatelyRender: false,
-      extensions: [
-        StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-        Underline,
-        // openOnClick: een klik op een link opent hem gewoon, ook terwijl je in
-        // de tekst aan het werk bent (09-09-2026, gemeld door Maarten: "als je
-        // nu op een link klikt, dan ga je niet naar de pagina"). Altijd in een
-        // nieuw tabblad: in ditzelfde tabblad zou je de cockpit verlaten, en
-        // een tekst die net is gewijzigd wordt pas een seconde later opgeslagen.
-        LinkMetMerk.configure({
-          openOnClick: true,
-          autolink: true,
-          linkOnPaste: true,
-          HTMLAttributes: { target: "_blank", rel: "noreferrer" },
-        }),
-        TaskList,
-        VinkPunt.configure({ nested: true }),
-        Table.configure({ resizable: false }),
-        TableRow,
-        TableHeader,
-        TableCell,
-      ],
-      content: controle.gelijk ? markdownNaarHtml(waarde) : "",
-      editorProps: {
-        attributes: {
-          class: "opmaakvlak",
-          style: `min-height:${minHoogte}px`,
-        },
-        // Cmd+B, Cmd+I en Cmd+U komen uit de uitbreidingen zelf; Cmd+K niet,
-        // die zetten we hier.
-        handleKeyDown: (_view, event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-            event.preventDefault();
-            opentLink.current();
-            return true;
-          }
-          return false;
-        },
-        /**
-         * Een geplakte link krijgt de titel van de pagina als linktekst
-         * (09-09-2026, op verzoek: "ik wil gewoon de titel zien"). De link
-         * verschijnt meteen, met de url als tekst; zodra de titel binnen is
-         * wordt alleen die tekst vervangen. Lukt het opzoeken niet, dan blijft
-         * de link staan zoals je hem plakte.
-         *
-         * De controle vóór het vervangen kijkt of er op die plek nog steeds
-         * precies dezelfde url staat: heb je in de tussentijd doorgetypt of
-         * ergens anders geklikt, dan gebeurt er niets.
-         */
-        handlePaste: (_view, event) => {
-          const geplakt = event.clipboardData?.getData("text/plain")?.trim() ?? "";
-          if (!/^https?:\/\/\S+$/.test(geplakt)) return false;
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      Underline,
+      // openOnClick: een klik op een link opent hem gewoon, ook terwijl je in
+      // de tekst aan het werk bent (09-09-2026, gemeld door Maarten: "als je
+      // nu op een link klikt, dan ga je niet naar de pagina"). Altijd in een
+      // nieuw tabblad: in ditzelfde tabblad zou je de cockpit verlaten, en
+      // een tekst die net is gewijzigd wordt pas een seconde later opgeslagen.
+      LinkMetMerk.configure({
+        openOnClick: true,
+        autolink: true,
+        linkOnPaste: true,
+        HTMLAttributes: { target: "_blank", rel: "noreferrer" },
+      }),
+      TaskList,
+      VinkPunt.configure({ nested: true }),
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
+    ],
+    content: controle.gelijk ? markdownNaarHtml(beginWaarde) : "",
+    editorProps: {
+      attributes: {
+        class: "opmaakvlak",
+        style: `min-height:${minHoogte}px`,
+      },
+      // Cmd+B, Cmd+I en Cmd+U komen uit de uitbreidingen zelf; Cmd+K niet,
+      // die zetten we hier.
+      handleKeyDown: (_view, event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
           event.preventDefault();
+          opentLink.current();
+          return true;
+        }
+        return false;
+      },
+      /**
+       * Een geplakte link krijgt de titel van de pagina als linktekst
+       * (09-09-2026, op verzoek: "ik wil gewoon de titel zien"). De link
+       * verschijnt meteen, met de url als tekst; zodra de titel binnen is
+       * wordt alleen die tekst vervangen. Lukt het opzoeken niet, dan blijft
+       * de link staan zoals je hem plakte en staat eronder waarom.
+       *
+       * De controle vóór het vervangen kijkt of er op die plek nog steeds een
+       * link naar hetzelfde adres staat met de url als tekst. Heb je in de
+       * tussentijd die tekst zelf aangepast, dan gebeurt er niets.
+       *
+       * Bewust GEEN .focus() bij het terugzetten van de titel: het opzoeken
+       * duurt tot drie seconden, en in die tijd kun je allang in een ander
+       * veld bezig zijn. De cursor in dit veld schuift vanzelf mee met de
+       * vervanging.
+       */
+      handlePaste: (_view, event) => {
+        const geplakt = event.clipboardData?.getData("text/plain")?.trim() ?? "";
+        if (!/^https?:\/\/\S+$/.test(geplakt)) return false;
 
-          const editorNu = editorRef.current;
-          if (!editorNu) return false;
-          editorNu
-            .chain()
-            .focus()
-            .insertContent({
-              type: "text",
-              text: geplakt,
-              marks: [{ type: "link", attrs: { href: geplakt } }],
-            })
-            .run();
+        const editorNu = editorRef.current;
+        // Geen editor (of net weggegooid): niets doen en de browser gewoon
+        // laten plakken. Eerst preventDefault en dan alsnog afhaken zou de
+        // geplakte tekst laten verdwijnen.
+        if (!editorNu || editorNu.isDestroyed) return false;
+        event.preventDefault();
 
-          meldLinkUitleg.current(null);
-          void titelVanLinkAction(geplakt).then(({ titel, uitleg }) => {
+        editorNu
+          .chain()
+          .focus()
+          .insertContent({
+            type: "text",
+            text: geplakt,
+            marks: [{ type: "link", attrs: { href: geplakt } }],
+          })
+          .run();
+
+        meldLinkStand.current({ bezig: true, uitleg: null });
+        void titelVanLinkAction(geplakt)
+          .then(({ titel, uitleg }) => {
             const e = editorRef.current;
-            if (!e) return;
+            if (!e || e.isDestroyed) return;
             if (!titel || titel === geplakt) {
-              // Geen titel is geen stilte meer: er staat nu bij waaróm, en wat
+              // Geen titel is geen stilte: er staat nu bij waaróm, en wat
               // eraan te doen is (11-09-2026, zie link-acties.ts).
-              meldLinkUitleg.current(uitleg);
+              meldLinkStand.current({ bezig: false, uitleg });
               return;
             }
             const plek = zoekKaleLink(e, geplakt);
+            meldLinkStand.current({ bezig: false, uitleg: null });
             if (!plek) return;
             e.chain()
-              .focus()
               .command(({ tr }) => {
                 tr.insertText(titel, plek.van, plek.tot);
                 tr.addMark(
@@ -278,17 +320,74 @@ export default function Opmaakveld({
                 return true;
               })
               .run();
-          });
-          return true;
-        },
+          })
+          .catch(() => meldLinkStand.current({ bezig: false, uitleg: null }));
+        return true;
       },
-      onCreate: ({ editor: e }) => {
-        editorRef.current = e as Editor;
-      },
-      onUpdate: ({ editor: e }) => setMarkdown(htmlNaarMarkdown(e.getHTML())),
     },
-    [waarde, controle.gelijk],
+    onCreate: ({ editor: e }) => {
+      editorRef.current = e as Editor;
+    },
+    onUpdate: ({ editor: e }) => setMarkdown(htmlNaarMarkdown(e.getHTML())),
+  });
+
+  /**
+   * Tekst die van buiten komt terwijl je in dit veld aan het werk bent. Die
+   * wordt bewaard tot je het veld verlaat, want midden in het typen de inhoud
+   * vervangen is precies het gedrag dat hier weg moest.
+   */
+  const wachtendeTekst = useRef<string | null>(null);
+
+  const zetExterneTekst = useCallback(
+    (tekst: string) => {
+      const e = editorRef.current;
+      if (!e || e.isDestroyed) return;
+      const check = rondlopen(tekst);
+      eigenTekst.current = tekst;
+      // Bewust niet via setMarkdown: dit is geen wijziging van de gebruiker,
+      // dus er hoeft ook niets opnieuw opgeslagen te worden.
+      zetMarkdownRuw(tekst);
+      if (check.gelijk) {
+        e.commands.setContent(markdownNaarHtml(tekst), false);
+        setModus("opgemaakt");
+      } else {
+        setModus("bron");
+      }
+    },
+    [],
   );
+
+  /**
+   * Alleen echte wijzigingen van buiten overnemen. Komt de tekst terug zoals
+   * wij hem net hebben weggeschreven (dat doet de takenlijst na elke
+   * automatische opslag), dan gebeurt er niets.
+   */
+  useEffect(() => {
+    if (!editor) return;
+    if (waarde === eigenTekst.current) return;
+    if (editor.isFocused) {
+      wachtendeTekst.current = waarde;
+      return;
+    }
+    // Hier hoort een prop naar een systeem buiten React (de editor) gebracht
+    // te worden. De regels hierboven zorgen dat dat alleen gebeurt bij een
+    // échte wijziging van buiten, dus niet bij elke render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    zetExterneTekst(waarde);
+  }, [waarde, editor, zetExterneTekst]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const bijVerlaten = () => {
+      const tekst = wachtendeTekst.current;
+      wachtendeTekst.current = null;
+      if (tekst !== null && tekst !== eigenTekst.current) zetExterneTekst(tekst);
+    };
+    editor.on("blur", bijVerlaten);
+    return () => {
+      editor.off("blur", bijVerlaten);
+    };
+  }, [editor, zetExterneTekst]);
 
   /**
    * Wisselen tussen opgemaakt en broncode. Van broncode terug naar opgemaakt
@@ -300,14 +399,8 @@ export default function Opmaakveld({
       setModus("bron");
       return;
     }
-    const huidig = bronVeld.current?.value ?? markdown;
-    const check = rondlopen(huidig);
-    if (!check.gelijk) {
-      setMarkdown(huidig);
-      return;
-    }
-    setMarkdown(huidig);
-    editor?.commands.setContent(markdownNaarHtml(huidig));
+    if (!rondlopen(markdown).gelijk) return;
+    editor?.commands.setContent(markdownNaarHtml(markdown), false);
     setModus("opgemaakt");
   }
 
@@ -399,25 +492,40 @@ export default function Opmaakveld({
         </div>
       )}
 
-      {modus === "opgemaakt" ? (
+      {/*
+        Allebei blijven staan, alleen de niet-actieve is verborgen. Zou de
+        editor uit de boom gehaald worden, dan gooit @tiptap/react hem weg en
+        ben je bij het terugschakelen je cursor en je opmaak-toestand kwijt.
+      */}
+      <div hidden={modus !== "opgemaakt"}>
         <EditorContent editor={editor} />
-      ) : (
+      </div>
+      {modus === "bron" && (
         <textarea
-          ref={bronVeld}
           className="opmaakbron"
-          defaultValue={markdown}
+          value={markdown}
           placeholder={plaatshouder}
           style={{ minHeight: minHoogte }}
           onChange={(e) => setMarkdown(e.target.value)}
         />
       )}
 
-      {linkUitleg && (
+      {(linkStand.bezig || linkStand.uitleg) && (
         <p className="opmaakveld-uitleg" role="status">
-          {linkUitleg}{" "}
-          <button type="button" className="opmaakveld-uitleg-weg" onClick={() => setLinkUitleg(null)}>
-            Sluiten
-          </button>
+          {linkStand.bezig ? (
+            "Titel van de link ophalen…"
+          ) : (
+            <>
+              {linkStand.uitleg}{" "}
+              <button
+                type="button"
+                className="opmaakveld-uitleg-weg"
+                onClick={() => setLinkStand({ bezig: false, uitleg: null })}
+              >
+                Sluiten
+              </button>
+            </>
+          )}
         </p>
       )}
 
